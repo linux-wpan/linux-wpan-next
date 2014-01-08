@@ -171,6 +171,15 @@
 			0x1c (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad7.mmc1_dat7 */
 		>;
 	};
+	spi1_pins: pinmux_spi1_pins {
+		pinctrl-single,pins = <
+			0x190 0x33      /* mcasp0_aclkx.spi1_sclk, INPUT_PULLUP | MODE3 (special mode input for clock) */
+			0x194 0x33      /* mcasp0_fsx.spi1_d0, INPUT_PULLUP | MODE3 */
+			0x198 0x13      /* mcasp0_axr0.spi1_d1, OUTPUT_PULLUP | MODE3 */
+			0x19c 0x13      /* mcasp0_ahclkr.spi1_cs0, OUTPUT_PULLUP | MODE3 */
+			0x1a4 0x2f      /* mcasp0_fsr.gpio3_19, INPUT, PULL DISABLED | MODE7 */
+		>;
+	};
 };
 
 &uart0 {
@@ -296,4 +305,17 @@
 	pinctrl-0 = <&mmc1_pins>;
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	at86rf231@0 {
+		compatible = "atmel,at86rf231";
+		spi-max-frequency = <7500000>;
+		reg = <0>;
+		interrupts = <19 1>;
+		interrupt-parent = <&gpio3>;
+	};
 };
