@@ -557,11 +557,12 @@ at86rf230_state(struct ieee802154_dev *dev, int state)
 	    (desired_status == STATE_RX_AACK_ON && val == STATE_BUSY_RX_AACK))
 		return 0;
 
-	pr_err("unexpected state change: %d, asked for %d\n", val, state);
+	dev_err(&lp->spi->dev, "unexpected state change: %d, asked for %d\n",
+		val, state);
 	return -EBUSY;
 
 err:
-	pr_err("error: %d\n", rc);
+	dev_err(&lp->spi->dev, "error: %d\n", rc);
 	return rc;
 }
 
@@ -699,7 +700,7 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 err_rx:
 	at86rf230_start(dev);
 err:
-	pr_err("error: %d\n", rc);
+	dev_err(&lp->spi->dev, "error: %d\n", rc);
 
 	spin_lock_irqsave(&lp->lock, flags);
 	lp->is_tx = 0;
@@ -732,7 +733,7 @@ static int at86rf230_rx(struct at86rf230_local *lp)
 
 	return 0;
 err:
-	pr_debug("received frame is too small\n");
+	dev_dbg(&lp->spi->dev, "received frame is too small\n");
 
 	kfree_skb(skb);
 	return -EINVAL;
