@@ -51,9 +51,12 @@ struct at86rf230_local {
 
 	struct ieee802154_dev *dev;
 
-	spinlock_t lock;
 	bool irq_busy;
+	/* lock for irq_busy */
+	spinlock_t busy_lock;
 	bool is_tx;
+	/* lock for is_tx */
+	spinlock_t tx_lock;
 	bool tx_aret;
 
 	int rssi_base_val;
@@ -658,12 +661,12 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	int rc;
 	unsigned long flags;
 
-	spin_lock_irqsave(&lp->lock, flags);
+	spin_lock_irqsave(&lp->busy_lock, flags);
 	if  (lp->irq_busy) {
-		spin_unlock_irqrestore(&lp->lock, flags);
+		spin_unlock_irqrestore(&lp->busy_lock, flags);
 		return -EBUSY;
 	}
-	spin_unlock_irqrestore(&lp->lock, flags);
+	spin_unlock_irqrestore(&lp->busy_lock, flags);
 
 	might_sleep();
 
@@ -671,10 +674,10 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (rc)
 		goto err;
 
-	spin_lock_irqsave(&lp->lock, flags);
+	spin_lock(&lp->tx_lock);
 	lp->is_tx = 1;
 	reinit_completion(&lp->tx_complete);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	spin_unlock(&lp->tx_lock);
 
 	rc = at86rf230_write_fbuf(lp, skb->data, skb->len);
 	if (rc)
@@ -703,9 +706,9 @@ err_rx:
 err:
 	dev_err(&lp->spi->dev, "error: %d\n", rc);
 
-	spin_lock_irqsave(&lp->lock, flags);
+	spin_lock(&lp->tx_lock);
 	lp->is_tx = 0;
-	spin_unlock_irqrestore(&lp->lock, flags);
+	spin_unlock(&lp->tx_lock);
 
 	return rc;
 }
@@ -918,20 +921,20 @@ static void at86rf230_irqwork(struct work_struct *work)
 
 	if (status & IRQ_TRX_END) {
 		status &= ~IRQ_TRX_END;
-		spin_lock_irqsave(&lp->lock, flags);
+		spin_lock(&lp->tx_lock);
 		if (lp->is_tx) {
 			lp->is_tx = 0;
-			spin_unlock_irqrestore(&lp->lock, flags);
+			spin_unlock(&lp->tx_lock);
 			complete(&lp->tx_complete);
 		} else {
-			spin_unlock_irqrestore(&lp->lock, flags);
+			spin_unlock(&lp->tx_lock);
 			at86rf230_rx(lp);
 		}
 	}
 
-	spin_lock_irqsave(&lp->lock, flags);
+	spin_lock_irqsave(&lp->busy_lock, flags);
 	lp->irq_busy = 0;
-	spin_unlock_irqrestore(&lp->lock, flags);
+	spin_unlock_irqrestore(&lp->busy_lock, flags);
 }
 
 static void at86rf230_irqwork_level(struct work_struct *work)
@@ -949,9 +952,9 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	struct at86rf230_local *lp = data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&lp->lock, flags);
+	spin_lock_irqsave(&lp->busy_lock, flags);
 	lp->irq_busy = 1;
-	spin_unlock_irqrestore(&lp->lock, flags);
+	spin_unlock_irqrestore(&lp->busy_lock, flags);
 
 	schedule_work(&lp->irqwork);
 
@@ -1168,7 +1171,8 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	mutex_init(&lp->bmux);
 	INIT_WORK(&lp->irqwork, irq_worker);
-	spin_lock_init(&lp->lock);
+	spin_lock_init(&lp->busy_lock);
+	spin_lock_init(&lp->tx_lock);
 	init_completion(&lp->tx_complete);
 
 	spi_set_drvdata(spi, lp);
