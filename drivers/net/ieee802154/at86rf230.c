@@ -264,7 +264,7 @@ __at86rf230_detect_device(struct spi_device *spi, u16 *man_id, u8 *part,
 		u8 *version)
 {
 	u8 data[4];
-	u8 *buf = kmalloc(2, GFP_KERNEL);
+	u8 buf[2];
 	int status;
 	struct spi_message msg;
 	struct spi_transfer xfer = {
@@ -273,9 +273,6 @@ __at86rf230_detect_device(struct spi_device *spi, u16 *man_id, u8 *part,
 		.rx_buf	= buf,
 	};
 	u8 reg;
-
-	if (!buf)
-		return -ENOMEM;
 
 	for (reg = RG_PART_NUM; reg <= RG_MAN_ID_1; reg++) {
 		buf[0] = (reg & CMD_REG_MASK) | CMD_REG;
@@ -304,8 +301,6 @@ __at86rf230_detect_device(struct spi_device *spi, u16 *man_id, u8 *part,
 		*version = data[1];
 		*man_id = (data[3] << 8) | data[2];
 	}
-
-	kfree(buf);
 
 	return status;
 }
