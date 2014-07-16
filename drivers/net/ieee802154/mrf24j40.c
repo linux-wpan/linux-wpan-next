@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <net/wpan-phy.h>
 #include <net/mac802154.h>
-#include <net/ieee802154.h>
+#include <net/ieee802154/dev.h>
 
 /* MRF24J40 Short Address Registers */
 #define REG_RXMCR    0x00  /* Receive MAC control */
@@ -542,7 +542,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	val |= 4; /* SET RXDECINV */
 	write_short_reg(devrec, REG_BBREG1, val);
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = alloc_ieee802154_skb();
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;

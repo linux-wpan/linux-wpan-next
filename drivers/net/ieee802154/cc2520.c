@@ -24,7 +24,7 @@
 
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
-#include <net/ieee802154.h>
+#include <net/ieee802154/dev.h>
 
 #define	SPI_COMMAND_BUFFER	3
 #define	HIGH			1
@@ -524,7 +524,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 	if (len < 2 || len > IEEE802154_MTU)
 		return -EINVAL;
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = alloc_ieee802154_skb();
 	if (!skb)
 		return -ENOMEM;
 
