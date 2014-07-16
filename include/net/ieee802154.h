@@ -28,6 +28,8 @@
 #define NET_IEEE802154_H
 
 #define IEEE802154_MTU			127
+/* IEEE 802.15.4 minimum pdu size	(FC + SN + FCS) */
+#define IEEE802154_MIN_SIZE		(2  + 1  + 2)
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
