@@ -86,10 +86,25 @@ void mac802154_monitors_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
+static void
+mac802154_monitor_rx_flags(struct net_device *dev, int change)
+{
+	struct mac802154_sub_if_data *sdata = netdev_priv(dev);
+	struct mac802154_priv *priv = sdata->hw;
+
+	if (change & IFF_PROMISC) {
+		if (priv->ops->set_promiscous_mode &&
+		    priv->hw.flags & IEEE802154_HW_PROMISCOUS)
+			priv->ops->set_promiscous_mode(&priv->hw,
+						       dev->flags & IFF_PROMISC);
+	}
+}
+
 static const struct net_device_ops mac802154_monitor_ops = {
 	.ndo_open		= mac802154_slave_open,
 	.ndo_stop		= mac802154_slave_close,
 	.ndo_start_xmit		= mac802154_monitor_xmit,
+	.ndo_change_rx_flags    = mac802154_monitor_rx_flags,
 };
 
 void mac802154_monitor_setup(struct net_device *dev)
