@@ -94,8 +94,8 @@ struct ieee802154_dev {
 /* Indicates that transceiver will support ARET frame retries setting. */
 #define	IEEE802154_HW_FRAME_RETRIES	0x00000080
 
-/* This groups the most common CSMA support fields into one. */
-#define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \
+/* This groups the most common HW ARET support fields into one. */
+#define IEEE802154_HW_ARET		(IEEE802154_HW_CCA_MODE | \
 					 IEEE802154_HW_CCA_ED_LEVEL | \
 					 IEEE802154_HW_CSMA_PARAMS | \
 					 IEEE802154_HW_FRAME_RETRIES)

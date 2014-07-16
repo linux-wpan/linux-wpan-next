@@ -1398,7 +1398,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 
 	lp->dev->extra_tx_headroom = 0;
 	lp->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
-			 IEEE802154_HW_TXPOWER | IEEE802154_HW_CSMA;
+			 IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET;
 
 	switch (part) {
 	case 2:
