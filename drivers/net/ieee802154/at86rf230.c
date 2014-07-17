@@ -88,6 +88,7 @@ struct at86rf230_local {
 
 	struct at86rf230_state_change irq;
 
+	bool promisc;
 	bool tx_aret;
 	bool is_tx;
 	/* spinlock for is_tx protection */
@@ -806,35 +807,51 @@ at86rf230_rx_read_frame_complete(void *context)
 	at86rf230_rx(lp, buf + 2, len - 2, buf[2 + len]);
 }
 
-static int
-at86rf230_rx_read_frame(struct at86rf230_local *lp)
+static void
+at86rf230_rx_read_frame(void *context)
 {
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
 	u8 *buf = lp->irq.buf;
+	int rc;
 
 	buf[0] = CMD_FB;
 	lp->irq.trx.len = AT86RF2XX_MAX_BUF;
 	lp->irq.msg.complete = at86rf230_rx_read_frame_complete;
-	return spi_async(lp->spi, &lp->irq.msg);
+	rc = spi_async(lp->spi, &lp->irq.msg);
+	if (rc) {
+		enable_irq(lp->spi->irq);
+		at86rf230_async_error(lp, ctx, rc);
+	}
+}
+
+static void
+at86rf230_rx_crc_check(void *context)
+{
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
+	const u8 *buf = ctx->buf;
+	const u8 valid = (buf[1] & 0x80) >> 7;
+
+	if (!valid) {
+		/* don't accept frame */
+		enable_irq(lp->spi->irq);
+		return;
+	}
+
+	at86rf230_rx_read_frame(ctx);
 }
 
 static void
 at86rf230_rx_trac_check(void *context)
 {
-	struct at86rf230_state_change *ctx = context;
-	struct at86rf230_local *lp = ctx->lp;
-	int rc;
-
 	/* Possible check on trac status here. This could be useful to make
 	 * some stats why receive is failed. Not used at the moment, but it's
 	 * maybe timing relevant. Datasheet doesn't say anything about this.
 	 * The programming guide say do it so.
 	 */
 
-	rc = at86rf230_rx_read_frame(lp);
-	if (rc) {
-		enable_irq(lp->spi->irq);
-		at86rf230_async_error(lp, ctx, rc);
-	}
+	at86rf230_rx_read_frame(context);
 }
 
 static int
@@ -856,8 +873,12 @@ at86rf230_irq_trx_end(struct at86rf230_local *lp)
 							    at86rf230_tx_complete);
 	} else {
 		spin_unlock(&lp->lock);
-		return at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
-						at86rf230_rx_trac_check);
+		if (lp->promisc)
+			return at86rf230_async_read_reg(lp, RG_PHY_RSSI, &lp->irq,
+							at86rf230_rx_crc_check);
+		else
+			return at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
+							at86rf230_rx_trac_check);
 	}
 }
 
@@ -1222,6 +1243,39 @@ at86rf230_set_frame_retries(struct ieee802154_dev *dev, s8 retries)
 	return rc;
 }
 
+static int
+at86rf230_set_promiscous_mode(struct ieee802154_dev *dev, bool on)
+{
+	struct at86rf230_local *lp = dev->priv;
+	int rc = 0;
+
+	if (on && !lp->promisc) {
+		rc = at86rf230_write_subreg(lp, SR_AACK_DIS_ACK, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = at86rf230_write_subreg(lp, SR_AACK_PROM_MODE, 1);
+		if (rc < 0)
+			return rc;
+
+		lp->promisc = true;
+	}
+
+	if (!on && lp->promisc) {
+		rc = at86rf230_write_subreg(lp, SR_AACK_PROM_MODE, 0);
+		if (rc < 0)
+			return rc;
+
+		rc = at86rf230_write_subreg(lp, SR_AACK_DIS_ACK, 0);
+		if (rc < 0)
+			return rc;
+
+		lp->promisc = false;
+	}
+
+	return rc;
+}
+
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit = at86rf230_xmit,
@@ -1236,6 +1290,7 @@ static struct ieee802154_ops at86rf230_ops = {
 	.set_cca_ed_level = at86rf230_set_cca_ed_level,
 	.set_csma_params = at86rf230_set_csma_params,
 	.set_frame_retries = at86rf230_set_frame_retries,
+	.set_promiscous_mode = at86rf230_set_promiscous_mode,
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
@@ -1398,7 +1453,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 
 	lp->dev->extra_tx_headroom = 0;
 	lp->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
-			 IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET;
+			 IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
+			 IEEE802154_HW_PROMISCOUS;
 
 	switch (part) {
 	case 2:
