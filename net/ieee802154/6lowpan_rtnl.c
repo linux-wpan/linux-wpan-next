@@ -129,15 +129,15 @@ static int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,
 	/* if the destination address is the broadcast address, use the
 	 * corresponding short address
 	 */
-	if (lowpan_is_addr_broadcast(daddr)) {
+	if (!memcmp(daddr, dev->broadcast, IEEE802154_ADDR_LEN)) {
+		cb->ackreq = false;
 		da.mode = IEEE802154_ADDR_SHORT;
 		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 	} else {
+		cb->ackreq = true;
 		da.mode = IEEE802154_ADDR_LONG;
 		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
 	}
-
-	cb->ackreq = !lowpan_is_addr_broadcast(daddr);
 
 	return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
 			type, (void *)&da, (void *)&sa, 0);
