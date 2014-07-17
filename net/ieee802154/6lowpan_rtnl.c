@@ -178,10 +178,10 @@ static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	if (skb->len < 2)
 		goto drop;
 
-	if (lowpan_fetch_skb_u8(skb, &iphc0))
+	if (lowpan_fetch_skb(skb, &iphc0, sizeof(iphc0)))
 		goto drop;
 
-	if (lowpan_fetch_skb_u8(skb, &iphc1))
+	if (lowpan_fetch_skb(skb, &iphc1, sizeof(iphc1)))
 		goto drop;
 
 	ieee802154_addr_to_sa(&sa, &hdr->source);
