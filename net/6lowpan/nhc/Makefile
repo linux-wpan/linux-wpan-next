@@ -5,4 +5,5 @@ nhc-y := core.o \
 	 hop.o \
 	 route.o \
 	 frag.o \
-	 dest.o
+	 dest.o \
+	 mobil.o
