@@ -6,4 +6,5 @@ nhc-y := core.o \
 	 route.o \
 	 frag.o \
 	 dest.o \
-	 mobil.o
+	 mobil.o \
+	 ipv6.o

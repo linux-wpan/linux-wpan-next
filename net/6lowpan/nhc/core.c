@@ -21,6 +21,7 @@
 #include "frag.h"
 #include "dest.h"
 #include "mobil.h"
+#include "ipv6.h"
 
 static struct rb_root rb_root = RB_ROOT;
 static struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX];
@@ -203,9 +204,15 @@ int lowpan_init_nhc(void)
 	ret = lowpan_init_nhc_mobil();
 	if (ret < 0)
 		goto mobil_fail;
+
+	ret = lowpan_init_nhc_ipv6();
+	if (ret < 0)
+		goto ipv6_fail;
 out:
 	return ret;
 
+ipv6_fail:
+	lowpan_cleanup_nhc_mobil();
 mobil_fail:
 	lowpan_cleanup_nhc_dest();
 dest_fail:
@@ -227,4 +234,5 @@ void lowpan_cleanup_nhc(void)
 	lowpan_cleanup_nhc_frag();
 	lowpan_cleanup_nhc_dest();
 	lowpan_cleanup_nhc_mobil();
+	lowpan_cleanup_nhc_ipv6();
 }
