@@ -4,4 +4,5 @@ nhc-y := core.o \
 	 udp.o \
 	 hop.o \
 	 route.o \
-	 frag.o
+	 frag.o \
+	 dest.o
