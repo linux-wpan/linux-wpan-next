@@ -15,6 +15,7 @@
 #include <net/ipv6.h>
 
 #include "core.h"
+#include "udp.h"
 
 static struct rb_root rb_root = RB_ROOT;
 static struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX];
@@ -172,9 +173,10 @@ EXPORT_SYMBOL(lowpan_del_nhc);
 
 int lowpan_init_nhc(void)
 {
-	return 0;
+	return lowpan_init_nhc_udp();
 }
 
 void lowpan_cleanup_nhc(void)
 {
+	lowpan_cleanup_nhc_udp();
 }
