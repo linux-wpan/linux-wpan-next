@@ -17,6 +17,7 @@
 #include "core.h"
 #include "udp.h"
 #include "hop.h"
+#include "route.h"
 
 static struct rb_root rb_root = RB_ROOT;
 static struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX];
@@ -183,9 +184,15 @@ int lowpan_init_nhc(void)
 	ret = lowpan_init_nhc_hop();
 	if (ret < 0)
 		goto hop_fail;
+
+	ret = lowpan_init_nhc_route();
+	if (ret < 0)
+		goto route_fail;
 out:
 	return ret;
 
+route_fail:
+	lowpan_cleanup_nhc_hop();
 hop_fail:
 	lowpan_cleanup_nhc_udp();
 	goto out;
@@ -195,4 +202,5 @@ void lowpan_cleanup_nhc(void)
 {
 	lowpan_cleanup_nhc_udp();
 	lowpan_cleanup_nhc_hop();
+	lowpan_cleanup_nhc_route();
 }
