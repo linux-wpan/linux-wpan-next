@@ -31,28 +31,28 @@
 
 int mac802154_slave_open(struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	struct mac802154_sub_if_data *subif;
-	struct ieee802154_local *local = priv->hw;
+	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *subif;
+	struct ieee802154_local *local = sdata->hw;
 	int res = 0;
 
 	ASSERT_RTNL();
 
-	if (priv->type == NL802154_IFTYPE_NODE) {
-		mutex_lock(&priv->hw->slaves_mtx);
-		list_for_each_entry(subif, &priv->hw->slaves, list) {
-			if (subif != priv && subif->type == priv->type &&
+	if (sdata->type == NL802154_IFTYPE_NODE) {
+		mutex_lock(&sdata->hw->slaves_mtx);
+		list_for_each_entry(subif, &sdata->hw->slaves, list) {
+			if (subif != sdata && subif->type == sdata->type &&
 			    subif->running) {
-				mutex_unlock(&priv->hw->slaves_mtx);
+				mutex_unlock(&sdata->hw->slaves_mtx);
 				return -EBUSY;
 			}
 		}
-		mutex_unlock(&priv->hw->slaves_mtx);
+		mutex_unlock(&sdata->hw->slaves_mtx);
 	}
 
-	mutex_lock(&priv->hw->slaves_mtx);
-	priv->running = true;
-	mutex_unlock(&priv->hw->slaves_mtx);
+	mutex_lock(&sdata->hw->slaves_mtx);
+	sdata->running = true;
+	mutex_unlock(&sdata->hw->slaves_mtx);
 
 	if (local->open_count++ == 0) {
 		res = local->ops->start(&local->hw);
@@ -74,23 +74,23 @@ int mac802154_slave_open(struct net_device *dev)
 	netif_start_queue(dev);
 	return 0;
 err:
-	priv->hw->open_count--;
+	sdata->hw->open_count--;
 
 	return res;
 }
 
 int mac802154_slave_close(struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	struct ieee802154_local *local = priv->hw;
+	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_local *local = sdata->hw;
 
 	ASSERT_RTNL();
 
 	netif_stop_queue(dev);
 
-	mutex_lock(&priv->hw->slaves_mtx);
-	priv->running = false;
-	mutex_unlock(&priv->hw->slaves_mtx);
+	mutex_lock(&sdata->hw->slaves_mtx);
+	sdata->running = false;
+	mutex_unlock(&sdata->hw->slaves_mtx);
 
 	if (!--local->open_count)
 		local->ops->stop(&local->hw);
@@ -101,15 +101,15 @@ int mac802154_slave_close(struct net_device *dev)
 static int
 mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv;
+	struct ieee802154_sub_if_data *sdata;
 	struct ieee802154_local *local;
 	int err;
 
 	local = wpan_phy_priv(phy);
 
-	priv = netdev_priv(dev);
-	priv->dev = dev;
-	priv->hw = local;
+	sdata = netdev_priv(dev);
+	sdata->dev = dev;
+	sdata->hw = local;
 
 	dev->needed_headroom = local->hw.extra_tx_headroom;
 
@@ -128,7 +128,7 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 
 	rtnl_lock();
 	mutex_lock(&local->slaves_mtx);
-	list_add_tail_rcu(&priv->list, &local->slaves);
+	list_add_tail_rcu(&sdata->list, &local->slaves);
 	mutex_unlock(&local->slaves_mtx);
 	rtnl_unlock();
 
@@ -138,7 +138,7 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 static void
 mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 {
-	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata;
 
 	ASSERT_RTNL();
 
@@ -162,7 +162,7 @@ mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
 
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
-		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
+		dev = alloc_netdev(sizeof(struct ieee802154_sub_if_data),
 				   name, NET_NAME_UNKNOWN,
 				   mac802154_wpan_setup);
 		break;
@@ -377,7 +377,7 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = mac802154_to_priv(hw);
-	struct mac802154_sub_if_data *sdata, *next;
+	struct ieee802154_sub_if_data *sdata, *next;
 
 	flush_workqueue(local->dev_workqueue);
 	destroy_workqueue(local->dev_workqueue);
