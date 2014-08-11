@@ -53,13 +53,13 @@ struct rx_work {
 static void
 mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(hw);
+	struct ieee802154_local *local = mac802154_to_priv(hw);
 
 	mac_cb(skb)->lqi = lqi;
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
 
-	if (!(priv->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc;
 
 		if (skb->len < 2) {
@@ -74,7 +74,7 @@ mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
-	mac802154_wpans_rx(priv, skb);
+	mac802154_wpans_rx(local, skb);
 
 	return;
 
@@ -93,7 +93,7 @@ static void mac802154_rx_worker(struct work_struct *work)
 void
 ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(hw);
+	struct ieee802154_local *local = mac802154_to_priv(hw);
 	struct rx_work *work;
 
 	if (!skb)
@@ -108,6 +108,6 @@ ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 	work->hw = hw;
 	work->lqi = lqi;
 
-	queue_work(priv->dev_workqueue, &work->work);
+	queue_work(local->dev_workqueue, &work->work);
 }
 EXPORT_SYMBOL(ieee802154_rx_irqsafe);
