@@ -74,7 +74,6 @@ mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
-	mac802154_monitors_rx(priv, skb);
 	mac802154_wpans_rx(priv, skb);
 
 	return;
