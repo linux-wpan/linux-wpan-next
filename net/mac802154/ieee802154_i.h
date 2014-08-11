@@ -101,9 +101,13 @@ struct ieee802154_local {
 #define	MAC802154_DEVICE_STOPPED	0x00
 #define MAC802154_DEVICE_RUN		0x01
 
-#define mac802154_to_priv(_hw)	container_of(_hw, struct ieee802154_local, hw)
-
 #define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
+
+static inline struct ieee802154_local *
+hw_to_local(struct ieee802154_hw *hw)
+{
+	return container_of(hw, struct ieee802154_local, hw);
+}
 
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
