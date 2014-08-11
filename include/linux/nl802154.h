@@ -182,4 +182,4 @@ enum nl802154_iftype {
 	NL802154_IFTYPE_MAX = NUM_NL802154_IFTYPES - 1
 };
 
-#endif
+#endif /* NL802154_H */
