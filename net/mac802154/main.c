@@ -38,7 +38,7 @@ int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (priv->type == IEEE802154_DEV_WPAN) {
+	if (priv->type == NL802154_IFTYPE_NODE) {
 		mutex_lock(&priv->hw->slaves_mtx);
 		list_for_each_entry(subif, &priv->hw->slaves, list) {
 			if (subif != priv && subif->type == priv->type &&
@@ -161,7 +161,7 @@ mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
 	int err = -ENOMEM;
 
 	switch (type) {
-	case IEEE802154_DEV_WPAN:
+	case NL802154_IFTYPE_NODE:
 		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
 				   name, NET_NAME_UNKNOWN,
 				   mac802154_wpan_setup);

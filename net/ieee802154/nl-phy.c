@@ -176,7 +176,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	const char *devname;
 	int rc = -ENOBUFS;
 	struct net_device *dev;
-	int type = __IEEE802154_DEV_INVALID;
+	enum nl802154_iftype type = NL802154_IFTYPE_UNSPEC;
 
 	pr_debug("%s\n", __func__);
 
@@ -221,7 +221,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[IEEE802154_ATTR_DEV_TYPE]) {
 		type = nla_get_u8(info->attrs[IEEE802154_ATTR_DEV_TYPE]);
-		if (type >= __IEEE802154_DEV_MAX) {
+		if (type > NL802154_IFTYPE_MAX) {
 			rc = -EINVAL;
 			goto nla_put_failure;
 		}

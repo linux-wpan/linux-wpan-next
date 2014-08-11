@@ -389,7 +389,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 	dev->ml_priv		= &mac802154_mlme_wpan;
 
 	priv = netdev_priv(dev);
-	priv->type = IEEE802154_DEV_WPAN;
+	priv->type = NL802154_IFTYPE_NODE;
 
 	priv->chan = MAC802154_CHAN_NONE;
 	priv->page = 0;
@@ -580,7 +580,7 @@ void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &priv->slaves, list) {
-		if (sdata->type != IEEE802154_DEV_WPAN ||
+		if (sdata->type != NL802154_IFTYPE_NODE ||
 		    !netif_running(sdata->dev))
 			continue;
 
