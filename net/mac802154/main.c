@@ -230,6 +230,29 @@ static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
 	return local->ops->set_frame_retries(&local->hw, retries);
 }
 
+static void ieee802154_tasklet_handler(unsigned long data)
+{
+	struct ieee802154_local *local = (struct ieee802154_local *)data;
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&local->skb_queue))) {
+		switch (skb->pkt_type) {
+		case IEEE802154_RX_MSG:
+			/* Clear skb->pkt_type in order to not confuse kernel
+			 * netstack.
+			 */
+			skb->pkt_type = 0;
+			ieee802154_rx(&local->hw, skb);
+			break;
+		default:
+			WARN(1, "mac80211: Packet is of unknown type %d\n",
+			     skb->pkt_type);
+			kfree_skb(skb);
+			break;
+		}
+	}
+}
+
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 {
@@ -277,6 +300,12 @@ ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 
 	INIT_LIST_HEAD(&local->slaves);
 	mutex_init(&local->slaves_mtx);
+
+	tasklet_init(&local->tasklet,
+		     ieee802154_tasklet_handler,
+		     (unsigned long)local);
+
+	skb_queue_head_init(&local->skb_queue);
 
 	return &local->hw;
 }
@@ -379,6 +408,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata, *next;
 
+	tasklet_kill(&local->tasklet);
 	flush_workqueue(local->dev_workqueue);
 	destroy_workqueue(local->dev_workqueue);
 
