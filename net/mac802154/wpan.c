@@ -129,9 +129,9 @@ int mac802154_set_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->mac_params = *params;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	return 0;
 }
@@ -141,9 +141,9 @@ void mac802154_get_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	*params = sdata->mac_params;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static int mac802154_wpan_open(struct net_device *dev)
