@@ -29,6 +29,7 @@
 #include <net/ieee802154.h>
 #include <net/wpan-phy.h>
 
+#include "driver-ops.h"
 #include "ieee802154_i.h"
 
 static int mac802154_slave_open(struct net_device *dev)
@@ -57,7 +58,7 @@ static int mac802154_slave_open(struct net_device *dev)
 	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (local->open_count++ == 0) {
-		res = local->ops->start(&local->hw);
+		res = drv_start(local);
 		WARN_ON(res);
 		if (res)
 			goto err;
@@ -95,7 +96,7 @@ static int mac802154_slave_close(struct net_device *dev)
 	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (!--local->open_count)
-		local->ops->stop(&local->hw);
+		drv_stop(local);
 
 	return 0;
 }
