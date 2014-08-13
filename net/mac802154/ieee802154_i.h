@@ -136,9 +136,7 @@ extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
 void mac802154_wpan_setup(struct net_device *dev);
-
-netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
-			 u8 page, u8 chan);
+netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
