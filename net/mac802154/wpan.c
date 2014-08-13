@@ -35,6 +35,75 @@
 
 #include "ieee802154_i.h"
 
+static int mac802154_slave_open(struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_sub_if_data *subif;
+	struct ieee802154_local *local = sdata->local;
+	int res = 0;
+
+	ASSERT_RTNL();
+
+	if (sdata->type == NL802154_IFTYPE_NODE) {
+		mutex_lock(&sdata->local->iflist_mtx);
+		list_for_each_entry(subif, &sdata->local->interfaces, list) {
+			if (subif != sdata && subif->type == sdata->type &&
+			    subif->running) {
+				mutex_unlock(&sdata->local->iflist_mtx);
+				return -EBUSY;
+			}
+		}
+		mutex_unlock(&sdata->local->iflist_mtx);
+	}
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->running = true;
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	if (local->open_count++ == 0) {
+		res = local->ops->start(&local->hw);
+		WARN_ON(res);
+		if (res)
+			goto err;
+	}
+
+	if (local->ops->ieee_addr) {
+		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+
+		res = local->ops->ieee_addr(&local->hw, addr);
+		WARN_ON(res);
+		if (res)
+			goto err;
+		mac802154_dev_set_ieee_addr(dev);
+	}
+
+	netif_start_queue(dev);
+	return 0;
+err:
+	sdata->local->open_count--;
+
+	return res;
+}
+
+static int mac802154_slave_close(struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
+
+	ASSERT_RTNL();
+
+	netif_stop_queue(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->running = false;
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	if (!--local->open_count)
+		local->ops->stop(&local->hw);
+
+	return 0;
+}
+
 static int mac802154_wpan_update_llsec(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
