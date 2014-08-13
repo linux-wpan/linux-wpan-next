@@ -41,16 +41,24 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (sdata->type == NL802154_IFTYPE_NODE) {
+	switch (sdata->type) {
+	case NL802154_IFTYPE_NODE:
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
 			if (subif != sdata && subif->type == sdata->type &&
-			    subif->running) {
+			    ieee802154_sdata_running(subif)) {
 				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
 			}
 		}
 		mutex_unlock(&sdata->local->iflist_mtx);
+		break;
+	case NL802154_IFTYPE_MONITOR:
+	case NL802154_IFTYPE_COORD:
+		break;
+	case NL802154_IFTYPE_UNSPEC:
+	case NUM_NL802154_IFTYPES:
+		BUG();
 	}
 
 	if (!local->open_count) {
@@ -60,9 +68,7 @@ static int mac802154_slave_open(struct net_device *dev)
 			goto err;
 	}
 
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->running = true;
-	mutex_unlock(&sdata->local->iflist_mtx);
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	local->open_count++;
 
@@ -70,6 +76,8 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	return 0;
 err:
+	/* might already be clear but that doesn't matter */
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	return res;
 }
 
@@ -84,9 +92,7 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	local->open_count--;
 
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->running = false;
-	mutex_unlock(&sdata->local->iflist_mtx);
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count)
 		drv_stop(local);
