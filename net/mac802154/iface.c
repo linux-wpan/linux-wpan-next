@@ -10,10 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
@@ -333,7 +329,8 @@ static int mac802154_header_create(struct sk_buff *skb,
 	if (!saddr) {
 		spin_lock_bh(&sdata->mib_lock);
 
-		if (sdata->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
+		if (sdata->short_addr ==
+		    cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
 		    sdata->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
 		    sdata->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
 			hdr.source.mode = IEEE802154_ADDR_LONG;
