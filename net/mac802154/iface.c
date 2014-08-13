@@ -53,16 +53,16 @@ static int mac802154_slave_open(struct net_device *dev)
 		mutex_unlock(&sdata->local->iflist_mtx);
 	}
 
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->running = true;
-	mutex_unlock(&sdata->local->iflist_mtx);
-
-	if (local->open_count++ == 0) {
+	if (!local->open_count) {
 		res = drv_start(local);
 		WARN_ON(res);
 		if (res)
 			goto err;
 	}
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->running = true;
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (local->ops->ieee_addr) {
 		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
@@ -74,11 +74,12 @@ static int mac802154_slave_open(struct net_device *dev)
 		mac802154_dev_set_ieee_addr(dev);
 	}
 
+	local->open_count++;
+
 	netif_start_queue(dev);
+
 	return 0;
 err:
-	sdata->local->open_count--;
-
 	return res;
 }
 
@@ -91,11 +92,13 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	local->open_count--;
+
 	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->running = false;
 	mutex_unlock(&sdata->local->iflist_mtx);
 
-	if (!--local->open_count)
+	if (!local->open_count)
 		drv_stop(local);
 
 	return 0;
