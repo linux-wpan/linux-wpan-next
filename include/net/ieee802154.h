@@ -28,6 +28,7 @@
 #define NET_IEEE802154_H
 
 #define IEEE802154_MTU			127
+#define IEEE802154_MIN_FRAME_SIZE	5
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
@@ -189,7 +190,12 @@ enum {
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
 
+static inline bool ieee802154_is_valid_frame_len(const u8 len)
+{
+	if (unlikely(len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_SIZE))
+		return false;
+
+	return true;
+}
 
 #endif
-
-
