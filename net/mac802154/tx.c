@@ -56,8 +56,12 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	int res;
 
 	res = drv_xmit(local, skb);
-	if (res)
+	if (res) {
 		pr_debug("transmission failed\n");
+		ieee802154_wake_queue(&local->hw);
+		kfree_skb(skb);
+		return;
+	}
 
 	/* Restart the netif queue on each sub_if_data object. */
 	ieee802154_xmit_complete(&local->hw, skb);
