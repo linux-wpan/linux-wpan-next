@@ -30,6 +30,7 @@
 #include <net/wpan-phy.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 /* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
  * packets through the workqueue.
@@ -54,7 +55,7 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
-	res = local->ops->xmit(&cb->local->hw, skb);
+	res = drv_xmit(local, skb);
 	if (res)
 		pr_debug("transmission failed\n");
 
