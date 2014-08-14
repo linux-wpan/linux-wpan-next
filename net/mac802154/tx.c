@@ -55,7 +55,7 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
-	res = drv_xmit(local, skb);
+	res = drv_xmit_sync(local, skb);
 	if (res) {
 		pr_debug("transmission failed\n");
 		ieee802154_wake_queue(&local->hw);
@@ -71,6 +71,7 @@ static netdev_tx_t
 mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
+	int ret;
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);
@@ -85,6 +86,17 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	/* Stop the netif queue on each sub_if_data object. */
 	ieee802154_stop_queue(&local->hw);
+
+	/* async is priority, otherwise sync is fallback */
+	if (local->ops->xmit_async) {
+		ret = drv_xmit_async(local, skb);
+		if (ret) {
+			ieee802154_wake_queue(&local->hw);
+			goto err_tx;
+		}
+
+		return NETDEV_TX_OK;
+	}
 
 	INIT_WORK(&cb->work, mac802154_xmit_worker);
 	cb->skb = skb;

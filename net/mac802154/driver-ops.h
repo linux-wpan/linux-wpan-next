@@ -6,9 +6,15 @@
 #include "ieee802154_i.h"
 
 static inline int
-drv_xmit(struct ieee802154_local *local, struct sk_buff *skb)
+drv_xmit_async(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	return local->ops->xmit(&local->hw, skb);
+	return local->ops->xmit_async(&local->hw, skb);
+}
+
+static inline int
+drv_xmit_sync(struct ieee802154_local *local, struct sk_buff *skb)
+{
+	return local->ops->xmit_sync(&local->hw, skb);
 }
 
 static inline int drv_start(struct ieee802154_local *local)
