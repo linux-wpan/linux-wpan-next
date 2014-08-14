@@ -45,7 +45,6 @@ struct xmit_work {
 static void mac802154_xmit_worker(struct work_struct *work)
 {
 	struct xmit_work *xw = container_of(work, struct xmit_work, work);
-	struct ieee802154_sub_if_data *sdata;
 	int res;
 
 	mutex_lock(&xw->local->phy->pib_lock);
@@ -71,12 +70,7 @@ out:
 	mutex_unlock(&xw->local->phy->pib_lock);
 
 	/* Restart the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &xw->local->interfaces, list)
-		netif_wake_queue(sdata->dev);
-	rcu_read_unlock();
-
-	dev_kfree_skb(xw->skb);
+	ieee802154_xmit_complete(&local->hw, skb);
 
 	kfree(xw);
 }
@@ -85,7 +79,6 @@ static netdev_tx_t mac802154_tx(struct ieee802154_local *local,
 				struct sk_buff *skb, u8 page, u8 chan)
 {
 	struct xmit_work *work;
-	struct ieee802154_sub_if_data *sdata;
 
 	if (!(local->phy->channels_supported[page] & (1 << chan))) {
 		WARN_ON(1);
@@ -110,10 +103,7 @@ static netdev_tx_t mac802154_tx(struct ieee802154_local *local,
 	}
 
 	/* Stop the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_stop_queue(sdata->dev);
-	rcu_read_unlock();
+	ieee802154_stop_queue(&local->hw);
 
 	INIT_WORK(&work->work, mac802154_xmit_worker);
 	work->skb = skb;
