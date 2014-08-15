@@ -92,7 +92,7 @@ void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 	if ((sdata->local->ops->set_hw_addr_filt) &&
 	    (sdata->local->hw.hw_filt.short_addr != sdata->short_addr)) {
 		sdata->local->hw.hw_filt.short_addr = sdata->short_addr;
-		set_hw_addr_filt(dev, IEEE802515_AFILT_SADDR_CHANGED);
+		set_hw_addr_filt(dev, IEEE802154_AFILT_SADDR_CHANGED);
 	}
 }
 
@@ -120,7 +120,7 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 	if (local->ops->set_hw_addr_filt &&
 	    local->hw.hw_filt.ieee_addr != sdata->extended_addr) {
 		local->hw.hw_filt.ieee_addr = sdata->extended_addr;
-		set_hw_addr_filt(dev, IEEE802515_AFILT_IEEEADDR_CHANGED);
+		set_hw_addr_filt(dev, IEEE802154_AFILT_IEEEADDR_CHANGED);
 	}
 }
 
@@ -151,7 +151,7 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 	if ((sdata->local->ops->set_hw_addr_filt) &&
 	    (sdata->local->hw.hw_filt.pan_id != sdata->pan_id)) {
 		sdata->local->hw.hw_filt.pan_id = sdata->pan_id;
-		set_hw_addr_filt(dev, IEEE802515_AFILT_PANID_CHANGED);
+		set_hw_addr_filt(dev, IEEE802154_AFILT_PANID_CHANGED);
 	}
 }
 
