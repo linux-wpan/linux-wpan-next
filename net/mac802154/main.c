@@ -29,92 +29,6 @@
 
 #include "ieee802154_i.h"
 
-static int
-mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local;
-	int err;
-
-	local = wpan_phy_priv(phy);
-
-	sdata->dev = dev;
-	sdata->local = local;
-
-	dev->needed_headroom = local->hw.extra_tx_headroom;
-
-	SET_NETDEV_DEV(dev, &local->phy->dev);
-
-	mutex_lock(&local->iflist_mtx);
-	if (!local->running) {
-		mutex_unlock(&local->iflist_mtx);
-		return -ENODEV;
-	}
-	mutex_unlock(&local->iflist_mtx);
-
-	err = register_netdev(dev);
-	if (err < 0)
-		return err;
-
-	rtnl_lock();
-	mutex_lock(&local->iflist_mtx);
-	list_add_tail_rcu(&sdata->list, &local->interfaces);
-	mutex_unlock(&local->iflist_mtx);
-	rtnl_unlock();
-
-	return 0;
-}
-
-static void
-mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	ASSERT_RTNL();
-
-	BUG_ON(sdata->local->phy != phy);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	list_del_rcu(&sdata->list);
-	mutex_unlock(&sdata->local->iflist_mtx);
-
-	synchronize_rcu();
-	unregister_netdevice(sdata->dev);
-}
-
-static struct net_device *
-mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
-{
-	struct net_device *dev;
-	int err = -ENOMEM;
-
-	switch (type) {
-	case NL802154_IFTYPE_NODE:
-		dev = alloc_netdev(sizeof(struct ieee802154_sub_if_data),
-				   name, NET_NAME_UNKNOWN,
-				   mac802154_wpan_setup);
-		break;
-	default:
-		dev = NULL;
-		err = -EINVAL;
-		break;
-	}
-	if (!dev)
-		goto err;
-
-	err = mac802154_netdev_register(phy, dev);
-	if (err)
-		goto err_free;
-
-	dev_hold(dev); /* we return an incremented device refcount */
-	return dev;
-
-err_free:
-	free_netdev(dev);
-err:
-	return ERR_PTR(err);
-}
-
 static int mac802154_set_txpower(struct wpan_phy *phy, int db)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
@@ -305,16 +219,15 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 		goto out;
 	}
 
-	wpan_phy_set_dev(local->phy, local->hw.parent);
-
-	local->phy->add_iface = mac802154_add_iface;
-	local->phy->del_iface = mac802154_del_iface;
+	set_wpan_phy_dev(local->phy, local->hw.parent);
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
 		goto out_wq;
 
 	rtnl_lock();
+
+	ieee802154_if_add(local, "wpan%d", NULL, NL802154_IFTYPE_NODE);
 
 	mutex_lock(&local->iflist_mtx);
 	local->running = MAC802154_DEVICE_RUN;

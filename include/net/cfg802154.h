@@ -57,10 +57,6 @@ struct wpan_phy {
 	struct device dev;
 	int idx;
 
-	struct net_device *(*add_iface)(struct wpan_phy *phy,
-					const char *name, int type);
-	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
-
 	int (*set_txpower)(struct wpan_phy *phy, int db);
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
 	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
@@ -78,16 +74,27 @@ struct wpan_dev {
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size);
-static inline void wpan_phy_set_dev(struct wpan_phy *phy, struct device *dev)
+/**
+ * set_wpan_phy_dev - set device pointer for wpan phy
+ *
+ * @phy: The wiphy whose device to bind
+ * @dev: The device to parent it to
+ */
+static inline void set_wpan_phy_dev(struct wpan_phy *phy, struct device *dev)
 {
 	phy->dev.parent = dev;
 }
-int wpan_phy_register(struct wpan_phy *phy);
-void wpan_phy_unregister(struct wpan_phy *phy);
-void wpan_phy_free(struct wpan_phy *phy);
-/* Same semantics as for class_for_each_device */
-int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
+
+/**
+ * wpan_phy_dev - get wpan phy dev pointer
+ *
+ * @phy: The wpan phy whose device struct to look up
+ * Return: The dev of @phy.
+ */
+static inline struct device *wpan_phy_dev(struct wpan_phy *phy)
+{
+	return phy->dev.parent;
+}
 
 static inline void *wpan_phy_priv(struct wpan_phy *phy)
 {
@@ -106,5 +113,12 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 {
 	return dev_name(&phy->dev);
 }
+
+struct wpan_phy *wpan_phy_alloc(size_t priv_size);
+int wpan_phy_register(struct wpan_phy *phy);
+void wpan_phy_unregister(struct wpan_phy *phy);
+void wpan_phy_free(struct wpan_phy *phy);
+/* Same semantics as for class_for_each_device */
+int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
 
 #endif /* __NET_CFG802154_H */

@@ -23,6 +23,10 @@
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
+#include <net/cfg802154.h>
+#include <net/rtnetlink.h>
+#include <linux/nl802154.h>
+
 #include "llsec.h"
 
 struct ieee802154_local;
@@ -44,11 +48,14 @@ enum ieee802154_sdata_state_bits {
 struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
+	struct wpan_dev wpan_dev;
+
 	struct ieee802154_local *local;
 	struct net_device *dev;
 
 	int type;
 	unsigned long state;
+	char name[IFNAMSIZ];
 
 	spinlock_t mib_lock;
 
@@ -135,7 +142,9 @@ ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
-void mac802154_wpan_setup(struct net_device *dev);
+int ieee802154_if_add(struct ieee802154_local *local, const char *name,
+		      struct wpan_dev **new_wdev, enum nl802154_iftype type);
+
 netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* MIB callbacks */

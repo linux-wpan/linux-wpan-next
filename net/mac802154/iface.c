@@ -399,7 +399,7 @@ static void mac802154_wpan_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
-void mac802154_wpan_setup(struct net_device *dev)
+static void ieee802154_if_setup(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata;
 
@@ -442,4 +442,60 @@ void mac802154_wpan_setup(struct net_device *dev)
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
 	mac802154_llsec_init(&sdata->sec);
+}
+
+int ieee802154_if_add(struct ieee802154_local *local, const char *name,
+		      struct wpan_dev **new_wpan_dev, enum nl802154_iftype type)
+{
+	struct net_device *ndev = NULL;
+	struct ieee802154_sub_if_data *sdata = NULL;
+	int ret;
+
+	ASSERT_RTNL();
+
+	ndev = alloc_netdev(sizeof(*sdata), name, NET_NAME_UNKNOWN,
+			    ieee802154_if_setup);
+	if (!ndev)
+		return -ENOMEM;
+
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0)
+		goto err;
+
+	switch (type) {
+	case NL802154_IFTYPE_NODE:
+		break;
+	case NL802154_IFTYPE_MONITOR:
+	case NL802154_IFTYPE_COORD:
+	case NL802154_IFTYPE_UNSPEC:
+	case NUM_NL802154_IFTYPES:
+		BUG();
+	}
+
+	SET_NETDEV_DEV(ndev, wpan_phy_dev(local->hw.phy));
+	sdata = netdev_priv(ndev);
+	ndev->ieee802154_ptr = &sdata->wpan_dev;
+	memcpy(sdata->name, ndev->name, IFNAMSIZ);
+	sdata->dev = ndev;
+	sdata->wpan_dev.phy = local->hw.phy;
+	sdata->local = local;
+
+	if (ndev) {
+		ret = register_netdevice(ndev);
+		if (ret)
+			goto err;
+	}
+
+	mutex_lock(&local->iflist_mtx);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
+
+	if (new_wpan_dev)
+		*new_wpan_dev = &sdata->wpan_dev;
+
+	return 0;
+
+err:
+	free_netdev(ndev);
+	return ret;
 }
