@@ -72,6 +72,10 @@ struct wpan_phy {
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 
+struct wpan_dev {
+	struct wpan_phy *wpan_phy;
+};
+
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
 struct wpan_phy *wpan_phy_alloc(size_t priv_size);
