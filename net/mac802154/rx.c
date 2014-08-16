@@ -206,7 +206,7 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->type != NL802154_IFTYPE_NODE ||
+		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
 		    !netif_running(sdata->dev))
 			continue;
 

@@ -41,11 +41,12 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case NL802154_IFTYPE_NODE:
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
-			if (subif != sdata && subif->type == sdata->type &&
+			if (subif != sdata &&
+			    subif->vif.type == sdata->vif.type &&
 			    ieee802154_sdata_running(subif)) {
 				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
@@ -420,7 +421,7 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->ml_priv		= &mac802154_mlme_wpan;
 
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	sdata->type = NL802154_IFTYPE_NODE;
+	sdata->vif.type = NL802154_IFTYPE_NODE;
 
 	sdata->chan = MAC802154_CHAN_NONE;
 	sdata->page = 0;
@@ -444,6 +445,14 @@ static void ieee802154_if_setup(struct net_device *dev)
 	mac802154_llsec_init(&sdata->sec);
 }
 
+static void ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
+				   enum nl802154_iftype type)
+{
+	/* set some type-dependent values */
+	sdata->vif.type = type;
+	sdata->wpan_dev.iftype = type;
+}
+
 int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		      struct wpan_dev **new_wpan_dev, enum nl802154_iftype type)
 {
@@ -453,8 +462,8 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata), name, NET_NAME_UNKNOWN,
-			    ieee802154_if_setup);
+	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
+			    NET_NAME_UNKNOWN, ieee802154_if_setup);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -481,6 +490,9 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	sdata->dev = ndev;
 	sdata->wpan_dev.phy = local->hw.phy;
 	sdata->local = local;
+
+	/* setup type-dependent data */
+	ieee802154_setup_sdata(sdata, type);
 
 	if (ndev) {
 		ret = register_netdevice(ndev);

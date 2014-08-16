@@ -53,7 +53,6 @@ struct ieee802154_sub_if_data {
 	struct ieee802154_local *local;
 	struct net_device *dev;
 
-	int type;
 	unsigned long state;
 	char name[IFNAMSIZ];
 
@@ -79,6 +78,8 @@ struct ieee802154_sub_if_data {
 	struct mutex sec_mtx;
 
 	struct mac802154_llsec sec;
+	/* must be last, dynamically sized area in this! */
+	struct ieee802154_vif vif;
 };
 
 /* mac802154 device private data */
