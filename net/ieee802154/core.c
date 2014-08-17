@@ -16,6 +16,8 @@
  *
  */
 
+#define PHY_NAME "phy"
+
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -24,6 +26,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154.h"
+#include "core.h"
 
 #define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
 static ssize_t name ## _show(struct device *dev,			\
@@ -91,9 +94,6 @@ static struct class wpan_phy_class = {
 	.dev_groups = pmib_groups,
 };
 
-static DEFINE_MUTEX(wpan_phy_mutex);
-static int wpan_phy_idx;
-
 static int wpan_phy_match(struct device *dev, const void *data)
 {
 	return !strcmp(dev_name(dev), (const char *)data);
@@ -140,46 +140,51 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
 }
 EXPORT_SYMBOL(wpan_phy_for_each);
 
-static int wpan_phy_idx_valid(int idx)
+struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
+			      size_t sizeof_priv)
 {
-	return idx >= 0;
-}
+	static atomic_t wpan_phy_counter = ATOMIC_INIT(0);
+	struct cfg802154_registered_device *rdev;
+	size_t alloc_size;
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size)
-{
-	struct wpan_phy *phy = kzalloc(sizeof(*phy) + priv_size,
-			GFP_KERNEL);
+	alloc_size = sizeof(*rdev) + sizeof_priv;
+	rdev = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rdev)
+		return NULL;
 
-	if (!phy)
-		goto out;
-	mutex_lock(&wpan_phy_mutex);
-	phy->idx = wpan_phy_idx++;
-	if (unlikely(!wpan_phy_idx_valid(phy->idx))) {
-		wpan_phy_idx--;
-		mutex_unlock(&wpan_phy_mutex);
-		kfree(phy);
-		goto out;
+	rdev->ops = ops;
+
+	rdev->wpan_phy_idx = atomic_inc_return(&wpan_phy_counter);
+
+	if (unlikely(rdev->wpan_phy_idx < 0)) {
+		/* ugh, wrapped! */
+		atomic_dec(&wpan_phy_counter);
+		kfree(rdev);
+		return NULL;
 	}
-	mutex_unlock(&wpan_phy_mutex);
 
-	mutex_init(&phy->pib_lock);
+	/* atomic_inc_return makes it start at 1, make it start at 0 */
+	rdev->wpan_phy_idx--;
 
-	device_initialize(&phy->dev);
-	dev_set_name(&phy->dev, "wpan-phy%d", phy->idx);
+	/* give it a proper name */
+	dev_set_name(&rdev->wpan_phy.dev, PHY_NAME "%d", rdev->wpan_phy_idx);
 
-	phy->dev.class = &wpan_phy_class;
+	device_initialize(&rdev->wpan_phy.dev);
+	rdev->wpan_phy.dev.class = &wpan_phy_class;
+	rdev->wpan_phy.dev.platform_data = rdev;
 
-	phy->current_channel = -1; /* not initialised */
-	phy->current_page = 0; /* for compatibility */
+	mutex_init(&rdev->wpan_phy.pib_lock);
 
-	wpan_phy_net_set(phy, &init_net);
+	/* not initialised */
+	rdev->wpan_phy.current_channel = -1;
+	/* for compatibility */
+	rdev->wpan_phy.current_page = 0;
 
-	return phy;
+	wpan_phy_net_set(&rdev->wpan_phy, &init_net);
 
-out:
-	return NULL;
+	return &rdev->wpan_phy;
 }
-EXPORT_SYMBOL(wpan_phy_alloc);
+EXPORT_SYMBOL(wpan_phy_new);
 
 int wpan_phy_register(struct wpan_phy *phy)
 {

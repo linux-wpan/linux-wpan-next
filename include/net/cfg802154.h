@@ -25,6 +25,8 @@
 #include <linux/mutex.h>
 #include <linux/bug.h>
 
+struct wpan_phy;
+
 /* According to the IEEE 802.15.4 stadard the upper most significant bits of
  * the 32-bit channel bitmaps shall be used as an integer value to specify 32
  * possible channel pages. The lower 27 bits of the channel bit map shall be
@@ -32,6 +34,9 @@
  */
 #define WPAN_NUM_CHANNELS	27
 #define WPAN_NUM_PAGES		32
+
+struct cfg802154_ops {
+};
 
 struct wpan_phy {
 	struct mutex pib_lock;
@@ -129,7 +134,8 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 	return dev_name(&phy->dev);
 }
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size);
+struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
+			      size_t sizeof_priv);
 int wpan_phy_register(struct wpan_phy *phy);
 void wpan_phy_unregister(struct wpan_phy *phy);
 void wpan_phy_free(struct wpan_phy *phy);
