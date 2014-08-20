@@ -28,6 +28,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "cfg.h"
 
 static int mac802154_set_txpower(struct wpan_phy *phy, int db)
 {
@@ -128,11 +129,13 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 
 	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
-	phy = wpan_phy_new(NULL, priv_size);
+	phy = wpan_phy_new(&mac802154_config_ops, priv_size);
 	if (!phy) {
 		pr_err("failure to allocate master IEEE802.15.4 device\n");
 		return NULL;
 	}
+
+	phy->flags |= WPAN_PHY_FLAG_NETNS_OK;
 
 	local = wpan_phy_priv(phy);
 	local->phy = phy;

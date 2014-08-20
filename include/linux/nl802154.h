@@ -21,6 +21,45 @@
 #ifndef NL802154_H
 #define NL802154_H
 
+#define NL802154_GENL_NAME "nl802154"
+
+enum nl802154_commands {
+/* don't change the order or add anything between, this is ABI! */
+/* currently we don't shipping this file via uapi, ignore the above one */
+	NL802154_CMD_UNSPEC,
+
+	NL802154_CMD_GET_WPAN_PHY,		/* can dump */
+	NL802154_CMD_SET_WPAN_PHY,
+	NL802154_CMD_NEW_WPAN_PHY,
+	NL802154_CMD_DEL_WPAN_PHY,
+
+	/* add new commands above here */
+
+	/* used to define NL802154_CMD_MAX below */
+	__NL802154_CMD_AFTER_LAST,
+	NL802154_CMD_MAX = __NL802154_CMD_AFTER_LAST - 1
+};
+
+enum nl802154_attrs {
+/* don't change the order or add anything between, this is ABI! */
+/* currently we don't shipping this file via uapi, ignore the above one */
+	NL802154_ATTR_UNSPEC,
+
+	NL802154_ATTR_WPAN_PHY,
+	NL802154_ATTR_WPAN_PHY_NAME,
+
+	NL802154_ATTR_IFINDEX,
+	NL802154_ATTR_IFNAME,
+	NL802154_ATTR_IFTYPE,
+
+	NL802154_ATTR_WPAN_DEV,
+
+	/* add attributes here, update the policy in nl802154.c */
+
+	__NL802154_ATTR_AFTER_LAST,
+	NL802154_ATTR_MAX = __NL802154_ATTR_AFTER_LAST - 1
+};
+
 enum nl802154_iftype {
 	NL802154_IFTYPE_UNSPEC = -1,
 

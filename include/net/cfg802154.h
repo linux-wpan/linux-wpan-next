@@ -24,6 +24,7 @@
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/bug.h>
+#include <linux/nl802154.h>
 
 struct wpan_phy;
 
@@ -38,8 +39,20 @@ struct wpan_phy;
 struct cfg802154_ops {
 };
 
+/**
+ * enum wpan_phy_flags - wpan_phy capability flags
+ *
+ * @WPAN_PHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of
+ *	this wpan phy at all
+ */
+enum wpan_phy_flags {
+	WPAN_PHY_FLAG_NETNS_OK = BIT(3),
+};
+
 struct wpan_phy {
 	struct mutex pib_lock;
+
+	u32 flags;
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.
@@ -67,6 +80,9 @@ struct wpan_phy {
 	struct net *_net;
 #endif
 
+	/* protects ->resume, ->suspend sysfs callbacks against unregister hw */
+	bool registered;
+
 	int (*set_txpower)(struct wpan_phy *phy, int db);
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
 	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
@@ -80,6 +96,15 @@ struct wpan_phy {
 
 struct wpan_dev {
 	struct wpan_phy *wpan_phy;
+	enum nl802154_iftype iftype;
+
+	/* the remainder of this struct should be private to cfg802154 */
+	struct list_head list;
+	struct net_device *netdev;
+
+	u32 identifier;
+
+	u32 owner_nlportid;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
