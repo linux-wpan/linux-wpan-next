@@ -424,7 +424,7 @@ static void mrf24j40_stop(struct ieee802154_hw *hw)
 }
 
 static int mrf24j40_set_channel(struct ieee802154_hw *hw,
-				int page, int channel)
+				const u8 page, const u8 channel)
 {
 	struct mrf24j40 *devrec = hw->priv;
 	u8 val;

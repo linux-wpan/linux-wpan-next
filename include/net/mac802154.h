@@ -188,8 +188,7 @@ struct ieee802154_ops {
 				      struct sk_buff *skb);
 	int		(*ed)(struct ieee802154_hw *hw, u8 *level);
 	int		(*set_channel)(struct ieee802154_hw *hw,
-				       int page,
-				       int channel);
+				       const u8 page, const u8 channel);
 	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
 					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);

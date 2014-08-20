@@ -569,7 +569,7 @@ cc2520_ed(struct ieee802154_hw *hw, u8 *level)
 }
 
 static int
-cc2520_set_channel(struct ieee802154_hw *hw, int page, int channel)
+cc2520_set_channel(struct ieee802154_hw *hw, const u8 page, const u8 channel)
 {
 	struct cc2520_private *priv = hw->priv;
 	int ret;
