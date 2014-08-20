@@ -179,14 +179,25 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct sockaddr *addr = p;
+	int ret;
+
+	ASSERT_RTNL();
 
 	if (netif_running(dev))
 		return -EBUSY;
 
 	/* FIXME: validate addr */
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	mac802154_dev_set_ieee_addr(dev);
+	sdata->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	if (sdata->local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_extended_addr(sdata->local,
+					    sdata->extended_addr);
+		if (ret < 0)
+			return ret;
+	}
+
 	return mac802154_wpan_update_llsec(dev);
 }
 

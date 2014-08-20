@@ -66,4 +66,20 @@ static inline int drv_set_pan_id(struct ieee802154_local *local,
 					    IEEE802154_AFILT_PANID_CHANGED);
 }
 
+static inline int drv_set_extended_addr(struct ieee802154_local *local,
+					const __le64 extended_addr)
+{
+	struct ieee802154_hw_addr_filt filt;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt)
+		return -EOPNOTSUPP;
+
+	filt.ieee_addr = extended_addr;
+
+	return local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_IEEEADDR_CHANGED);
+}
+
 #endif /* __MAC802154_DRVIER_OPS */
