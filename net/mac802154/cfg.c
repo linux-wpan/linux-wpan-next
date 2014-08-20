@@ -51,10 +51,13 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, u8 channel)
 	if (current_channel == channel)
 		return 0;
 
+	if (!(wpan_phy->channels_supported[current_page] & BIT(channel)))
+		return -EINVAL;
+	
 	ret = drv_set_channel(local, current_page, channel);
 	if (!ret)
 		wpan_phy->current_channel = channel;
-
+	
 	return ret;
 }
 
@@ -71,6 +74,9 @@ ieee802154_set_page(struct wpan_phy *wpan_phy, u8 page)
 	if (current_page == page)
 		return 0;
 
+	if (!(wpan_phy->channels_supported[page] & BIT(current_channel)))
+		return -EINVAL;
+	
 	ret = drv_set_channel(local, page, current_channel);
 	if (!ret)
 		wpan_phy->current_page = page;

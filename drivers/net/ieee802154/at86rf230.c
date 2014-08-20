@@ -1053,12 +1053,6 @@ at86rf230_channel(struct ieee802154_hw *hw, const u8 page, const u8 channel)
 
 	might_sleep();
 
-	if (page < 0 || page > 31 ||
-	    !(lp->hw->phy->channels_supported[page] & BIT(channel))) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
 	rc = lp->data->set_channel(lp, page, channel);
 	if (rc < 0)
 		return rc;
