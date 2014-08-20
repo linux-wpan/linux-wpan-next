@@ -84,9 +84,25 @@ ieee802154_set_page(struct wpan_phy *wpan_phy, u8 page)
 	return ret;
 }
 
+static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev, u16 pan_id)
+{
+	u16 current_pan_id = le16_to_cpu(wpan_dev->pan_id);
+
+	ASSERT_RTNL();
+
+	if (current_pan_id == pan_id)
+		return 0;
+
+	wpan_dev->pan_id = cpu_to_le16(pan_id);
+
+	return 0;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
 	.set_channel = ieee802154_set_channel,
 	.set_page = ieee802154_set_page,
+	.set_pan_id = ieee802154_set_pan_id,
 };

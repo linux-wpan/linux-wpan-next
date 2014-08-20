@@ -29,4 +29,11 @@ rdev_set_channel(struct cfg802154_registered_device *rdev, u8 channel)
 	return rdev->ops->set_channel(&rdev->wpan_phy, channel);
 }
 
+static inline int
+rdev_set_pan_id(struct cfg802154_registered_device *rdev,
+		struct wpan_dev *wpan_dev, u16 pan_id)
+{
+	return rdev->ops->set_pan_id(&rdev->wpan_phy, wpan_dev, pan_id);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

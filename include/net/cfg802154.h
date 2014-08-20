@@ -45,6 +45,8 @@ struct cfg802154_ops {
 				    struct wpan_dev *wpan_dev);
 	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 channel);
 	int	(*set_page)(struct wpan_phy *wpan_phy, u8 page);
+	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev, u16 pan_id);
 };
 
 /**

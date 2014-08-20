@@ -41,6 +41,8 @@ enum nl802154_commands {
 	NL802154_CMD_SET_PAGE,
 	NL802154_CMD_SET_CHANNEL,
 
+	NL802154_CMD_SET_PAN_ID,
+
 	/* add new commands above here */
 
 	/* used to define NL802154_CMD_MAX below */
@@ -66,6 +68,9 @@ enum nl802154_attrs {
 
 	NL802154_ATTR_PAGE,
 	NL802154_ATTR_CHANNEL,
+
+	NL802154_ATTR_PAN_ID,
+
 	/* add attributes here, update the policy in nl802154.c */
 
 	__NL802154_ATTR_AFTER_LAST,
