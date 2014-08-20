@@ -1051,8 +1051,6 @@ at86rf230_channel(struct ieee802154_hw *hw, const u8 page, const u8 channel)
 	struct at86rf230_local *lp = hw->priv;
 	int rc;
 
-	might_sleep();
-
 	rc = lp->data->set_channel(lp, page, channel);
 	if (rc < 0)
 		return rc;

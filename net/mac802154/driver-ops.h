@@ -43,6 +43,8 @@ static inline void drv_stop(struct ieee802154_local *local)
 static inline int drv_set_channel(struct ieee802154_local *local,
 				  u8 page, u8 channel)
 {
+	might_sleep();
+
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
