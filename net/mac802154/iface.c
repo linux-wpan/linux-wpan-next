@@ -458,6 +458,8 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (!ndev)
 		return -ENOMEM;
 
+	dev_net_set(ndev, wpan_phy_net(local->hw.phy));
+
 	ret = dev_alloc_name(ndev, ndev->name);
 	if (ret < 0)
 		goto err;

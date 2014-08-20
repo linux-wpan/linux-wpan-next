@@ -57,6 +57,11 @@ struct wpan_phy {
 	struct device dev;
 	int idx;
 
+#ifdef CONFIG_NET_NS
+	/* the network namespace this phy lives in currently */
+	struct net *_net;
+#endif
+
 	int (*set_txpower)(struct wpan_phy *phy, int db);
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
 	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
@@ -73,6 +78,16 @@ struct wpan_dev {
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+
+static inline struct net *wpan_phy_net(struct wpan_phy *phy)
+{
+	return read_pnet(&phy->_net);
+}
+
+static inline void wpan_phy_net_set(struct wpan_phy *phy, struct net *net)
+{
+	write_pnet(&phy->_net, net);
+}
 
 /**
  * set_wpan_phy_dev - set device pointer for wpan phy

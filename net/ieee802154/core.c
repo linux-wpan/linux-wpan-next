@@ -172,6 +172,8 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size)
 	phy->current_channel = -1; /* not initialised */
 	phy->current_page = 0; /* for compatibility */
 
+	wpan_phy_net_set(phy, &init_net);
+
 	return phy;
 
 out:
