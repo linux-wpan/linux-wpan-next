@@ -205,13 +205,7 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err;
 
-	rc = ieee802154_nl_init();
-	if (rc)
-		goto err_nl;
-
 	return 0;
-err_nl:
-	class_unregister(&wpan_phy_class);
 err:
 	return rc;
 }
@@ -219,7 +213,6 @@ subsys_initcall(wpan_phy_class_init);
 
 static void __exit wpan_phy_class_exit(void)
 {
-	ieee802154_nl_exit();
 	class_unregister(&wpan_phy_class);
 }
 module_exit(wpan_phy_class_exit);
