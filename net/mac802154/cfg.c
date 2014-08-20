@@ -87,16 +87,22 @@ ieee802154_set_page(struct wpan_phy *wpan_phy, u8 page)
 static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev, u16 pan_id)
 {
-	u16 current_pan_id = le16_to_cpu(wpan_dev->pan_id);
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const __le16 __le16_pan_id = cpu_to_le16(pan_id);
+	int ret = 0;
 
 	ASSERT_RTNL();
 
-	if (current_pan_id == pan_id)
+	if (wpan_dev->pan_id == __le16_pan_id)
 		return 0;
 
-	wpan_dev->pan_id = cpu_to_le16(pan_id);
+	if (local->hw.flags & IEEE802154_HW_AFILT)
+	       ret = drv_set_pan_id(local, __le16_pan_id);
 
-	return 0;
+	if (!ret)
+		wpan_dev->pan_id = __le16_pan_id;
+	
+	return ret;
 }
 
 const struct cfg802154_ops mac802154_config_ops = {

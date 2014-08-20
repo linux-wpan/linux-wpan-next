@@ -50,4 +50,20 @@ static inline int drv_set_channel(struct ieee802154_local *local,
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
+static inline int drv_set_pan_id(struct ieee802154_local *local,
+				 const __le16 pan_id)
+{
+	struct ieee802154_hw_addr_filt filt;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt)
+		return -EOPNOTSUPP;
+
+	filt.pan_id = pan_id;
+
+	return local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_PANID_CHANGED);
+}
+
 #endif /* __MAC802154_DRVIER_OPS */
