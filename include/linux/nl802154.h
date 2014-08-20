@@ -33,6 +33,10 @@ enum nl802154_commands {
 	NL802154_CMD_NEW_WPAN_PHY,
 	NL802154_CMD_DEL_WPAN_PHY,
 
+	NL802154_CMD_GET_INTERFACE,		/* can dump */
+	NL802154_CMD_SET_INTERFACE,
+	NL802154_CMD_NEW_INTERFACE,
+	NL802154_CMD_DEL_INTERFACE,
 	/* add new commands above here */
 
 	/* used to define NL802154_CMD_MAX below */
@@ -54,6 +58,7 @@ enum nl802154_attrs {
 
 	NL802154_ATTR_WPAN_DEV,
 
+	NL802154_ATTR_IFACE_SOCKET_OWNER,
 	/* add attributes here, update the policy in nl802154.c */
 
 	__NL802154_ATTR_AFTER_LAST,

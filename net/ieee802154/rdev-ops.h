@@ -1,0 +1,20 @@
+#ifndef __CFG802154_RDEV_OPS
+#define __CFG802154_RDEV_OPS
+
+#include <net/cfg802154.h>
+
+static inline struct wpan_dev *
+rdev_add_virtual_intf(struct cfg802154_registered_device *rdev, char *name,
+		      enum nl802154_iftype type)
+{
+	return rdev->ops->add_virtual_intf(&rdev->wpan_phy, name, type);
+}
+
+static inline int
+rdev_del_virtual_intf(struct cfg802154_registered_device *rdev,
+		      struct wpan_dev *wpan_dev)
+{
+	return rdev->ops->del_virtual_intf(&rdev->wpan_phy, wpan_dev);
+}
+
+#endif /* __CFG802154_RDEV_OPS */

@@ -29,6 +29,7 @@
 #include "nl802154.h"
 #include "core.h"
 #include "sysfs.h"
+#include "rdev-ops.h"
 
 #define PHY_NAME "phy"
 
@@ -114,8 +115,19 @@ void cfg802154_destroy_ifaces(struct cfg802154_registered_device *rdev)
 	while ((item = list_first_entry_or_null(&rdev->destroy_list,
 						struct cfg802154_iface_destroy,
 						list))) {
+		struct wpan_dev *wpan_dev, *tmp;
+		u32 nlportid = item->nlportid;
+
 		list_del(&item->list);
 		kfree(item);
+		spin_unlock_irq(&rdev->destroy_list_lock);
+
+		list_for_each_entry_safe(wpan_dev, tmp, &rdev->wpan_dev_list, list) {
+			if (nlportid == wpan_dev->owner_nlportid)
+				rdev_del_virtual_intf(rdev, wpan_dev);
+		}
+
+		spin_lock_irq(&rdev->destroy_list_lock);
 	}
 	spin_unlock_irq(&rdev->destroy_list_lock);
 }
@@ -140,6 +152,8 @@ struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
 	static atomic_t wpan_phy_counter = ATOMIC_INIT(0);
 	struct cfg802154_registered_device *rdev;
 	size_t alloc_size;
+
+	WARN_ON(ops->add_virtual_intf && !ops->del_virtual_intf);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 	rdev = kzalloc(alloc_size, GFP_KERNEL);
@@ -254,6 +268,20 @@ void cfg802154_dev_free(struct cfg802154_registered_device *rdev)
 {
         kfree(rdev);
 }
+
+void cfg802154_unregister_wpan_dev(struct wpan_dev *wpan_dev)
+{
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(wpan_dev->wpan_phy);
+
+	ASSERT_RTNL();
+
+	if (WARN_ON(wpan_dev->netdev))
+		return;
+
+	list_del_rcu(&wpan_dev->list);
+	rdev->devlist_generation++;
+}
+EXPORT_SYMBOL(cfg802154_unregister_wpan_dev);
 
 static const struct device_type wpan_phy_type = {
 	.name	= "wpan",

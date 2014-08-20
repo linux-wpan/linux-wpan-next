@@ -488,7 +488,7 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 	sdata->dev = ndev;
-	sdata->wpan_dev.phy = local->hw.phy;
+	sdata->wpan_dev.wpan_phy = local->hw.phy;
 	sdata->local = local;
 
 	/* setup type-dependent data */
@@ -512,4 +512,22 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 err:
 	free_netdev(ndev);
 	return ret;
+}
+
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
+{
+	ASSERT_RTNL();
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	list_del_rcu(&sdata->list);
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	synchronize_rcu();
+
+	if (sdata->dev) {
+		unregister_netdevice(sdata->dev);
+	} else {
+		cfg802154_unregister_wpan_dev(&sdata->wpan_dev);
+		kfree(sdata);
+	}
 }

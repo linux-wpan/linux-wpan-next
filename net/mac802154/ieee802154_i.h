@@ -134,6 +134,12 @@ IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+static inline struct ieee802154_sub_if_data *
+IEEE802154_WPAN_DEV_TO_SUB_IF(struct wpan_dev *wpan_dev)
+{
+	return container_of(wpan_dev, struct ieee802154_sub_if_data, wpan_dev);
+}
+
 static inline bool
 ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 {
@@ -145,6 +151,8 @@ extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
 int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		      struct wpan_dev **new_wdev, enum nl802154_iftype type);
+
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 
 netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev);
 

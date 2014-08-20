@@ -37,6 +37,11 @@ struct wpan_phy;
 #define WPAN_NUM_PAGES		32
 
 struct cfg802154_ops {
+	struct wpan_dev * (*add_virtual_intf)(struct wpan_phy *wpan_phy,
+					      const char *name,
+					      enum nl802154_iftype type);
+	int	(*del_virtual_intf)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev);
 };
 
 /**
@@ -166,5 +171,20 @@ void wpan_phy_unregister(struct wpan_phy *phy);
 void wpan_phy_free(struct wpan_phy *phy);
 /* Same semantics as for class_for_each_device */
 int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
+/**
+ * cfg802154_unregister_wpan_dev - remove the given wpan_dev
+ * @wdev: struct wpan_dev to remove
+ *
+ * Call this function only for wdevs that have no netdev assigned,
+ * e.g. P2P Devices. It removes the device from the list so that
+ * it can no longer be used. It is necessary to call this function
+ * even when cfg80211 requests the removal of the interface by
+ * calling the del_virtual_intf() callback. The function must also
+ * be called when the driver wishes to unregister the wdev, e.g.
+ * when the device is unbound from the driver.
+ *
+ * Requires the RTNL to be held.
+ */
+void cfg802154_unregister_wpan_dev(struct wpan_dev *wpan_dev);
 
 #endif /* __NET_CFG802154_H */

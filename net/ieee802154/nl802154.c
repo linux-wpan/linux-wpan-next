@@ -8,6 +8,7 @@
 #include <net/sock.h>
 
 #include "core.h"
+#include "rdev-ops.h"
 
 static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			     struct genl_info *info);
@@ -188,6 +189,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_IFNAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ-1 },
 
 	[NL802154_ATTR_WPAN_DEV] = { .type = NLA_U64 },
+
+	[NL802154_ATTR_IFACE_SOCKET_OWNER] = { .type = NLA_FLAG },
 };
 
 /* message building helper */
@@ -212,6 +215,67 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  struct nl802154_dump_wpan_phy_state *state)
 {
 	return -ENOTSUPP;
+}
+
+static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev;
+	struct sk_buff *msg;
+	enum nl802154_iftype type = NL802154_IFTYPE_UNSPEC;
+
+	/* to avoid failing a new interface creation due to pending removal */
+	cfg802154_destroy_ifaces(rdev);
+
+	if (!info->attrs[NL802154_ATTR_IFNAME])
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_IFTYPE]) {
+		type = nla_get_u32(info->attrs[NL802154_ATTR_IFTYPE]);
+		if (type > NL802154_IFTYPE_MAX)
+			return -EINVAL;
+	}
+
+	if (!rdev->ops->add_virtual_intf)
+		return -EOPNOTSUPP;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	wpan_dev = rdev_add_virtual_intf(rdev,
+					 nla_data(info->attrs[NL802154_ATTR_IFNAME]),
+					 type);
+	if (IS_ERR(wpan_dev)) {
+		nlmsg_free(msg);
+		return PTR_ERR(wpan_dev);
+	}
+
+	if (info->attrs[NL802154_ATTR_IFACE_SOCKET_OWNER])
+		wpan_dev->owner_nlportid = info->snd_portid;
+
+	return genlmsg_reply(msg, info);
+}
+
+static int nl802154_del_interface(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+
+	if (!rdev->ops->del_virtual_intf)
+		return -EOPNOTSUPP;
+
+	/*
+	 * If we remove a wpan device without a netdev then clear
+	 * user_ptr[1] so that nl802154_post_doit won't dereference it
+	 * to check if it needs to do dev_put(). Otherwise it crashes
+	 * since the wpan_dev has been freed, unlike with a netdev where
+	 * we need the dev_put() for the netdev to really be freed.
+	 */
+	if (!wpan_dev->netdev)
+		info->user_ptr[1] = NULL;
+
+	return rdev_del_virtual_intf(rdev, wpan_dev);
 }
 
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
@@ -305,6 +369,22 @@ static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 }
 
 static const struct genl_ops nl802154_ops[] = {
+	{
+		.cmd = NL802154_CMD_NEW_INTERFACE,
+		.doit = nl802154_new_interface,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_DEL_INTERFACE,
+		.doit = nl802154_del_interface,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
 };
 
 /* notification functions */
