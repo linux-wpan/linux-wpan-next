@@ -111,7 +111,7 @@ static int mac802154_wpan_update_llsec(struct net_device *dev)
 		struct ieee802154_llsec_params params;
 		int changed = 0;
 
-		params.pan_id = sdata->pan_id;
+		params.pan_id = sdata->wpan_dev.pan_id;
 		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
 
 		params.hwaddr = sdata->extended_addr;
@@ -138,7 +138,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	{
 		u16 pan_id, short_addr;
 
-		pan_id = le16_to_cpu(sdata->pan_id);
+		pan_id = le16_to_cpu(sdata->wpan_dev.pan_id);
 		short_addr = le16_to_cpu(sdata->short_addr);
 		if (pan_id == IEEE802154_PANID_BROADCAST ||
 		    short_addr == IEEE802154_ADDR_BROADCAST) {
@@ -166,7 +166,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			break;
 		}
 
-		sdata->pan_id = cpu_to_le16(sa->addr.pan_id);
+		sdata->wpan_dev.pan_id = cpu_to_le16(sa->addr.pan_id);
 		sdata->short_addr = cpu_to_le16(sa->addr.short_addr);
 
 		err = mac802154_wpan_update_llsec(dev);
@@ -333,7 +333,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 		if (sdata->short_addr ==
 		    cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
 		    sdata->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
-		    sdata->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+		    sdata->wpan_dev.pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
 			hdr.source.mode = IEEE802154_ADDR_LONG;
 			hdr.source.extended_addr = sdata->extended_addr;
 		} else {
@@ -341,7 +341,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 			hdr.source.short_addr = sdata->short_addr;
 		}
 
-		hdr.source.pan_id = sdata->pan_id;
+		hdr.source.pan_id = sdata->wpan_dev.pan_id;
 
 		spin_unlock_bh(&sdata->mib_lock);
 	} else {
@@ -439,7 +439,7 @@ static void ieee802154_if_setup(struct net_device *dev)
 	/* for compatibility, actual default is 3 */
 	sdata->mac_params.frame_retries = -1;
 
-	sdata->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
+	sdata->wpan_dev.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
 	mac802154_llsec_init(&sdata->sec);

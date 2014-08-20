@@ -50,7 +50,7 @@ mac802154_subif_frame(struct ieee802154_sub_if_data *sdata, struct sk_buff *skb,
 
 	spin_lock_bh(&sdata->mib_lock);
 
-	span = sdata->pan_id;
+	span = sdata->wpan_dev.pan_id;
 	sshort = sdata->short_addr;
 
 	switch (mac_cb(skb)->dest.mode) {

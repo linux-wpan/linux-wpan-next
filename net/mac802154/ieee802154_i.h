@@ -58,7 +58,6 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	__le16 pan_id;
 	__le16 short_addr;
 	__le64 extended_addr;
 

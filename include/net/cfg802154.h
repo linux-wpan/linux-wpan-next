@@ -113,6 +113,9 @@ struct wpan_dev {
 	u32 identifier;
 
 	u32 owner_nlportid;
+
+	/* MAC PIB */
+	__le16 pan_id;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
