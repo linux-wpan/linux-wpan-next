@@ -191,6 +191,9 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_WPAN_DEV] = { .type = NLA_U64 },
 
 	[NL802154_ATTR_IFACE_SOCKET_OWNER] = { .type = NLA_FLAG },
+
+	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
+	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
 };
 
 /* message building helper */
@@ -276,6 +279,34 @@ static int nl802154_del_interface(struct sk_buff *skb, struct genl_info *info)
 		info->user_ptr[1] = NULL;
 
 	return rdev_del_virtual_intf(rdev, wpan_dev);
+}
+
+static int nl802154_set_page(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	u8 page = 0;
+
+	if (info->attrs[NL802154_ATTR_PAGE]) {
+		page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
+		if (page > IEEE802154_MAX_PAGE)
+			return -EINVAL;
+	}
+
+	return rdev_set_page(rdev, page);
+}
+
+static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	u8 channel = -1;
+
+	if (info->attrs[NL802154_ATTR_CHANNEL]) {
+		channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
+		if (channel > IEEE802154_MAX_CHANNEL)
+			return -EINVAL;
+	}
+
+	return rdev_set_channel(rdev, channel);
 }
 
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
@@ -383,6 +414,22 @@ static const struct genl_ops nl802154_ops[] = {
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_PAGE,
+		.doit = nl802154_set_page,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_CHANNEL,
+		.doit = nl802154_set_channel,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 };

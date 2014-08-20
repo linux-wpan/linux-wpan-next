@@ -21,6 +21,7 @@
 #ifndef __NET_CFG802154_H
 #define __NET_CFG802154_H
 
+#include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/bug.h>
@@ -42,6 +43,8 @@ struct cfg802154_ops {
 					      enum nl802154_iftype type);
 	int	(*del_virtual_intf)(struct wpan_phy *wpan_phy,
 				    struct wpan_dev *wpan_dev);
+	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 channel);
+	int	(*set_page)(struct wpan_phy *wpan_phy, u8 page);
 };
 
 /**

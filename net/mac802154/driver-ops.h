@@ -1,6 +1,8 @@
 #ifndef __MAC802154_DRVIER_OPS
 #define __MAC802154_DRIVER_OPS
 
+#include <linux/types.h>
+
 #include <net/mac802154.h>
 
 #include "ieee802154_i.h"
@@ -36,6 +38,12 @@ static inline void drv_stop(struct ieee802154_local *local)
 	tasklet_enable(&local->tasklet);
 
 	barrier();
+}
+
+static inline int drv_set_channel(struct ieee802154_local *local,
+				  u8 page, u8 channel)
+{
+	return local->ops->set_channel(&local->hw, page, channel);
 }
 
 #endif /* __MAC802154_DRVIER_OPS */

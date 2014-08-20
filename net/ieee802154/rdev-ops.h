@@ -17,4 +17,16 @@ rdev_del_virtual_intf(struct cfg802154_registered_device *rdev,
 	return rdev->ops->del_virtual_intf(&rdev->wpan_phy, wpan_dev);
 }
 
+static inline int
+rdev_set_page(struct cfg802154_registered_device *rdev, u8 page)
+{
+	return rdev->ops->set_page(&rdev->wpan_phy, page);
+}
+
+static inline int
+rdev_set_channel(struct cfg802154_registered_device *rdev, u8 channel)
+{
+	return rdev->ops->set_channel(&rdev->wpan_phy, channel);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

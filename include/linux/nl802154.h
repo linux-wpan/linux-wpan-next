@@ -37,6 +37,10 @@ enum nl802154_commands {
 	NL802154_CMD_SET_INTERFACE,
 	NL802154_CMD_NEW_INTERFACE,
 	NL802154_CMD_DEL_INTERFACE,
+
+	NL802154_CMD_SET_PAGE,
+	NL802154_CMD_SET_CHANNEL,
+
 	/* add new commands above here */
 
 	/* used to define NL802154_CMD_MAX below */
@@ -59,6 +63,9 @@ enum nl802154_attrs {
 	NL802154_ATTR_WPAN_DEV,
 
 	NL802154_ATTR_IFACE_SOCKET_OWNER,
+
+	NL802154_ATTR_PAGE,
+	NL802154_ATTR_CHANNEL,
 	/* add attributes here, update the policy in nl802154.c */
 
 	__NL802154_ATTR_AFTER_LAST,

@@ -30,6 +30,9 @@
 #define IEEE802154_MTU			127
 #define IEEE802154_MIN_FRAME_SIZE	5
 
+#define IEEE802154_MAX_PAGE		31
+#define IEEE802154_MAX_CHANNEL		26
+
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
 #define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is acknowledgment */
