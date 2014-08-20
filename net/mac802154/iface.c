@@ -533,3 +533,40 @@ void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
 		kfree(sdata);
 	}
 }
+
+/*
+ * Remove all interfaces, may only be called at hardware unregistration
+ * time because it doesn't do RCU-safe list removals.
+ */
+void ieee802154_remove_interfaces(struct ieee802154_local *local)
+{
+	struct ieee802154_sub_if_data *sdata, *tmp;
+	LIST_HEAD(unreg_list);
+	LIST_HEAD(wpan_dev_list);
+
+	ASSERT_RTNL();
+
+	/*
+	 * Close all AP_VLAN interfaces first, as otherwise they
+	 * might be closed while the AP interface they belong to
+	 * is closed, causing unregister_netdevice_many() to crash.
+	 */
+	list_for_each_entry(sdata, &local->interfaces, list)
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
+		list_del(&sdata->list);
+
+		if (sdata->dev)
+			unregister_netdevice_queue(sdata->dev, &unreg_list);
+		else
+			list_add(&sdata->list, &wpan_dev_list);
+	}
+	mutex_unlock(&local->iflist_mtx);
+	unregister_netdevice_many(&unreg_list);
+
+	list_for_each_entry_safe(sdata, tmp, &wpan_dev_list, list) {
+		list_del(&sdata->list);
+		cfg802154_unregister_wpan_dev(&sdata->wpan_dev);
+		kfree(sdata);
+	}
+}

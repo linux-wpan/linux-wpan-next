@@ -250,7 +250,6 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
-	struct ieee802154_sub_if_data *sdata, *next;
 
 	tasklet_kill(&local->tasklet);
 	flush_workqueue(local->dev_workqueue);
@@ -262,13 +261,12 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 	local->running = MAC802154_DEVICE_STOPPED;
 	mutex_unlock(&local->iflist_mtx);
 
-	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
-		mutex_lock(&sdata->local->iflist_mtx);
-		list_del(&sdata->list);
-		mutex_unlock(&sdata->local->iflist_mtx);
-
-		unregister_netdevice(sdata->dev);
-	}
+	/*
+	 * At this point, interface list manipulations are fine
+	 * because the driver cannot be handing us frames any
+	 * more and the tasklet is killed.
+	 */
+	ieee802154_remove_interfaces(local);
 
 	rtnl_unlock();
 
