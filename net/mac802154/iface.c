@@ -478,6 +478,8 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		break;
 	case NL802154_IFTYPE_MONITOR:
 	case NL802154_IFTYPE_COORD:
+		ret = -EOPNOTSUPP;
+		goto err;
 	case NL802154_IFTYPE_UNSPEC:
 	case NUM_NL802154_IFTYPES:
 		BUG();
