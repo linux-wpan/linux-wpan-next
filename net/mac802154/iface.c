@@ -408,12 +408,25 @@ static void ieee802154_if_setup(struct net_device *dev)
 	mac802154_llsec_init(&sdata->sec);
 }
 
-static void ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
-				   enum nl802154_iftype type)
+static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
+				  enum nl802154_iftype type)
 {
+	struct ieee802154_local *local = sdata->local;
+	int ret;
+
 	/* set some type-dependent values */
 	sdata->vif.type = type;
 	sdata->wpan_dev.iftype = type;
+
+	/* mac pib defaults here */
+	sdata->extended_addr = local->hw.phy->perm_extended_addr;
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_extended_addr(local, sdata->extended_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 int ieee802154_if_add(struct ieee802154_local *local, const char *name,
@@ -454,15 +467,6 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_ADDR_LEN);
 	SET_NETDEV_DEV(ndev, wpan_phy_dev(local->hw.phy));
 	sdata = netdev_priv(ndev);
-
-	/* mac pib defaults here */
-	sdata->extended_addr = local->hw.phy->perm_extended_addr;
-	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		ret = drv_set_extended_addr(local, sdata->extended_addr);
-		if (ret < 0)
-			return ret;
-	}
-
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 	sdata->dev = ndev;
@@ -470,7 +474,9 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	sdata->local = local;
 
 	/* setup type-dependent data */
-	ieee802154_setup_sdata(sdata, type);
+	ret = ieee802154_setup_sdata(sdata, type);
+	if (ret)
+		goto err;
 
 	if (ndev) {
 		ret = register_netdevice(ndev);
