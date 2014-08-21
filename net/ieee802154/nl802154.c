@@ -196,6 +196,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
 	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
 
+	[NL802154_ATTR_TX_POWER] = { .type = NLA_S8, },
+
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
 };
 
@@ -310,6 +312,19 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	return rdev_set_channel(rdev, channel);
+}
+
+static int nl802154_set_tx_power(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	u8 tx_power;
+
+	if (!info->attrs[NL802154_ATTR_TX_POWER])
+		return -EINVAL;
+
+	tx_power = nla_get_s8(info->attrs[NL802154_ATTR_TX_POWER]);
+
+	return rdev_set_tx_power(rdev, tx_power);
 }
 
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
@@ -445,6 +460,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_CHANNEL,
 		.doit = nl802154_set_channel,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_TX_POWER,
+		.doit = nl802154_set_tx_power,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |

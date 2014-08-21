@@ -30,6 +30,12 @@ rdev_set_channel(struct cfg802154_registered_device *rdev, u8 channel)
 }
 
 static inline int
+rdev_set_tx_power(struct cfg802154_registered_device *rdev, const s8 dbm)
+{
+	return rdev->ops->set_tx_power(&rdev->wpan_phy, dbm);
+}
+
+static inline int
 rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 		struct wpan_dev *wpan_dev, u16 pan_id)
 {

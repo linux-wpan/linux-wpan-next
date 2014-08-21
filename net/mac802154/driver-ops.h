@@ -50,6 +50,17 @@ static inline int drv_set_channel(struct ieee802154_local *local,
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
+static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
+{
+	might_sleep();
+
+	if (!(local->hw.flags & IEEE802154_HW_TXPOWER) ||
+	    !local->ops->set_txpower)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_txpower(&local->hw, dbm);
+}
+
 static inline int drv_set_pan_id(struct ieee802154_local *local,
 				 const __le16 pan_id)
 {

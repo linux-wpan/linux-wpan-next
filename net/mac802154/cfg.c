@@ -84,6 +84,25 @@ ieee802154_set_page(struct wpan_phy *wpan_phy, u8 page)
 	return ret;
 }
 
+static int
+ieee802154_set_tx_power(struct wpan_phy *wpan_phy, s8 dbm)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	u8 current_tx_power = wpan_phy->transmit_power;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (current_tx_power == dbm)
+		return 0;
+
+	ret = drv_set_tx_power(local, dbm);
+	if (!ret)
+		wpan_phy->transmit_power = dbm;
+
+	return ret;
+}
+
 static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev, u16 pan_id)
 {
@@ -110,5 +129,6 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.del_virtual_intf = ieee802154_del_iface,
 	.set_channel = ieee802154_set_channel,
 	.set_page = ieee802154_set_page,
+	.set_tx_power = ieee802154_set_tx_power,
 	.set_pan_id = ieee802154_set_pan_id,
 };
