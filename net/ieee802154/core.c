@@ -186,8 +186,6 @@ struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
 	spin_lock_init(&rdev->destroy_list_lock);
 	INIT_WORK(&rdev->destroy_work, cfg802154_destroy_iface_wk);
 
-	mutex_init(&rdev->wpan_phy.pib_lock);
-
 	/* not initialised */
 	rdev->wpan_phy.current_channel = -1;
 	/* for compatibility */

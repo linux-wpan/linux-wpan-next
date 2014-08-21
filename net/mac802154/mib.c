@@ -164,58 +164,6 @@ u8 mac802154_dev_get_dsn(const struct net_device *dev)
 	return sdata->dsn++;
 }
 
-static void phy_chan_notify(struct work_struct *work)
-{
-	struct phy_chan_notify_work *nw = container_of(work,
-					  struct phy_chan_notify_work, work);
-	struct net_device *dev = nw->dev;
-	struct ieee802154_local *local = mac802154_slave_get_priv(dev);
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	int res;
-
-	mutex_lock(&sdata->local->phy->pib_lock);
-	res = local->ops->set_channel(&local->hw, sdata->page, sdata->chan);
-	if (res) {
-		pr_debug("set_channel failed\n");
-	} else {
-		sdata->local->phy->current_channel = sdata->chan;
-		sdata->local->phy->current_page = sdata->page;
-	}
-	mutex_unlock(&sdata->local->phy->pib_lock);
-
-	kfree(nw);
-}
-
-void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct phy_chan_notify_work *work;
-
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
-
-	spin_lock_bh(&sdata->mib_lock);
-	sdata->page = page;
-	sdata->chan = chan;
-	spin_unlock_bh(&sdata->mib_lock);
-
-	mutex_lock(&sdata->local->phy->pib_lock);
-	if (sdata->local->phy->current_channel != sdata->chan ||
-	    sdata->local->phy->current_page != sdata->page) {
-		mutex_unlock(&sdata->local->phy->pib_lock);
-
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work)
-			return;
-
-		INIT_WORK(&work->work, phy_chan_notify);
-		work->dev = dev;
-		queue_work(sdata->local->dev_workqueue, &work->work);
-	} else {
-		mutex_unlock(&sdata->local->phy->pib_lock);
-	}
-}
-
-
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params)
 {

@@ -60,8 +60,6 @@ enum wpan_phy_flags {
 };
 
 struct wpan_phy {
-	struct mutex pib_lock;
-
 	u32 flags;
 
 	/*
