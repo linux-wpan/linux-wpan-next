@@ -187,11 +187,6 @@ struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
 	spin_lock_init(&rdev->destroy_list_lock);
 	INIT_WORK(&rdev->destroy_work, cfg802154_destroy_iface_wk);
 
-	/* not initialised */
-	rdev->wpan_phy.current_channel = MAC802154_CHAN_NONE;
-	/* for compatibility */
-	rdev->wpan_phy.current_page = 0;
-
 	wpan_phy_net_set(&rdev->wpan_phy, &init_net);
 
 	init_waitqueue_head(&rdev->dev_wait);
