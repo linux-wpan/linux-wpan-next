@@ -386,9 +386,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->vif.type = NL802154_IFTYPE_NODE;
 
-	sdata->chan = MAC802154_CHAN_NONE;
-	sdata->page = 0;
-
 	spin_lock_init(&sdata->mib_lock);
 	mutex_init(&sdata->sec_mtx);
 
