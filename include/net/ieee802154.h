@@ -27,10 +27,13 @@
 #ifndef NET_IEEE802154_H
 #define NET_IEEE802154_H
 
+#include <linux/random.h>
+
 #define IEEE802154_MTU			127
 #define IEEE802154_MIN_FRAME_SIZE	5
 
 #define IEEE802154_SRC_PANID_INVALID	0xffff
+#define IEEE802154_EXTENDED_ADDR_LEN	8
 
 #define IEEE802154_MAX_PAGE		31
 #define IEEE802154_MAX_CHANNEL		26
@@ -201,6 +204,26 @@ static inline bool ieee802154_is_valid_frame_len(const u8 len)
 		return false;
 
 	return true;
+}
+
+static inline bool ieee802154_is_valid_extended_addr(const __le64 *addr)
+{
+	static const u8 full[8] = { 0xff, 0xff, 0xff, 0xff,
+				    0xff, 0xff, 0xff, 0xff };
+	static const u8 zero[8] = { 0x00, 0x00, 0x00, 0x00,
+				    0x00, 0x00, 0x00, 0x00 };
+
+	return !memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
+	       !memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
+}
+
+static inline void ieee802154_random_extended_addr(__le64 *addr)
+{
+	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
+
+	/* toggle some bit if we hit an invalid extended addr */
+	if (!ieee802154_is_valid_extended_addr(addr))
+		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
 }
 
 #endif

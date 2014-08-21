@@ -469,6 +469,7 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
+	__be64 netdev_addr;
 	int ret;
 
 	ASSERT_RTNL();
@@ -496,8 +497,20 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		BUG();
 	}
 
+	netdev_addr = swab64(local->hw.phy->perm_extended_addr);
+	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_ADDR_LEN);
+	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_ADDR_LEN);
 	SET_NETDEV_DEV(ndev, wpan_phy_dev(local->hw.phy));
 	sdata = netdev_priv(ndev);
+
+	/* mac pib defaults here */
+	sdata->extended_addr = local->hw.phy->perm_extended_addr;
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_extended_addr(local, sdata->extended_addr);
+		if (ret < 0)
+			return ret;
+	}
+
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 	sdata->dev = ndev;
