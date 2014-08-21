@@ -22,6 +22,7 @@
 #include <linux/device.h>
 
 #include <net/cfg802154.h>
+#include <net/mac802154.h>
 #include <net/genetlink.h>
 #include <net/rtnetlink.h>
 
@@ -187,7 +188,7 @@ struct wpan_phy *wpan_phy_new(const struct cfg802154_ops *ops,
 	INIT_WORK(&rdev->destroy_work, cfg802154_destroy_iface_wk);
 
 	/* not initialised */
-	rdev->wpan_phy.current_channel = -1;
+	rdev->wpan_phy.current_channel = MAC802154_CHAN_NONE;
 	/* for compatibility */
 	rdev->wpan_phy.current_page = 0;
 

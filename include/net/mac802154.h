@@ -32,6 +32,8 @@
  */
 #define MAC802154_FRAME_HARD_HEADER_LEN		(2 + 1 + 20 + 14)
 
+#define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
+
 /* The following flags are used to indicate changed address settings from
  * the stack to the hardware.
  */

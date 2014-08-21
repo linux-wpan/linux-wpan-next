@@ -4,6 +4,7 @@
 
 #include <net/cfg802154.h>
 #include <net/genetlink.h>
+#include <net/mac802154.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 
@@ -300,7 +301,7 @@ static int nl802154_set_page(struct sk_buff *skb, struct genl_info *info)
 static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
-	u8 channel = -1;
+	u8 channel = MAC802154_CHAN_NONE;
 
 	if (info->attrs[NL802154_ATTR_CHANNEL]) {
 		channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);

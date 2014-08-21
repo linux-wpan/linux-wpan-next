@@ -119,8 +119,6 @@ struct ieee802154_local {
 #define	MAC802154_DEVICE_STOPPED	0x00
 #define MAC802154_DEVICE_RUN		0x01
 
-#define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
-
 static inline struct ieee802154_local *
 hw_to_local(struct ieee802154_hw *hw)
 {
