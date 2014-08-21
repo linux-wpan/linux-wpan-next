@@ -61,6 +61,17 @@ static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
 	return local->ops->set_txpower(&local->hw, dbm);
 }
 
+static inline int drv_set_cca_mode(struct ieee802154_local *local, u8 cca_mode)
+{
+	might_sleep();
+
+	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE) ||
+	    !local->ops->set_cca_mode)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_cca_mode(&local->hw, cca_mode);
+}
+
 static inline int drv_set_pan_id(struct ieee802154_local *local,
 				 const __le16 pan_id)
 {

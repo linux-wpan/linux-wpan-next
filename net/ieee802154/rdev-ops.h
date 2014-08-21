@@ -36,6 +36,12 @@ rdev_set_tx_power(struct cfg802154_registered_device *rdev, const s8 dbm)
 }
 
 static inline int
+rdev_set_cca_mode(struct cfg802154_registered_device *rdev, const u8 cca_mode)
+{
+	return rdev->ops->set_cca_mode(&rdev->wpan_phy, cca_mode);
+}
+
+static inline int
 rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 		struct wpan_dev *wpan_dev, u16 pan_id)
 {
