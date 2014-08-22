@@ -74,14 +74,9 @@ struct wpan_phy {
 	u32 channels_supported[32];
 	s8 transmit_power;
 	u8 cca_mode;
-	u8 min_be;
-	u8 max_be;
-	u8 csma_retries;
-	s8 frame_retries;
 
 	__le64 perm_extended_addr;
 
-	bool lbt;
 	s32 cca_ed_level;
 
 	struct device dev;
@@ -112,6 +107,13 @@ struct wpan_dev {
 
 	/* MAC PIB */
 	__le16 pan_id;
+
+	u8 min_be;
+	u8 max_be;
+	u8 csma_retries;
+	s8 frame_retries;
+
+	bool lbt;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
