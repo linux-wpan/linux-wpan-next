@@ -35,11 +35,33 @@
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_sub_if_data *subif;
 	struct ieee802154_local *local = sdata->local;
-	int res = 0;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_sub_if_data *subif;
+	int ret = 0;
 
 	ASSERT_RTNL();
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_extended_addr(local, sdata->extended_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
+		ret = drv_set_csma_params(local, wpan_dev->min_be,
+					  wpan_dev->max_be,
+					  wpan_dev->csma_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
+		ret = drv_set_max_frame_retries(local,
+						wpan_dev->frame_retries);
+		if (ret < 0)
+			return ret;
+	}
 
 	switch (sdata->vif.type) {
 	case NL802154_IFTYPE_NODE:
@@ -63,9 +85,9 @@ static int mac802154_slave_open(struct net_device *dev)
 	}
 
 	if (!local->open_count) {
-		res = drv_start(local);
-		WARN_ON(res);
-		if (res)
+		ret = drv_start(local);
+		WARN_ON(ret);
+		if (ret)
 			goto err;
 	}
 
@@ -79,7 +101,7 @@ static int mac802154_slave_open(struct net_device *dev)
 err:
 	/* might already be clear but that doesn't matter */
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
-	return res;
+	return ret;
 }
 
 static int mac802154_slave_close(struct net_device *dev)
@@ -381,7 +403,6 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 {
 	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	int ret;
 
 	/* set some type-dependent values */
 	sdata->vif.type = type;
@@ -390,31 +411,13 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	/* mac pib defaults here */
 	/* defaults per 802.15.4-2011 */
 	sdata->extended_addr = local->hw.phy->perm_extended_addr;
-	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		ret = drv_set_extended_addr(local, sdata->extended_addr);
-		if (ret < 0)
-			return ret;
-	}
 
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
-	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		ret = drv_set_csma_params(local, wpan_dev->min_be,
-					  wpan_dev->max_be,
-					  wpan_dev->csma_retries);
-		if (ret < 0)
-			return ret;
-	}
 
 	/* for compatibility, actual default is 3 */
 	wpan_dev->frame_retries = -1;
-	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
-		ret = drv_set_max_frame_retries(local,
-						wpan_dev->frame_retries);
-		if (ret < 0)
-			return ret;
-	}
 
 	return 0;
 }
