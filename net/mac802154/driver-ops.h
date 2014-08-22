@@ -104,4 +104,18 @@ static inline int drv_set_extended_addr(struct ieee802154_local *local,
 					    IEEE802154_AFILT_IEEEADDR_CHANGED);
 }
 
+static inline int drv_set_csma_params(struct ieee802154_local *local,
+				      u8 min_be, u8 max_be,
+				      u8 max_csma_backoffs)
+{
+	might_sleep();
+
+	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS) ||
+	    !local->ops->set_csma_params)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_csma_params(&local->hw, min_be, max_be,
+					   max_csma_backoffs);
+}
+
 #endif /* __MAC802154_DRVIER_OPS */

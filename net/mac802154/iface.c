@@ -399,6 +399,13 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
+		ret = drv_set_csma_params(local, wpan_dev->min_be,
+					  wpan_dev->max_be,
+					  wpan_dev->csma_retries);
+		if (ret < 0)
+			return ret;
+	}
 	/* for compatibility, actual default is 3 */
 	wpan_dev->frame_retries = -1;
 
