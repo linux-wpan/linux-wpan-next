@@ -89,6 +89,7 @@ struct at86rf230_local {
 	struct at86rf230_state_change irq;
 
 	bool tx_aret;
+	s8 tx_max_frame_retries;
 	bool is_tx;
 	/* spinlock for is_tx protection */
 	spinlock_t lock;
@@ -559,11 +560,10 @@ at86rf230_async_state_delay(void *context)
 	case STATE_TRX_OFF:
 		switch (ctx->to_state) {
 		case STATE_RX_AACK_ON:
-			usleep_range(c->t_off_to_aack, c->t_off_to_aack + 10);
+			udelay(c->t_off_to_aack);
 			goto change;
 		case STATE_TX_ON:
-			usleep_range(c->t_off_to_tx_on,
-				     c->t_off_to_tx_on + 10);
+			udelay(c->t_off_to_tx_on);
 			goto change;
 		default:
 			break;
@@ -590,7 +590,7 @@ at86rf230_async_state_delay(void *context)
 	case STATE_P_ON:
 		switch (ctx->to_state) {
 		case STATE_TRX_OFF:
-			usleep_range(c->t_reset_to_off, c->t_reset_to_off + 10);
+			udelay(c->t_reset_to_off);
 			goto change;
 		default:
 			break;
@@ -703,15 +703,20 @@ at86rf230_tx_complete(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 	struct sk_buff *skb = lp->tx_skb;
 
+	if (lp->tx_max_frame_retries > 0) {
+		ieee802154_xmit_complete(lp->hw, skb);
+		return;
+	}
+
 	/* Interfame spacing time, which is phy depend.
 	 * TODO
 	 * Move this handling in MAC 802.15.4 layer.
 	 * This is currently a workaround to avoid fragmenation issues.
 	 */
 	if (skb->len > 18)
-		usleep_range(lp->data->t_lifs, lp->data->t_lifs + 10);
+		udelay(lp->data->t_lifs);
 	else
-		usleep_range(lp->data->t_sifs, lp->data->t_sifs + 10);
+		udelay(lp->data->t_sifs);
 
 	ieee802154_xmit_complete(lp->hw, skb);
 }
@@ -750,6 +755,11 @@ at86rf230_tx_trac_check(void *context)
 	const u8 *buf = ctx->buf;
 	const u8 trac = (buf[1] & 0xe0) >> 5;
 	int rc;
+
+	if (!lp->tx_max_frame_retries) {
+		at86rf230_tx_on(context);
+		return;
+	}
 
 	/* If trac status is different than zero we need to do a state change
 	 * to STATE_FORCE_TRX_OFF then STATE_TX_ON to recover the transceiver
@@ -1056,8 +1066,7 @@ at86rf230_channel(struct ieee802154_hw *hw, const u8 page, const u8 channel)
 		return rc;
 
 	/* Wait for PLL */
-	usleep_range(lp->data->t_channel_switch,
-		     lp->data->t_channel_switch + 10);
+	udelay(lp->data->t_channel_switch);
 	hw->phy->current_channel = channel;
 	hw->phy->current_page = page;
 
@@ -1201,9 +1210,11 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 		return -EINVAL;
 
 	lp->tx_aret = retries >= 0;
+	lp->tx_max_frame_retries = retries;
 
 	if (retries >= 0)
 		rc = at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, retries);
+
 
 	return rc;
 }
@@ -1233,7 +1244,7 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
-	.t_lifs = 480,
+	.t_lifs = 640,
 	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
@@ -1249,7 +1260,7 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
-	.t_lifs = 480,
+	.t_lifs = 640,
 	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
@@ -1265,7 +1276,7 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
-	.t_lifs = 480,
+	.t_lifs = 640,
 	.t_tx_timeout = 2000,
 	.rssi_base_val = -100,
 	.set_channel = at86rf212_set_channel,
@@ -1310,6 +1321,8 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	rc = at86rf230_write_subreg(lp, SR_CLKM_SHA_SEL, 0x00);
 	if (rc)
 		return rc;
+
+	rc = at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
 
 	/* Turn CLKM Off */
 	rc = at86rf230_write_subreg(lp, SR_CLKM_CTRL, 0x00);
