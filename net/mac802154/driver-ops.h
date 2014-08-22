@@ -118,4 +118,16 @@ static inline int drv_set_csma_params(struct ieee802154_local *local,
 					   max_csma_backoffs);
 }
 
+static inline int drv_set_max_frame_retries(struct ieee802154_local *local,
+					    s8 max_frame_retries)
+{
+	might_sleep();
+
+	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES) ||
+	    !local->ops->set_frame_retries)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_frame_retries(&local->hw, max_frame_retries);
+}
+
 #endif /* __MAC802154_DRVIER_OPS */

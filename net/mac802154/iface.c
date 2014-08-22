@@ -406,9 +406,15 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		if (ret < 0)
 			return ret;
 	}
+
 	/* for compatibility, actual default is 3 */
 	wpan_dev->frame_retries = -1;
-
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
+		ret = drv_set_max_frame_retries(local,
+						wpan_dev->frame_retries);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
