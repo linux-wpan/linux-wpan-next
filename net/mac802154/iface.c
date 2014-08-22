@@ -201,28 +201,6 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return mac802154_wpan_update_llsec(dev);
 }
 
-int mac802154_set_mac_params(struct net_device *dev,
-			     const struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->mac_params = *params;
-	mutex_unlock(&sdata->local->iflist_mtx);
-
-	return 0;
-}
-
-void mac802154_get_mac_params(struct net_device *dev,
-			      struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	*params = sdata->mac_params;
-	mutex_unlock(&sdata->local->iflist_mtx);
-}
-
 static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
@@ -392,13 +370,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 	get_random_bytes(&sdata->bsn, 1);
 	get_random_bytes(&sdata->dsn, 1);
 
-	/* defaults per 802.15.4-2011 */
-	sdata->mac_params.min_be = 3;
-	sdata->mac_params.max_be = 5;
-	sdata->mac_params.csma_retries = 4;
-	/* for compatibility, actual default is 3 */
-	sdata->mac_params.frame_retries = -1;
-
 	sdata->wpan_dev.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
@@ -409,6 +380,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 				  enum nl802154_iftype type)
 {
 	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	int ret;
 
 	/* set some type-dependent values */
@@ -416,12 +388,20 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	sdata->wpan_dev.iftype = type;
 
 	/* mac pib defaults here */
+	/* defaults per 802.15.4-2011 */
 	sdata->extended_addr = local->hw.phy->perm_extended_addr;
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
 		ret = drv_set_extended_addr(local, sdata->extended_addr);
 		if (ret < 0)
 			return ret;
 	}
+
+	wpan_dev->min_be = 3;
+	wpan_dev->max_be = 5;
+	wpan_dev->csma_retries = 4;
+	/* for compatibility, actual default is 3 */
+	wpan_dev->frame_retries = -1;
+
 
 	return 0;
 }

@@ -68,7 +68,4 @@ struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.get_dsn = mac802154_dev_get_dsn,
 
 	.llsec = &mac802154_llsec_ops,
-
-	.set_mac_params = mac802154_set_mac_params,
-	.get_mac_params = mac802154_get_mac_params,
 };

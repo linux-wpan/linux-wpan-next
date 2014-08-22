@@ -333,18 +333,6 @@ struct ieee802154_llsec_table {
 #define IEEE802154_MAC_SCAN_PASSIVE	2
 #define IEEE802154_MAC_SCAN_ORPHAN	3
 
-struct ieee802154_mac_params {
-	s8 transmit_power;
-	u8 min_be;
-	u8 max_be;
-	u8 csma_retries;
-	s8 frame_retries;
-
-	bool lbt;
-	u8 cca_mode;
-	s32 cca_ed_level;
-};
-
 struct wpan_phy;
 
 enum {
@@ -417,11 +405,6 @@ struct ieee802154_mlme_ops {
 			u8 pan_coord, u8 blx, u8 coord_realign);
 	int (*scan_req)(struct net_device *dev,
 			u8 type, u32 channels, u8 page, u8 duration);
-
-	int (*set_mac_params)(struct net_device *dev,
-			      const struct ieee802154_mac_params *params);
-	void (*get_mac_params)(struct net_device *dev,
-			       struct ieee802154_mac_params *params);
 
 	struct ieee802154_llsec_ops *llsec;
 
