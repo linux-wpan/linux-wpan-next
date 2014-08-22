@@ -295,11 +295,12 @@ static int nl802154_set_page(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 page = 0;
 
-	if (info->attrs[NL802154_ATTR_PAGE]) {
-		page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
-		if (page > IEEE802154_MAX_PAGE)
-			return -EINVAL;
-	}
+	if (info->attrs[NL802154_ATTR_PAGE])
+		return -EINVAL;
+
+	page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
+	if (page > IEEE802154_MAX_PAGE)
+		return -EINVAL;
 
 	return rdev_set_page(rdev, page);
 }
@@ -309,11 +310,12 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 channel = MAC802154_CHAN_NONE;
 
-	if (info->attrs[NL802154_ATTR_CHANNEL]) {
-		channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
-		if (channel > IEEE802154_MAX_CHANNEL)
-			return -EINVAL;
-	}
+	if (info->attrs[NL802154_ATTR_CHANNEL])
+		return -EINVAL;
+
+	channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
+	if (channel > IEEE802154_MAX_CHANNEL)
+		return -EINVAL;
 
 	return rdev_set_channel(rdev, channel);
 }
@@ -336,11 +338,12 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 cca_mode = 0;
 
-	if (info->attrs[NL802154_ATTR_CCA_MODE]) {
-		cca_mode = nla_get_u8(info->attrs[NL802154_ATTR_CCA_MODE]);
-		if (cca_mode < 1 || cca_mode > 6)
-			return -EINVAL;
-	}
+	if (info->attrs[NL802154_ATTR_CCA_MODE])
+		return -EINVAL;
+	
+	cca_mode = nla_get_u8(info->attrs[NL802154_ATTR_CCA_MODE]);
+	if (cca_mode < 1 || cca_mode > 6)
+		return -EINVAL;
 
 	return rdev_set_cca_mode(rdev, cca_mode);
 }
@@ -351,11 +354,12 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	struct wpan_dev *wpan_dev = info->user_ptr[1];
 	u16 pan_id = IEEE802154_SRC_PANID_INVALID;
 
-	if (info->attrs[NL802154_ATTR_PAN_ID]) {
-		pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
-		if (pan_id == IEEE802154_SRC_PANID_INVALID)
-			return -EINVAL;
-	}
+	if (!info->attrs[NL802154_ATTR_PAN_ID])
+		return -EINVAL;
+
+	pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
+	if (pan_id == IEEE802154_SRC_PANID_INVALID)
+		return -EINVAL;
 
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
 }
