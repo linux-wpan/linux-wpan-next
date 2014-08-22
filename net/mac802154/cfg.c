@@ -143,6 +143,26 @@ static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 	return ret;
 }
 
+static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
+					    struct wpan_dev *wpan_dev,
+					    s8 max_frame_retries)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	u8 current_max_frame_retries = wpan_dev->frame_retries;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (current_max_frame_retries == max_frame_retries)
+		return 0;
+
+	ret = drv_set_max_frame_retries(local, max_frame_retries);
+	if (!ret)
+		wpan_dev->frame_retries = max_frame_retries;
+
+	return ret;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
@@ -151,4 +171,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_tx_power = ieee802154_set_tx_power,
 	.set_cca_mode = ieee802154_set_cca_mode,
 	.set_pan_id = ieee802154_set_pan_id,
+	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 };

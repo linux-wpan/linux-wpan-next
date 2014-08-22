@@ -201,6 +201,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
 
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
+
+	[NL802154_ATTR_MAX_FRAME_RETRIES] = { .type = NLA_S8, },
 };
 
 /* message building helper */
@@ -358,6 +360,24 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
 }
 
+static int nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	s8 max_frame_retries = -1;
+
+	if (!info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES])
+		return -EINVAL;
+
+
+	max_frame_retries = nla_get_s8(
+			info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES]);
+	if (max_frame_retries < -1 || max_frame_retries > 7)
+		return -EINVAL;
+
+	return rdev_set_max_frame_retries(rdev, wpan_dev, max_frame_retries);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -500,6 +520,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_PAN_ID,
 		.doit = nl802154_set_pan_id,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_MAX_FRAME_RETRIES,
+		.doit = nl802154_set_max_frame_retries,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |

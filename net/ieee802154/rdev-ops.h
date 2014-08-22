@@ -48,4 +48,13 @@ rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 	return rdev->ops->set_pan_id(&rdev->wpan_phy, wpan_dev, pan_id);
 }
 
+static inline int
+rdev_set_max_frame_retries(struct cfg802154_registered_device *rdev,
+			   struct wpan_dev *wpan_dev,
+			   const s8 max_frame_retries)
+{
+	return rdev->ops->set_max_frame_retries(&rdev->wpan_phy, wpan_dev,
+						max_frame_retries);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

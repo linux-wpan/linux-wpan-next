@@ -49,6 +49,9 @@ struct cfg802154_ops {
 	int	(*set_cca_mode)(struct wpan_phy *wpan_phy, const u8 cca_mode);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u16 pan_id);
+	int	(*set_max_frame_retries)(struct wpan_phy *wpan_phy,
+					 struct wpan_dev *wpan_dev,
+					 s8 max_frame_retries);
 };
 
 /**
