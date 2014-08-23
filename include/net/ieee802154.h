@@ -111,6 +111,17 @@
 #define IEEE802154_CMD_COORD_REALIGN_NOTIFY	0x08
 #define IEEE802154_CMD_GTS_REQ			0x09
 
+
+/* Clear channel assesment (CCA) modes */
+enum ieee802154_cca_modes {
+	IEEE802154_CCA_ENERGY		= 1,
+	IEEE802154_CCA_CARRIER		= 2,
+	IEEE802154_CCA_ENERGY_CARRIER	= 3,
+	IEEE802154_CCA_ALOHA		= 4,
+	IEEE802154_CCA_UWB_SHR		= 5,
+	IEEE802154_CCA_UWB_MULTIPEXED	= 6,
+};
+
 /*
  * The return values of MAC operations
  */
