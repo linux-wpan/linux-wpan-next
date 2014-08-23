@@ -37,7 +37,6 @@ static int mac802154_slave_open(struct net_device *dev)
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct ieee802154_sub_if_data *subif;
 	int ret = 0;
 
 	ASSERT_RTNL();
@@ -65,17 +64,6 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	switch (sdata->vif.type) {
 	case NL802154_IFTYPE_NODE:
-		mutex_lock(&sdata->local->iflist_mtx);
-		list_for_each_entry(subif, &sdata->local->interfaces, list) {
-			if (subif != sdata &&
-			    subif->vif.type == sdata->vif.type &&
-			    ieee802154_sdata_running(subif)) {
-				mutex_unlock(&sdata->local->iflist_mtx);
-				return -EBUSY;
-			}
-		}
-		mutex_unlock(&sdata->local->iflist_mtx);
-		break;
 	case NL802154_IFTYPE_MONITOR:
 	case NL802154_IFTYPE_COORD:
 		break;
@@ -223,15 +211,35 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return mac802154_wpan_update_llsec(dev);
 }
 
-static int mac802154_wpan_open(struct net_device *dev)
+static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
+					     enum nl802154_iftype iftype)
 {
-	int rc;
+	struct ieee802154_local *local = sdata->local;
+	struct ieee802154_sub_if_data *nsdata;
 
-	rc = mac802154_slave_open(dev);
-	if (rc < 0)
-		return rc;
+	/* we hold the RTNL here so can safely walk the list */
+	 list_for_each_entry(nsdata, &local->interfaces, list) {
+		 if (nsdata != sdata && ieee802154_sdata_running(nsdata)) {
+			 /* don't allow multiple NODE interfaces */
+			 if (iftype == NL802154_IFTYPE_NODE &&
+			     nsdata->vif.type == NL802154_IFTYPE_NODE)
+				 return -EBUSY;
+		 }
+	 }
 
 	return 0;
+}
+
+static int mac802154_wpan_open(struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int ret;
+
+	ret = ieee802154_check_concurrent_iface(sdata, sdata->vif.type);	
+	if (ret < 0)
+		return ret;
+
+	return mac802154_slave_open(dev);
 }
 
 static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
