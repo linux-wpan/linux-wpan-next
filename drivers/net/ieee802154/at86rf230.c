@@ -1151,11 +1151,26 @@ static int
 at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode, bool mode3_and)
 {
 	struct at86rf230_local *lp = hw->priv;
+	u8 reg;
 
-	/* TODO add mapping for 802.15.4 to at86rf2xx cca_mode
-	 * this can't work */
+	switch (mode) {
+	case IEEE802154_CCA_ENERGY:
+		reg = 1;
+		break;
+	case IEEE802154_CCA_CARRIER:
+		reg = 2;
+		break;
+	case IEEE802154_CCA_ENERGY_CARRIER:
+		if (mode3_and)
+			reg = 3;
+		else
+			reg = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
+	return at86rf230_write_subreg(lp, SR_CCA_MODE, reg);
 }
 
 static int
