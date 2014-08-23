@@ -203,6 +203,10 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
 
 	[NL802154_ATTR_MAX_FRAME_RETRIES] = { .type = NLA_S8, },
+
+	[NL802154_ATTR_MAX_BE] = { .type = NLA_U8, },
+	[NL802154_ATTR_MAX_CSMA_BACKOFFS] = { .type = NLA_U8, },
+	[NL802154_ATTR_MIN_BE] = { .type = NLA_U8, },
 };
 
 /* message building helper */
@@ -308,7 +312,7 @@ static int nl802154_set_page(struct sk_buff *skb, struct genl_info *info)
 static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
-	u8 channel = MAC802154_CHAN_NONE;
+	u8 channel;
 
 	if (info->attrs[NL802154_ATTR_CHANNEL])
 		return -EINVAL;
@@ -336,7 +340,7 @@ static int nl802154_set_tx_power(struct sk_buff *skb, struct genl_info *info)
 static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
-	u8 cca_mode = 0;
+	u8 cca_mode;
 
 	if (info->attrs[NL802154_ATTR_CCA_MODE])
 		return -EINVAL;
@@ -352,7 +356,7 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct wpan_dev *wpan_dev = info->user_ptr[1];
-	u16 pan_id = IEEE802154_SRC_PANID_INVALID;
+	u16 pan_id;
 
 	if (!info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
@@ -380,6 +384,59 @@ static int nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info 
 		return -EINVAL;
 
 	return rdev_set_max_frame_retries(rdev, wpan_dev, max_frame_retries);
+}
+
+static int nl802154_set_max_be(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	u8 max_be;
+
+	if (!info->attrs[NL802154_ATTR_MAX_BE])
+		return -EINVAL;
+
+	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
+	if (max_be < 3 || max_be > 8)
+		return -EINVAL;
+
+	/* check if violate min_be condition */
+	if (wpan_dev->min_be > max_be)
+		return -EINVAL;
+
+	return rdev_set_max_be(rdev, wpan_dev, max_be);
+}
+
+static int nl802154_set_max_csma_backoffs(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	u8 max_csma_backoffs;
+
+	if (!info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS])
+		return -EINVAL;
+
+	max_csma_backoffs = nla_get_u8(
+			info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS]);
+	if (max_csma_backoffs < 0 || max_csma_backoffs > 5)
+		return -EINVAL;
+
+	return rdev_set_max_csma_backoffs(rdev, wpan_dev, max_csma_backoffs);
+}
+
+static int nl802154_set_min_be(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	u8 min_be;
+
+	if (!info->attrs[NL802154_ATTR_MIN_BE])
+		return -EINVAL;
+
+	min_be = nla_get_u8(info->attrs[NL802154_ATTR_MIN_BE]);
+	if (min_be < 0 || min_be > wpan_dev->max_be)
+		return -EINVAL;
+
+	return rdev_set_min_be(rdev, wpan_dev, min_be);
 }
 
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
@@ -532,6 +589,30 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_MAX_FRAME_RETRIES,
 		.doit = nl802154_set_max_frame_retries,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_MAX_BE,
+		.doit = nl802154_set_max_be,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_MAX_CSMA_BACKOFFS,
+		.doit = nl802154_set_max_csma_backoffs,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_MIN_BE,
+		.doit = nl802154_set_min_be,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |

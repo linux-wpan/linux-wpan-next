@@ -57,4 +57,29 @@ rdev_set_max_frame_retries(struct cfg802154_registered_device *rdev,
 						max_frame_retries);
 }
 
+static inline int
+rdev_set_max_be(struct cfg802154_registered_device *rdev,
+		struct wpan_dev *wpan_dev,
+		const u8 max_be)
+{
+	return rdev->ops->set_max_be(&rdev->wpan_phy, wpan_dev, max_be);
+}
+
+static inline int
+rdev_set_max_csma_backoffs(struct cfg802154_registered_device *rdev,
+			   struct wpan_dev *wpan_dev,
+			   const u8 max_csma_backoffs)
+{
+	return rdev->ops->set_max_csma_backoffs(&rdev->wpan_phy, wpan_dev,
+						max_csma_backoffs);
+}
+
+static inline int
+rdev_set_min_be(struct cfg802154_registered_device *rdev,
+		struct wpan_dev *wpan_dev,
+		const u8 min_be)
+{
+	return rdev->ops->set_min_be(&rdev->wpan_phy, wpan_dev, min_be);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

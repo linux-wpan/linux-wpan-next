@@ -163,6 +163,69 @@ static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 	return ret;
 }
 
+static int ieee802154_set_max_be(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const u8 max_be)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const u8 current_max_be = wpan_dev->max_be;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (current_max_be == max_be)
+		return 0;
+
+	ret = drv_set_csma_params(local, wpan_dev->min_be, max_be,
+				  wpan_dev->csma_retries);
+	if (!ret)
+		wpan_dev->max_be = max_be;
+
+	return ret;
+}
+
+static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
+					    struct wpan_dev *wpan_dev,
+					    const u8 max_csma_backoffs)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const u8 current_max_csma_backoffs = wpan_dev->csma_retries;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (current_max_csma_backoffs == max_csma_backoffs)
+		return 0;
+
+	ret = drv_set_csma_params(local, wpan_dev->min_be, wpan_dev->max_be,
+				  max_csma_backoffs);
+	if (!ret)
+		wpan_dev->csma_retries = max_csma_backoffs;
+
+	return ret;
+}
+
+static int ieee802154_set_min_be(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const u8 min_be)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const u8 current_min_be = wpan_dev->min_be;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (current_min_be == min_be)
+		return 0;
+
+	ret = drv_set_csma_params(local, min_be, wpan_dev->max_be,
+				  wpan_dev->csma_retries);
+	if (!ret)
+		wpan_dev->min_be = min_be;
+
+	return ret;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
@@ -172,4 +235,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_cca_mode = ieee802154_set_cca_mode,
 	.set_pan_id = ieee802154_set_pan_id,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
+	.set_max_be = ieee802154_set_max_be,
+	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
+	.set_min_be = ieee802154_set_min_be,
 };
