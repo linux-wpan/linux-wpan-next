@@ -26,7 +26,6 @@
 #include <net/genetlink.h>
 #include <net/rtnetlink.h>
 
-#include "ieee802154.h"
 #include "nl802154.h"
 #include "core.h"
 #include "sysfs.h"
