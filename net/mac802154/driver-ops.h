@@ -54,9 +54,10 @@ static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
 {
 	might_sleep();
 
-	if (!(local->hw.flags & IEEE802154_HW_TXPOWER) ||
-	    !local->ops->set_txpower)
+	if (!local->ops->set_txpower) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	return local->ops->set_txpower(&local->hw, dbm);
 }
@@ -65,9 +66,10 @@ static inline int drv_set_cca_mode(struct ieee802154_local *local, u8 cca_mode)
 {
 	might_sleep();
 
-	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE) ||
-	    !local->ops->set_cca_mode)
+	if (!local->ops->set_cca_mode) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	/* TODO handle mode3 or/and with netlink */
 	return local->ops->set_cca_mode(&local->hw, cca_mode, true);
@@ -80,8 +82,10 @@ static inline int drv_set_pan_id(struct ieee802154_local *local,
 
 	might_sleep();
 
-	if (!local->ops->set_hw_addr_filt)
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	filt.pan_id = pan_id;
 
@@ -96,8 +100,10 @@ static inline int drv_set_extended_addr(struct ieee802154_local *local,
 
 	might_sleep();
 
-	if (!local->ops->set_hw_addr_filt)
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	filt.ieee_addr = extended_addr;
 
@@ -111,9 +117,10 @@ static inline int drv_set_csma_params(struct ieee802154_local *local,
 {
 	might_sleep();
 
-	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS) ||
-	    !local->ops->set_csma_params)
+	if (!local->ops->set_csma_params) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	return local->ops->set_csma_params(&local->hw, min_be, max_be,
 					   max_csma_backoffs);
@@ -124,9 +131,10 @@ static inline int drv_set_max_frame_retries(struct ieee802154_local *local,
 {
 	might_sleep();
 
-	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES) ||
-	    !local->ops->set_frame_retries)
+	if (!local->ops->set_frame_retries) {
+		WARN_ON(1);
 		return -EOPNOTSUPP;
+	}
 
 	return local->ops->set_frame_retries(&local->hw, max_frame_retries);
 }

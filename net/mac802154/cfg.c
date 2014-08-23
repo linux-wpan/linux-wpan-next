@@ -93,6 +93,9 @@ ieee802154_set_tx_power(struct wpan_phy *wpan_phy, s8 dbm)
 
 	ASSERT_RTNL();
 
+	if (!(local->hw.flags & IEEE802154_HW_TXPOWER))
+		return -ENOTSUPP;
+
 	if (current_tx_power == dbm)
 		return 0;
 
@@ -111,6 +114,9 @@ ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode)
 	int ret;
 
 	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE))
+		return -ENOTSUPP;
 
 	if (current_cca_mode == cca_mode)
 		return 0;
@@ -153,6 +159,9 @@ static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 
 	ASSERT_RTNL();
 
+	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES))
+		return -ENOTSUPP;
+
 	if (current_max_frame_retries == max_frame_retries)
 		return 0;
 
@@ -172,6 +181,9 @@ static int ieee802154_set_max_be(struct wpan_phy *wpan_phy,
 	int ret;
 
 	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
+		return -ENOTSUPP;
 
 	if (current_max_be == max_be)
 		return 0;
@@ -194,6 +206,9 @@ static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 
 	ASSERT_RTNL();
 
+	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
+		return -ENOTSUPP;
+
 	if (current_max_csma_backoffs == max_csma_backoffs)
 		return 0;
 
@@ -214,6 +229,9 @@ static int ieee802154_set_min_be(struct wpan_phy *wpan_phy,
 	int ret;
 
 	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
+		return -ENOTSUPP;
 
 	if (current_min_be == min_be)
 		return 0;
