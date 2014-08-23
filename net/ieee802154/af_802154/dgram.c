@@ -34,7 +34,7 @@
 
 #include <asm/ioctls.h>
 
-#include "af802154.h"
+#include "af_802154_i.h"
 
 static HLIST_HEAD(dgram_head);
 static DEFINE_RWLOCK(dgram_lock);
