@@ -69,7 +69,8 @@ static inline int drv_set_cca_mode(struct ieee802154_local *local, u8 cca_mode)
 	    !local->ops->set_cca_mode)
 		return -EOPNOTSUPP;
 
-	return local->ops->set_cca_mode(&local->hw, cca_mode);
+	/* TODO handle mode3 or/and with netlink */
+	return local->ops->set_cca_mode(&local->hw, cca_mode, true);
 }
 
 static inline int drv_set_pan_id(struct ieee802154_local *local,

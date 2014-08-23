@@ -167,6 +167,7 @@ struct ieee802154_hw {
  *
  * set_cca_mode
  *	  Sets the CCA mode used by the device. Called with pib_lock held.
+ *	  If parameter mode3_and cca mode 3 runs in logical operator and
  *	  Returns either zero, or negative errno.
  *
  * set_cca_ed_level
@@ -198,7 +199,7 @@ struct ieee802154_ops {
 					    unsigned long changed);
 	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
-	int		(*set_cca_mode)(struct ieee802154_hw *hw, u8 mode);
+	int		(*set_cca_mode)(struct ieee802154_hw *hw, u8 mode, bool mode3_and);
 	int		(*set_cca_ed_level)(struct ieee802154_hw *hw,
 					    s32 level);
 	int		(*set_csma_params)(struct ieee802154_hw *hw,

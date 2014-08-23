@@ -1148,7 +1148,7 @@ at86rf230_set_lbt(struct ieee802154_hw *hw, bool on)
 }
 
 static int
-at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode)
+at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode, bool mode3_and)
 {
 	struct at86rf230_local *lp = hw->priv;
 
