@@ -1152,6 +1152,9 @@ at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode)
 {
 	struct at86rf230_local *lp = hw->priv;
 
+	/* TODO add mapping for 802.15.4 to at86rf2xx cca_mode
+	 * this can't work */
+
 	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
 }
 
