@@ -147,10 +147,6 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	ieee802154_if_add(local, "wpan%d", NULL, NL802154_IFTYPE_NODE);
 
-	mutex_lock(&local->iflist_mtx);
-	local->running = MAC802154_DEVICE_RUN;
-	mutex_unlock(&local->iflist_mtx);
-
 	rtnl_unlock();
 
 	return 0;
@@ -171,10 +167,6 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 	destroy_workqueue(local->dev_workqueue);
 
 	rtnl_lock();
-
-	mutex_lock(&local->iflist_mtx);
-	local->running = MAC802154_DEVICE_STOPPED;
-	mutex_unlock(&local->iflist_mtx);
 
 	/*
 	 * At this point, interface list manipulations are fine
