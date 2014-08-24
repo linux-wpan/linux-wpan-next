@@ -254,6 +254,9 @@ __ieee802154_rx_handle_packet(struct ieee802154_hw *hw, struct sk_buff *skb)
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
+		if (sdata->vif.type == NL802154_IFTYPE_MONITOR)
+			continue;
+
 		rx.sdata = sdata;
 		ieee802154_invoke_rx_handlers(&rx);
 	}
