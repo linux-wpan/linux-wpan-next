@@ -107,6 +107,16 @@ struct ieee802154_local {
 	struct sk_buff_head skb_queue;
 };
 
+struct ieee802154_rx_data {
+	struct sk_buff *skb;
+	struct ieee802154_local *local;
+	struct ieee802154_sub_if_data *sdata;
+};
+
+typedef unsigned __bitwise__ ieee802154_rx_result;
+#define RX_CONTINUE             ((__force ieee802154_rx_result) 0u)
+#define RX_DROP_UNUSABLE        ((__force ieee802154_rx_result) 1u)
+
 static inline struct ieee802154_local *
 hw_to_local(struct ieee802154_hw *hw)
 {

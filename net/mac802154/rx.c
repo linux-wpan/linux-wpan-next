@@ -34,6 +34,16 @@
 
 #include "ieee802154_i.h"
 
+static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
+					  ieee802154_rx_result res)
+{
+	switch (res) {
+	case RX_DROP_UNUSABLE:
+		kfree_skb(rx->skb);
+		break;
+	}
+}
+
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 {
 	return netif_receive_skb(skb);
@@ -191,54 +201,87 @@ static int mac802154_parse_frame_start(struct sk_buff *skb,
 	return 0;
 }
 
-static void
-mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
+static ieee802154_rx_result
+ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 {
-	int ret;
-	struct ieee802154_sub_if_data *sdata;
 	struct ieee802154_hdr hdr;
+	int ret;
 
-	ret = mac802154_parse_frame_start(skb, &hdr);
-	if (ret) {
-		pr_debug("got invalid frame\n");
-		return;
-	}
+	ret = mac802154_parse_frame_start(rx->skb, &hdr);
+	if (ret)
+		return RX_DROP_UNUSABLE;
+
+	mac802154_subif_frame(rx->sdata, rx->skb, &hdr);
+
+	return RX_CONTINUE;
+}
+
+static void ieee802154_invoke_rx_handlers(struct ieee802154_rx_data *rx)
+{
+	int res;
+
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(rx);		\
+		if (res != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0);
+
+	CALL_RXH(ieee802154_rx_h_check);
+
+	return;
+
+rxh_next:
+	ieee802154_rx_handlers_result(rx, res);
+
+#undef CALL_RXH
+}
+
+/* This is the actual Rx frames handler. as it belongs to Rx path it must
+ * be called with rcu_read_lock protection.
+ */
+static void
+__ieee802154_rx_handle_packet(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	struct ieee802154_local *local = hw_to_local(hw);
+	struct ieee802154_sub_if_data *sdata;
+	struct ieee802154_rx_data rx = { };
+
+	rx.skb = skb;
+	rx.local = local;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
-		    !netif_running(sdata->dev))
+		if (!ieee802154_sdata_running(sdata))
 			continue;
 
-		mac802154_subif_frame(sdata, skb, &hdr);
-		skb = NULL;
-		break;
+		rx.sdata = sdata;
+		ieee802154_invoke_rx_handlers(&rx);
 	}
-
-	if (skb)
-		kfree_skb(skb);
 }
 
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct ieee802154_local *local = hw_to_local(hw);
-
 	WARN_ON_ONCE(softirq_count() == 0);
 
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
 
-	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+	/* TODO this don't work for FCS with monitor vifs
+	 * also some drivers don't deliver with crc and drop
+	 * it on driver layer, something is wrong here. */
+	if (!(hw->flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc;
 
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc)
 			goto drop;
-		skb_trim(skb, skb->len - 2); /* CRC */
+		/* remove the crc from frame */
+		skb_trim(skb, skb->len - 2);
 	}
 
 	rcu_read_lock();
 	
-	mac802154_wpans_rx(local, skb);
+	__ieee802154_rx_handle_packet(hw, skb);
 	
 	rcu_read_unlock();
 
