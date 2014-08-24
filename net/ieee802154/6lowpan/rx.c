@@ -93,6 +93,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ieee802154_hdr hdr;
 	int ret;
+	int hlen;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
@@ -104,8 +105,11 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (dev->type != ARPHRD_IEEE802154)
 		goto drop_skb;
 
-	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
-		goto drop_skb;
+	hlen = ieee802154_hdr_peek_addrs(skb, &hdr);
+#if 1
+	skb_pull(skb, hlen);
+#endif
+	skb_reset_network_header(skb);
 
 	/* check that it's our buffer */
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {

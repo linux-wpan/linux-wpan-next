@@ -44,174 +44,186 @@ static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
 	}
 }
 
-static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
+static void ieee802154_deliver_skb(struct ieee802154_rx_data *rx)
 {
-	return netif_receive_skb(skb);
+	struct sk_buff *skb = rx->skb;
+
+	skb->protocol = htons(ETH_P_IEEE802154);
+	netif_receive_skb(skb);
 }
 
-static int
-mac802154_subif_frame(struct ieee802154_sub_if_data *sdata, struct sk_buff *skb,
-		      const struct ieee802154_hdr *hdr)
+static ieee802154_rx_result
+ieee802154_rx_h_beacon(struct ieee802154_rx_data *rx)
 {
-	__le16 span, sshort;
-	int rc;
+	struct sk_buff *skb = rx->skb;
+	__le16 fc;
 
-	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
+	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
 
-	spin_lock_bh(&sdata->mib_lock);
+	/* Maybe useful for raw sockets? -> monitor vif type only */
+	if (ieee802154_is_beacon(fc))
+		return RX_DROP_UNUSABLE;
 
-	span = sdata->wpan_dev.pan_id;
-	sshort = sdata->short_addr;
+	return RX_CONTINUE;
+}
 
-	switch (mac_cb(skb)->dest.mode) {
-	case IEEE802154_ADDR_NONE:
-		if (mac_cb(skb)->dest.mode != IEEE802154_ADDR_NONE)
-			/* FIXME: check if we are PAN coordinator */
-			skb->pkt_type = PACKET_OTHERHOST;
-		else
-			/* ACK comes with both addresses empty */
-			skb->pkt_type = PACKET_HOST;
-		break;
-	case IEEE802154_ADDR_LONG:
-		if (mac_cb(skb)->dest.pan_id != span &&
-		    mac_cb(skb)->dest.pan_id !=
-		    cpu_to_le16(IEEE802154_PANID_BROADCAST))
-			skb->pkt_type = PACKET_OTHERHOST;
-		else if (mac_cb(skb)->dest.extended_addr ==
-			 sdata->extended_addr)
-			skb->pkt_type = PACKET_HOST;
-		else
-			skb->pkt_type = PACKET_OTHERHOST;
-		break;
-	case IEEE802154_ADDR_SHORT:
-		if (mac_cb(skb)->dest.pan_id != span &&
-		    mac_cb(skb)->dest.pan_id !=
-		    cpu_to_le16(IEEE802154_PANID_BROADCAST))
-			skb->pkt_type = PACKET_OTHERHOST;
-		else if (mac_cb(skb)->dest.short_addr == sshort)
-			skb->pkt_type = PACKET_HOST;
-		else if (mac_cb(skb)->dest.short_addr ==
-			  cpu_to_le16(IEEE802154_ADDR_BROADCAST))
+static ieee802154_rx_result
+ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
+{
+	struct ieee802154_sub_if_data *sdata = rx->sdata;
+	struct net_device *dev = sdata->dev;
+	struct ieee802154_hdr_data *hdr;
+	union ieee802154_addr_foo *src, *dest;
+	struct sk_buff *skb = rx->skb;
+	__le16 fc, *src_pan_id;
+
+	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
+
+	if (!ieee802154_is_data(fc))
+		return RX_CONTINUE;
+
+	/* dataframes should have short and extended address */
+	if (ieee802154_is_daddr_none(fc) ||
+	    ieee802154_is_saddr_none(fc))
+		return RX_DROP_UNUSABLE;
+
+	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
+
+	src_pan_id = ieee802154_hdr_data_src_pan_id(hdr);
+	dest = ieee802154_hdr_data_dest_addr(hdr);
+	src = ieee802154_hdr_data_src_addr(hdr);
+
+	/* check if source pan_id is broadcast */
+	if (*src_pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+		return RX_DROP_UNUSABLE;
+
+	if (ieee802154_is_daddr_extended(fc)) {
+		if (!ieee802154_is_valid_extended_addr(
+		    &dest->extended_addr))
+			return RX_DROP_UNUSABLE;
+	}
+
+	/* check if source short_addr is broadcast */
+	if (ieee802154_is_saddr_short(fc)) {
+		if (src->short_addr ==
+		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+			return RX_DROP_UNUSABLE;
+	}
+
+	if (ieee802154_is_saddr_extended(fc)) {
+		if (!ieee802154_is_valid_extended_addr(
+		    &src->extended_addr))
+			return RX_DROP_UNUSABLE;
+	}
+
+	if (hdr->dest_pan_id != sdata->wpan_dev.pan_id &&
+	    hdr->dest_pan_id != cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)) {
+		skb->pkt_type = PACKET_OTHERHOST;
+		goto deliver;
+	}
+
+	if (ieee802154_is_daddr_short(fc)) {
+		if (dest->short_addr ==
+		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
 			skb->pkt_type = PACKET_BROADCAST;
+		else if (dest->short_addr == sdata->short_addr)
+			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
-		break;
-	default:
-		break;
-	}
-
-	spin_unlock_bh(&sdata->mib_lock);
-
-	skb->dev = sdata->dev;
-
-	rc = mac802154_llsec_decrypt(&sdata->sec, skb);
-	if (rc) {
-		pr_debug("decryption failed: %i\n", rc);
-		goto fail;
-	}
-
-	sdata->dev->stats.rx_packets++;
-	sdata->dev->stats.rx_bytes += skb->len;
-
-	switch (mac_cb(skb)->type) {
-	case IEEE802154_FC_TYPE_DATA:
-		return mac802154_process_data(sdata->dev, skb);
-	default:
-		pr_warn("ieee802154: bad frame received (type = %d)\n",
-			mac_cb(skb)->type);
-		goto fail;
-	}
-
-fail:
-	kfree_skb(skb);
-	return NET_RX_DROP;
-}
-
-static void mac802154_print_addr(const char *name,
-				 const struct ieee802154_addr *addr)
-{
-	if (addr->mode == IEEE802154_ADDR_NONE)
-		pr_debug("%s not present\n", name);
-
-	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
-	if (addr->mode == IEEE802154_ADDR_SHORT) {
-		pr_debug("%s is short: %04x\n", name,
-			 le16_to_cpu(addr->short_addr));
 	} else {
-		u64 hw = swab64((__force u64)addr->extended_addr);
-
-		pr_debug("%s is hardware: %8phC\n", name, &hw);
+		/* else branch, because it can be only short xor extended */
+		if (dest->extended_addr == sdata->extended_addr)
+			skb->pkt_type = PACKET_HOST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
 	}
+
+deliver:
+	skb->dev = dev;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+
+	ieee802154_deliver_skb(rx);
+
+	return RX_QUEUED;
 }
 
-static int mac802154_parse_frame_start(struct sk_buff *skb,
-				       struct ieee802154_hdr *hdr)
+static ieee802154_rx_result
+ieee802154_rx_h_ack(struct ieee802154_rx_data *rx)
 {
-	int hlen;
-	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+	struct sk_buff *skb = rx->skb;
+	__le16 fc;
 
-	hlen = ieee802154_hdr_pull(skb, hdr);
-	if (hlen < 0)
-		return -EINVAL;
+	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
 
-	skb->mac_len = hlen;
+	/* Maybe useful for raw sockets? -> monitor vif type only */
+	if (ieee802154_is_ack(fc))
+		return RX_DROP_UNUSABLE;
 
-	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr->fc),
-		 hdr->seq);
+	return RX_CONTINUE;
+}
 
-	cb->type = hdr->fc.type;
-	cb->ackreq = hdr->fc.ack_request;
-	cb->secen = hdr->fc.security_enabled;
+static ieee802154_rx_result
+ieee802154_rx_h_cmd(struct ieee802154_rx_data *rx)
+{
+	struct sk_buff *skb = rx->skb;
+	__le16 fc;
 
-	mac802154_print_addr("destination", &hdr->dest);
-	mac802154_print_addr("source", &hdr->source);
+	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
 
-	cb->source = hdr->source;
-	cb->dest = hdr->dest;
+	/* Maybe useful for raw sockets? -> monitor vif type only */
+	if (ieee802154_is_cmd(fc))
+		return RX_DROP_UNUSABLE;
 
-	if (hdr->fc.security_enabled) {
-		u64 key;
+	return RX_CONTINUE;
+}
 
-		pr_debug("seclevel %i\n", hdr->sec.level);
+static void ieee802154_rx_handlers(struct ieee802154_rx_data *rx)
+{
+	ieee802154_rx_result res;
 
-		switch (hdr->sec.key_id_mode) {
-		case IEEE802154_SCF_KEY_IMPLICIT:
-			pr_debug("implicit key\n");
-			break;
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(rx);		\
+		if (res != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0)
 
-		case IEEE802154_SCF_KEY_INDEX:
-			pr_debug("key %02x\n", hdr->sec.key_id);
-			break;
+	CALL_RXH(ieee802154_rx_h_data);
+	CALL_RXH(ieee802154_rx_h_ack);
+	CALL_RXH(ieee802154_rx_h_beacon);
+	CALL_RXH(ieee802154_rx_h_cmd);
 
-		case IEEE802154_SCF_KEY_SHORT_INDEX:
-			pr_debug("key %04x:%04x %02x\n",
-				 le32_to_cpu(hdr->sec.short_src) >> 16,
-				 le32_to_cpu(hdr->sec.short_src) & 0xffff,
-				 hdr->sec.key_id);
-			break;
+rxh_next:
+	ieee802154_rx_handlers_result(rx, res);
 
-		case IEEE802154_SCF_KEY_HW_INDEX:
-			key = swab64((__force u64)hdr->sec.extended_src);
-			pr_debug("key source %8phC %02x\n", &key,
-				 hdr->sec.key_id);
-			break;
-		}
-	}
-
-	return 0;
+#undef CALL_RXH
 }
 
 static ieee802154_rx_result
 ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 {
-	struct ieee802154_hdr hdr;
-	int ret;
+	struct sk_buff *skb = rx->skb;
+	__le16 fc;
 
-	ret = mac802154_parse_frame_start(rx->skb, &hdr);
-	if (ret)
+	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+
+	/* check on reserved frame type */
+	if (ieee802154_is_reserved(fc))
 		return RX_DROP_UNUSABLE;
 
-	mac802154_subif_frame(rx->sdata, rx->skb, &hdr);
+	/* check on reserved address types */
+	if (ieee802154_is_daddr_reserved(fc) ||
+	    ieee802154_is_saddr_reserved(fc))
+		return RX_DROP_UNUSABLE;
+
+	/* if it's not ack and saddr is zero, dest
+	 * should be non zero */
+	if (!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
+	    ieee802154_is_daddr_none(fc))
+		return RX_DROP_UNUSABLE;
+
+	skb_reset_mac_header(rx->skb);
 
 	return RX_CONTINUE;
 }
@@ -225,10 +237,11 @@ static void ieee802154_invoke_rx_handlers(struct ieee802154_rx_data *rx)
 		res = rxh(rx);		\
 		if (res != RX_CONTINUE)	\
 			goto rxh_next;	\
-	} while (0);
+	} while (0)
 
 	CALL_RXH(ieee802154_rx_h_check);
 
+	ieee802154_rx_handlers(rx);
 	return;
 
 rxh_next:
@@ -266,9 +279,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	skb->protocol = htons(ETH_P_IEEE802154);
-	skb_reset_mac_header(skb);
-
 	/* TODO this don't work for FCS with monitor vifs
 	 * also some drivers don't deliver with crc and drop
 	 * it on driver layer, something is wrong here. */
@@ -300,6 +310,7 @@ ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 
+	/* TODO should be accesable via netlink like scan dump */
 	mac_cb(skb)->lqi = lqi;
 	skb->pkt_type = IEEE802154_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);

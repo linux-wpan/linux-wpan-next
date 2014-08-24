@@ -334,6 +334,7 @@ static int __init af_ieee802154_init(void)
 {
 	int rc = -EINVAL;
 
+	return rc;
 	rc = proto_register(&ieee802154_raw_prot, 1);
 	if (rc)
 		goto out;
@@ -360,6 +361,7 @@ out:
 }
 static void __exit af_ieee802154_remove(void)
 {
+	return;
 	dev_remove_pack(&ieee802154_packet_type);
 	sock_unregister(PF_IEEE802154);
 	proto_unregister(&ieee802154_dgram_prot);

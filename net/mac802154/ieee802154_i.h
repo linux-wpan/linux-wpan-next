@@ -116,6 +116,8 @@ struct ieee802154_rx_data {
 typedef unsigned __bitwise__ ieee802154_rx_result;
 #define RX_CONTINUE             ((__force ieee802154_rx_result) 0u)
 #define RX_DROP_UNUSABLE        ((__force ieee802154_rx_result) 1u)
+#define RX_DROP_MONITOR         ((__force ieee802154_rx_result) 2u)
+#define RX_QUEUED               ((__force ieee802154_rx_result) 3u)
 
 static inline struct ieee802154_local *
 hw_to_local(struct ieee802154_hw *hw)

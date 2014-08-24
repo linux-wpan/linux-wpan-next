@@ -362,7 +362,7 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
-	if (pan_id == IEEE802154_SRC_PANID_INVALID)
+	if (pan_id == IEEE802154_PAN_ID_BROADCAST)
 		return -EINVAL;
 
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);

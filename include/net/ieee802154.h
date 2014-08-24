@@ -29,11 +29,15 @@
 
 #include <linux/random.h>
 
-#define IEEE802154_MTU			127
-#define IEEE802154_MIN_FRAME_SIZE	5
+#define IEEE802154_MTU				127
+#define IEEE802154_MIN_FRAME_SIZE		5
 
-#define IEEE802154_SRC_PANID_INVALID	0xffff
-#define IEEE802154_EXTENDED_ADDR_LEN	8
+#define IEEE802154_PAN_ID_BROADCAST		0xffff
+#define IEEE802154_SHORT_ADDR_BROADCAST		0xffff
+
+#define IEEE802154_EXTENDED_ADDR_LEN		8
+#define IEEE802154_SHORT_ADDR_LEN		2
+#define IEEE802154_PAN_ID_LEN			2
 
 #define IEEE802154_MAX_PAGE		31
 #define IEEE802154_MAX_CHANNEL		26
@@ -111,6 +115,53 @@
 #define IEEE802154_CMD_COORD_REALIGN_NOTIFY	0x08
 #define IEEE802154_CMD_GTS_REQ			0x09
 
+/* frame control handling */
+#define IEEE802154_FCTL_FTYPE                   0x0003
+#define IEEE802154_FCTL_SEC                     0x0008
+#define IEEE802154_FCTL_FP                      0x0010
+#define IEEE802154_FCTL_AR                      0x0020
+#define IEEE802154_FCTL_INTRA                   0x0040
+#define IEEE802154_FCTL_DADDR                   0x0c00
+#define IEEE802154_FCTL_VERS                    0x3000
+#define IEEE802154_FCTL_SADDR                   0xc000
+
+#define IEEE802154_FCTL_DADDR_NONE              0x0000
+#define IEEE802154_FCTL_DADDR_RESERVED          0x0400
+#define IEEE802154_FCTL_DADDR_SHORT             0x0800
+#define IEEE802154_FCTL_DADDR_EXTENDED          0x0c00
+
+#define IEEE802154_FCTL_SADDR_NONE              0x0000
+#define IEEE802154_FCTL_SADDR_RESERVED          0x4000
+#define IEEE802154_FCTL_SADDR_SHORT             0x8000
+#define IEEE802154_FCTL_SADDR_EXTENDED          0xc000
+
+#define IEEE802154_FTYPE_BEACON                 0x0000
+#define IEEE802154_FTYPE_DATA                   0x0001
+#define IEEE802154_FTYPE_ACK                    0x0002
+#define IEEE802154_FTYPE_CMD                    0x0003
+
+/* reserved is 100-111, so if 0x0004 bit is set */
+#define IEEE802154_FTYPE_RESERVED               0x0004
+
+/* TODO remove the foo and ieee802154_addr struct */
+union ieee802154_addr_foo {
+	__le16 short_addr;
+	__le64 extended_addr;
+};
+
+/* TODO remove the foo and ieee802154_hdr struct */
+struct ieee802154_hdr_foo {
+	__le16 frame_control;
+	u8 sequence_number;
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee802154_hdr_data {
+	__le16 frame_control;
+	u8 sequence_number;
+	__le16 dest_pan_id;
+	u8 payload[0];
+} __attribute__ ((packed));
 
 /* Clear channel assesment (CCA) modes */
 enum ieee802154_cca_modes {
@@ -121,6 +172,180 @@ enum ieee802154_cca_modes {
 	IEEE802154_CCA_UWB_SHR		= 5,
 	IEEE802154_CCA_UWB_MULTIPEXED	= 6,
 };
+
+/**
+ * ieee802154_is_beacon - check if type is IEEE802154_FTYPE_BEACON
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_beacon(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+		cpu_to_le16(IEEE802154_FTYPE_BEACON);
+}
+
+/**
+ * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_data(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+                cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_ack - check if type is IEEE802154_FTYPE_ACK
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_ack(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+                cpu_to_le16(IEEE802154_FTYPE_ACK);
+}
+
+/**
+ * ieee802154_is_cmd - check if type is IEEE802154_FTYPE_CMD
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_cmd(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+                cpu_to_le16(IEEE802154_FTYPE_CMD);
+}
+
+/**
+ * ieee802154_is_reserved - check if bit IEEE802154_FTYPE_RESERVED is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_reserved(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) &
+                cpu_to_le16(IEEE802154_FTYPE_RESERVED);
+}
+
+/**
+ * ieee802154_is_intra_pan - check if source pan id is compressed
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_intra_pan(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_INTRA));
+}
+
+/**
+ * ieee802154_is_daddr_none - check if daddr mode is none
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_daddr_none(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_DADDR_NONE);
+}
+
+/**
+ * ieee802154_is_daddr_reserved - check if daddr mode is reserved
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_daddr_reserved(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
+		cpu_to_le16(IEEE802154_FCTL_DADDR_RESERVED);
+}
+
+/**
+ * ieee802154_is_daddr_short - check if daddr mode is short
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_daddr_short(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
+}
+
+/**
+ * ieee802154_is_daddr_extended - check if daddr mode is extended
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_daddr_extended(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
+}
+
+/**
+ * ieee802154_is_saddr_none - check if saddr mode is none
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_saddr_none(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_SADDR_NONE);
+}
+
+/**
+ * ieee802154_is_saddr_reserved - check if saddr mode is reserved
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_saddr_reserved(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
+		cpu_to_le16(IEEE802154_FCTL_SADDR_RESERVED);
+}
+
+/**
+ * ieee802154_is_saddr_short - check if saddr mode is short
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_saddr_short(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT);
+}
+
+/**
+ * ieee802154_is_saddr_short - check if saddr mode is short
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_saddr_extended(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
+                cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
+}
+
+static inline union ieee802154_addr_foo *
+ieee802154_hdr_data_dest_addr(struct ieee802154_hdr_data *hdr)
+{
+	return (union ieee802154_addr_foo *)hdr->payload;
+}
+
+static inline __le16 *
+ieee802154_hdr_data_src_pan_id(struct ieee802154_hdr_data *hdr)
+{
+	if (ieee802154_is_intra_pan(hdr->frame_control))
+		return (__le16 *)(&hdr->dest_pan_id);
+
+	if (ieee802154_is_daddr_extended(hdr->frame_control))
+		return (__le16 *)(hdr->payload + IEEE802154_EXTENDED_ADDR_LEN);
+	else
+		return (__le16 *)(hdr->payload + IEEE802154_SHORT_ADDR_LEN);
+}
+
+static inline union ieee802154_addr_foo *
+ieee802154_hdr_data_src_addr(struct ieee802154_hdr_data *hdr)
+{
+	if (ieee802154_is_intra_pan(hdr->frame_control)) {
+		if (ieee802154_is_daddr_extended(hdr->frame_control))
+			return (union ieee802154_addr_foo *)
+				(hdr->payload + IEEE802154_EXTENDED_ADDR_LEN);
+		else
+			return (union ieee802154_addr_foo *)
+				(hdr->payload + IEEE802154_SHORT_ADDR_LEN);
+	}
+
+	return (union ieee802154_addr_foo *)
+		(((u8 *)ieee802154_hdr_data_src_pan_id(hdr)) +
+		 IEEE802154_PAN_ID_LEN);
+}
 
 /*
  * The return values of MAC operations
@@ -224,8 +449,8 @@ static inline bool ieee802154_is_valid_extended_addr(const __le64 *addr)
 	static const u8 zero[8] = { 0x00, 0x00, 0x00, 0x00,
 				    0x00, 0x00, 0x00, 0x00 };
 
-	return !memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
-	       !memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
+	return memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
+	       memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
 }
 
 static inline void ieee802154_random_extended_addr(__le64 *addr)
