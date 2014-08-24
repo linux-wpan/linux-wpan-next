@@ -87,8 +87,6 @@ struct wpan_phy {
 
 	__le64 perm_extended_addr;
 
-	s32 cca_ed_level;
-
 	struct device dev;
 	int idx;
 
