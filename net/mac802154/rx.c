@@ -232,15 +232,9 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc;
 
-		if (skb->len < 2) {
-			pr_debug("got invalid frame\n");
-			goto drop;
-		}
 		crc = crc_ccitt(0, skb->data, skb->len);
-		if (crc) {
-			pr_debug("CRC mismatch\n");
+		if (crc)
 			goto drop;
-		}
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
