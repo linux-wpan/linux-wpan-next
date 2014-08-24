@@ -220,10 +220,11 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		kfree_skb(skb);
 }
 
-static void
-mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
+void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+
+	WARN_ON_ONCE(softirq_count() == 0);
 
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
@@ -233,12 +234,12 @@ mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 		if (skb->len < 2) {
 			pr_debug("got invalid frame\n");
-			goto fail;
+			goto drop;
 		}
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			pr_debug("CRC mismatch\n");
-			goto fail;
+			goto drop;
 		}
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
@@ -247,15 +248,8 @@ mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	return;
 
-fail:
+drop:
 	kfree_skb(skb);
-}
-
-void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
-{
-	WARN_ON_ONCE(softirq_count() == 0);
-
-	mac802154_subif_rx(hw, skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
 
