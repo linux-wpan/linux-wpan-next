@@ -204,7 +204,6 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		return;
 	}
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
 		    !netif_running(sdata->dev))
@@ -214,7 +213,6 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		skb = NULL;
 		break;
 	}
-	rcu_read_unlock();
 
 	if (skb)
 		kfree_skb(skb);
@@ -238,7 +236,11 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
+	rcu_read_lock();
+	
 	mac802154_wpans_rx(local, skb);
+	
+	rcu_read_unlock();
 
 	return;
 
