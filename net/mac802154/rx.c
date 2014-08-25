@@ -129,23 +129,24 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 	skb_set_network_header(skb, hdr_len);
 
-	if (hdr->dest_pan_id != sdata->wpan_dev.pan_id &&
-	    hdr->dest_pan_id != cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)) {
+	if (unlikely(hdr->dest_pan_id != sdata->wpan_dev.pan_id &&
+		     hdr->dest_pan_id !=
+		     cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))) {
 		skb->pkt_type = PACKET_OTHERHOST;
 		goto deliver;
 	}
 
 	if (ieee802154_is_daddr_short(fc)) {
-		if (dest->short_addr ==
-		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+		if (likely(dest->short_addr ==
+					cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
 			skb->pkt_type = PACKET_BROADCAST;
-		else if (dest->short_addr == sdata->short_addr)
+		else if (likely(dest->short_addr == sdata->short_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 	} else {
 		/* else branch, because it can be only short xor extended */
-		if (dest->extended_addr == sdata->extended_addr)
+		if (likely(dest->extended_addr == sdata->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
