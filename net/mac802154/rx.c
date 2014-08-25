@@ -76,6 +76,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	union ieee802154_addr_foo *src, *dest;
 	struct sk_buff *skb = rx->skb;
 	__le16 fc, *src_pan_id;
+	u16 hdr_len = 5;
 
 	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
 
@@ -101,20 +102,32 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		if (!ieee802154_is_valid_extended_addr(
 		    &dest->extended_addr))
 			return RX_DROP_UNUSABLE;
-	}
 
-	/* check if source short_addr is broadcast */
-	if (ieee802154_is_saddr_short(fc)) {
-		if (src->short_addr ==
-		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
-			return RX_DROP_UNUSABLE;
+		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
+	} else {
+		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 	}
 
 	if (ieee802154_is_saddr_extended(fc)) {
 		if (!ieee802154_is_valid_extended_addr(
 		    &src->extended_addr))
 			return RX_DROP_UNUSABLE;
+
+		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
+	} else {
+		if (src->short_addr ==
+		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+			return RX_DROP_UNUSABLE;
+
+		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 	}
+
+	if (ieee802154_is_intra_pan(fc))
+		hdr_len += 2;
+	else
+		hdr_len += 4;
+
+	skb_set_network_header(skb, hdr_len);
 
 	if (hdr->dest_pan_id != sdata->wpan_dev.pan_id &&
 	    hdr->dest_pan_id != cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)) {
