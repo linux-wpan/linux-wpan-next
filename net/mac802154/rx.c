@@ -84,8 +84,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		return RX_CONTINUE;
 
 	/* dataframes should have short and extended address */
-	if (ieee802154_is_daddr_none(fc) ||
-	    ieee802154_is_saddr_none(fc))
+	if (unlikely(ieee802154_is_daddr_none(fc) ||
+		     ieee802154_is_saddr_none(fc)))
 		return RX_DROP_UNUSABLE;
 
 	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
@@ -95,12 +95,12 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	src = ieee802154_hdr_data_src_addr(hdr);
 
 	/* check if source pan_id is broadcast */
-	if (*src_pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+	if (unlikely(*src_pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)))
 		return RX_DROP_UNUSABLE;
 
 	if (ieee802154_is_daddr_extended(fc)) {
-		if (!ieee802154_is_valid_extended_addr(
-		    &dest->extended_addr))
+		if (unlikely(!ieee802154_is_valid_extended_addr(
+						&dest->extended_addr)))
 			return RX_DROP_UNUSABLE;
 
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
@@ -109,14 +109,14 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	}
 
 	if (ieee802154_is_saddr_extended(fc)) {
-		if (!ieee802154_is_valid_extended_addr(
-		    &src->extended_addr))
+		if (unlikely(!ieee802154_is_valid_extended_addr(
+						&src->extended_addr)))
 			return RX_DROP_UNUSABLE;
 
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 	} else {
-		if (src->short_addr ==
-		    cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+		if (unlikely(src->short_addr ==
+					cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
 			return RX_DROP_UNUSABLE;
 
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
@@ -222,18 +222,18 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
 	/* check on reserved frame type */
-	if (ieee802154_is_reserved(fc))
+	if (unlikely(ieee802154_is_reserved(fc)))
 		return RX_DROP_UNUSABLE;
 
 	/* check on reserved address types */
-	if (ieee802154_is_daddr_reserved(fc) ||
-	    ieee802154_is_saddr_reserved(fc))
+	if (unlikely(ieee802154_is_daddr_reserved(fc) ||
+		     ieee802154_is_saddr_reserved(fc)))
 		return RX_DROP_UNUSABLE;
 
 	/* if it's not ack and saddr is zero, dest
 	 * should be non zero */
-	if (!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
-	    ieee802154_is_daddr_none(fc))
+	if (unlikely(!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
+		     ieee802154_is_daddr_none(fc)))
 		return RX_DROP_UNUSABLE;
 
 	skb_reset_mac_header(rx->skb);
