@@ -103,8 +103,22 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 						&dest->extended_addr)))
 			return RX_DROP_UNUSABLE;
 
+		/* else branch, because it can be only short xor extended */
+		if (likely(dest->extended_addr == sdata->extended_addr))
+			skb->pkt_type = PACKET_HOST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
+
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 	} else {
+		if (likely(dest->short_addr ==
+					cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
+			skb->pkt_type = PACKET_BROADCAST;
+		else if (likely(dest->short_addr == sdata->short_addr))
+			skb->pkt_type = PACKET_HOST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
+
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 	}
 
@@ -122,12 +136,9 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 	}
 
-	if (ieee802154_is_intra_pan(fc))
-		hdr_len += 2;
-	else
-		hdr_len += 4;
-
-	skb_set_network_header(skb, hdr_len);
+	/* add src pan length */
+	if (!ieee802154_is_intra_pan(fc))
+		hdr_len += IEEE802154_PAN_ID_LEN;
 
 	if (unlikely(hdr->dest_pan_id != sdata->wpan_dev.pan_id &&
 		     hdr->dest_pan_id !=
@@ -136,26 +147,12 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		goto deliver;
 	}
 
-	if (ieee802154_is_daddr_short(fc)) {
-		if (likely(dest->short_addr ==
-					cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
-			skb->pkt_type = PACKET_BROADCAST;
-		else if (likely(dest->short_addr == sdata->short_addr))
-			skb->pkt_type = PACKET_HOST;
-		else
-			skb->pkt_type = PACKET_OTHERHOST;
-	} else {
-		/* else branch, because it can be only short xor extended */
-		if (likely(dest->extended_addr == sdata->extended_addr))
-			skb->pkt_type = PACKET_HOST;
-		else
-			skb->pkt_type = PACKET_OTHERHOST;
-	}
-
 deliver:
 	skb->dev = dev;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
+
+	skb_pull(skb, hdr_len);
 
 	ieee802154_deliver_skb(rx);
 
