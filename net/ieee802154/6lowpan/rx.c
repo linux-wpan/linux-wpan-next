@@ -78,10 +78,10 @@ drop:
 	return -EINVAL;
 }
 
-static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
-		      struct packet_type *pt, struct net_device *orig_dev)
+static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
+		      struct packet_type *pt, struct net_device *orig_wdev)
 {
-	struct net_device *ldev = dev->ieee802154_ptr->lowpan_dev;
+	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 	struct ieee802154_hdr hdr;
 	int ret;
 	int hlen;
@@ -91,10 +91,10 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 
 	/* TODO checking on !ldev needs locking? maybe we can stop rx queue */
-	if (!ldev && !netif_running(ldev) && !netif_running(dev))
+	if (!ldev && !netif_running(ldev) && !netif_running(wdev))
 		goto drop_skb;
 
-	if (dev->type != ARPHRD_IEEE802154)
+	if (wdev->type != ARPHRD_IEEE802154)
 		goto drop_skb;
 
 	hlen = ieee802154_hdr_peek_addrs(skb, &hdr);

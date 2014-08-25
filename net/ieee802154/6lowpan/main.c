@@ -60,43 +60,43 @@
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
-static int lowpan_set_address(struct net_device *dev, void *p)
+static int lowpan_set_address(struct net_device *ldev, void *p)
 {
 	struct sockaddr *sa = p;
 
-	if (netif_running(dev))
+	if (netif_running(ldev))
 		return -EBUSY;
 
 	/* TODO: validate addr */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	memcpy(ldev->dev_addr, sa->sa_data, ldev->addr_len);
 
 	return 0;
 }
 
-static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
+static struct wpan_phy *lowpan_get_phy(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
 
 	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
 }
 
-static __le16 lowpan_get_pan_id(const struct net_device *dev)
+static __le16 lowpan_get_pan_id(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
 
 	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
 }
 
-static __le16 lowpan_get_short_addr(const struct net_device *dev)
+static __le16 lowpan_get_short_addr(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
 
 	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
 }
 
-static u8 lowpan_get_dsn(const struct net_device *dev)
+static u8 lowpan_get_dsn(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
 
 	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
 }
@@ -108,7 +108,7 @@ static struct header_ops lowpan_header_ops = {
 static struct lock_class_key lowpan_tx_busylock;
 static struct lock_class_key lowpan_netdev_xmit_lock_key;
 
-static void lowpan_set_lockdep_class_one(struct net_device *dev,
+static void lowpan_set_lockdep_class_one(struct net_device *ldev,
 					 struct netdev_queue *txq,
 					 void *_unused)
 {
@@ -117,10 +117,10 @@ static void lowpan_set_lockdep_class_one(struct net_device *dev,
 }
 
 
-static int lowpan_dev_init(struct net_device *dev)
+static int lowpan_dev_init(struct net_device *ldev)
 {
-	netdev_for_each_tx_queue(dev, lowpan_set_lockdep_class_one, NULL);
-	dev->qdisc_tx_busylock = &lowpan_tx_busylock;
+	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
+	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
 	return 0;
 }
 
@@ -137,23 +137,23 @@ static struct ieee802154_mlme_ops lowpan_mlme = {
 	.get_dsn = lowpan_get_dsn,
 };
 
-static void lowpan_setup(struct net_device *dev)
+static void lowpan_setup(struct net_device *ldev)
 {
-	dev->addr_len		= IEEE802154_ADDR_LEN;
-	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
-	dev->type		= ARPHRD_IEEE802154;
+	ldev->addr_len		= IEEE802154_ADDR_LEN;
+	memset(ldev->broadcast, 0xff, IEEE802154_ADDR_LEN);
+	ldev->type		= ARPHRD_IEEE802154;
 	/* Frame Control + Sequence Number + Address fields + Security Header */
-	dev->hard_header_len	= 2 + 1 + 20 + 14;
-	dev->needed_tailroom	= 2; /* FCS */
-	dev->mtu		= 1281;
-	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
-	dev->watchdog_timeo	= 0;
+	ldev->hard_header_len	= 2 + 1 + 20 + 14;
+	ldev->needed_tailroom	= 2; /* FCS */
+	ldev->mtu		= 1281;
+	ldev->tx_queue_len	= 0;
+	ldev->flags		= IFF_BROADCAST | IFF_MULTICAST;
+	ldev->watchdog_timeo	= 0;
 
-	dev->netdev_ops		= &lowpan_netdev_ops;
-	dev->header_ops		= &lowpan_header_ops;
-	dev->ml_priv		= &lowpan_mlme;
-	dev->destructor		= free_netdev;
+	ldev->netdev_ops	= &lowpan_netdev_ops;
+	ldev->header_ops	= &lowpan_header_ops;
+	ldev->ml_priv		= &lowpan_mlme;
+	ldev->destructor	= free_netdev;
 }
 
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -165,7 +165,7 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int lowpan_newlink(struct net *src_net, struct net_device *dev,
+static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *real_dev;
@@ -188,23 +188,23 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 		return -EBUSY;
 	}
 
-	real_dev->ieee802154_ptr->lowpan_dev = dev;
-	lowpan_dev_info(dev)->real_dev = real_dev;
+	real_dev->ieee802154_ptr->lowpan_dev = ldev;
+	lowpan_dev_info(ldev)->real_dev = real_dev;
 
 	/* Set the lowpan harware address to the wpan hardware address. */
-	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
+	memcpy(ldev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
-	return register_netdevice(dev);
+	return register_netdevice(ldev);
 }
 
-static void lowpan_dellink(struct net_device *dev, struct list_head *head)
+static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 {
-	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
+	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(ldev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
 
 	ASSERT_RTNL();
 
-	unregister_netdevice_queue(dev, head);
+	unregister_netdevice_queue(ldev, head);
 	dev_put(real_dev);
 }
 
