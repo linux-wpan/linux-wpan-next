@@ -49,16 +49,16 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
+
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
+#include <net/cfg802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
 #include "6lowpan_i.h"
 #include "reassembly.h"
-
-LIST_HEAD(lowpan_devices);
 
 static int lowpan_set_address(struct net_device *dev, void *p)
 {
@@ -169,7 +169,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *real_dev;
-	struct lowpan_dev_record *entry;
 
 	pr_debug("adding new link\n");
 
@@ -184,52 +183,28 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	lowpan_dev_info(dev)->real_dev = real_dev;
-	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
+	if (real_dev->ieee802154_ptr->lowpan_dev) {
 		dev_put(real_dev);
-		lowpan_dev_info(dev)->real_dev = NULL;
-		return -ENOMEM;
+		return -EBUSY;
 	}
 
-	entry->ldev = dev;
+	real_dev->ieee802154_ptr->lowpan_dev = dev;
+	lowpan_dev_info(dev)->real_dev = real_dev;
 
 	/* Set the lowpan harware address to the wpan hardware address. */
 	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
-	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
-	INIT_LIST_HEAD(&entry->list);
-	list_add_tail(&entry->list, &lowpan_devices);
-	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	register_netdevice(dev);
-
-	return 0;
+	return register_netdevice(dev);
 }
 
 static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
-	struct lowpan_dev_record *entry, *tmp;
 
 	ASSERT_RTNL();
 
-	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
-	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
-		if (entry->ldev == dev) {
-			list_del(&entry->list);
-			kfree(entry);
-		}
-	}
-	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	mutex_destroy(&lowpan_dev_info(dev)->dev_list_mtx);
-
 	unregister_netdevice_queue(dev, head);
-
 	dev_put(real_dev);
 }
 
@@ -252,33 +227,6 @@ static inline void lowpan_netlink_fini(void)
 	rtnl_link_unregister(&lowpan_link_ops);
 }
 
-static int lowpan_device_event(struct notifier_block *unused,
-			       unsigned long event, void *ptr)
-{
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	LIST_HEAD(del_list);
-	struct lowpan_dev_record *entry, *tmp;
-
-	if (dev->type != ARPHRD_IEEE802154)
-		goto out;
-
-	if (event == NETDEV_UNREGISTER) {
-		list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
-			if (lowpan_dev_info(entry->ldev)->real_dev == dev)
-				lowpan_dellink(entry->ldev, &del_list);
-		}
-
-		unregister_netdevice_many(&del_list);
-	}
-
-out:
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block lowpan_dev_notifier = {
-	.notifier_call = lowpan_device_event,
-};
-
 static int __init lowpan_init_module(void)
 {
 	int err = 0;
@@ -293,15 +241,8 @@ static int __init lowpan_init_module(void)
 
 	lowpan_init_rx();
 
-	err = register_netdevice_notifier(&lowpan_dev_notifier);
-	if (err < 0)
-		goto out_pack;
-
 	return 0;
 
-out_pack:
-	lowpan_cleanup_rx();
-	lowpan_netlink_fini();
 out_frag:
 	lowpan_net_frag_exit();
 out:
@@ -315,8 +256,6 @@ static void __exit lowpan_cleanup_module(void)
 	lowpan_cleanup_rx();
 
 	lowpan_net_frag_exit();
-
-	unregister_netdevice_notifier(&lowpan_dev_notifier);
 }
 
 module_init(lowpan_init_module);

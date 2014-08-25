@@ -108,6 +108,7 @@ struct wpan_dev {
 	/* the remainder of this struct should be private to cfg802154 */
 	struct list_head list;
 	struct net_device *netdev;
+	struct net_device *lowpan_dev;
 
 	u32 identifier;
 

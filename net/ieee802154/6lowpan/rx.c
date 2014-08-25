@@ -15,6 +15,7 @@
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
 
+#include <net/cfg802154.h>
 #include <net/af_ieee802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/6lowpan.h>
@@ -22,30 +23,19 @@
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
-extern struct list_head lowpan_devices;
-
 static int lowpan_give_skb_to_devices(struct sk_buff *skb,
-				      struct net_device *dev)
+				      struct net_device *wdev)
 {
-	struct lowpan_dev_record *entry;
+	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 	struct sk_buff *skb_cp;
-	int stat = NET_RX_SUCCESS;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(entry, &lowpan_devices, list)
-		if (lowpan_dev_info(entry->ldev)->real_dev == skb->dev) {
-			skb_cp = skb_copy(skb, GFP_ATOMIC);
-			if (!skb_cp) {
-				stat = -ENOMEM;
-				break;
-			}
+	skb_cp = skb_copy(skb, GFP_ATOMIC);
+	if (!skb_cp)
+		return NET_RX_DROP;
 
-			skb_cp->dev = entry->ldev;
-			stat = netif_rx(skb_cp);
-		}
-	rcu_read_unlock();
+	skb_cp->dev = ldev;
 
-	return stat;
+	return netif_rx(skb_cp);
 }
 
 static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
@@ -91,6 +81,7 @@ drop:
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		      struct packet_type *pt, struct net_device *orig_dev)
 {
+	struct net_device *ldev = dev->ieee802154_ptr->lowpan_dev;
 	struct ieee802154_hdr hdr;
 	int ret;
 	int hlen;
@@ -99,7 +90,8 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		goto drop;
 
-	if (!netif_running(dev))
+	/* TODO checking on !ldev needs locking? maybe we can stop rx queue */
+	if (!ldev && !netif_running(ldev) && !netif_running(dev))
 		goto drop_skb;
 
 	if (dev->type != ARPHRD_IEEE802154)

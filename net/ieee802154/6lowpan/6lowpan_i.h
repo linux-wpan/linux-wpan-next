@@ -4,15 +4,9 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 
-struct lowpan_dev_record {
-	struct net_device *ldev;
-	struct list_head list;
-};
-
 /* private device info */
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
-	struct mutex		dev_list_mtx; /* mutex for list ops */
 	__be16			fragment_tag;
 };
 
