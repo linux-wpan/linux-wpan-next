@@ -75,30 +75,30 @@ static int lowpan_set_address(struct net_device *ldev, void *p)
 
 static struct wpan_phy *lowpan_get_phy(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
+	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 
-	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
+	return ieee802154_mlme_ops(wdev)->get_phy(wdev);
 }
 
 static __le16 lowpan_get_pan_id(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
+	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 
-	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
+	return ieee802154_mlme_ops(wdev)->get_pan_id(wdev);
 }
 
 static __le16 lowpan_get_short_addr(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
+	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 
-	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
+	return ieee802154_mlme_ops(wdev)->get_short_addr(wdev);
 }
 
 static u8 lowpan_get_dsn(const struct net_device *ldev)
 {
-	struct net_device *real_dev = lowpan_dev_info(ldev)->real_dev;
+	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 
-	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
+	return ieee802154_mlme_ops(wdev)->get_dsn(wdev);
 }
 
 static struct header_ops lowpan_header_ops = {
@@ -168,31 +168,31 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
-	struct net_device *real_dev;
+	struct net_device *wdev;
 
 	pr_debug("adding new link\n");
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 	/* find and hold real wpan device */
-	real_dev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
-	if (!real_dev)
+	wdev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+	if (!wdev)
 		return -ENODEV;
-	if (real_dev->type != ARPHRD_IEEE802154) {
-		dev_put(real_dev);
+	if (wdev->type != ARPHRD_IEEE802154) {
+		dev_put(wdev);
 		return -EINVAL;
 	}
 
-	if (real_dev->ieee802154_ptr->lowpan_dev) {
-		dev_put(real_dev);
+	if (wdev->ieee802154_ptr->lowpan_dev) {
+		dev_put(wdev);
 		return -EBUSY;
 	}
 
-	real_dev->ieee802154_ptr->lowpan_dev = ldev;
-	lowpan_dev_info(ldev)->real_dev = real_dev;
+	wdev->ieee802154_ptr->lowpan_dev = ldev;
+	lowpan_dev_info(ldev)->wdev = wdev;
 
 	/* Set the lowpan harware address to the wpan hardware address. */
-	memcpy(ldev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
+	memcpy(ldev->dev_addr, wdev->dev_addr, IEEE802154_ADDR_LEN);
 
 	return register_netdevice(ldev);
 }
@@ -200,12 +200,12 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(ldev);
-	struct net_device *real_dev = lowpan_dev->real_dev;
+	struct net_device *wdev = lowpan_dev->wdev;
 
 	ASSERT_RTNL();
 
 	unregister_netdevice_queue(ldev, head);
-	dev_put(real_dev);
+	dev_put(wdev);
 }
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {

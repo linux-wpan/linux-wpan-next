@@ -51,7 +51,7 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	 * an opinion of net maintainers.
 	 */
 	/* NOTE2: to be absolutely correct, we must derive PANid information
-	 * from MAC subif of the 'dev' and 'real_dev' network devices, but
+	 * from MAC subif of the 'ldev' and 'wdev' network devices, but
 	 * this isn't implemented in mainline yet, so currently we assign 0xff
 	 */
 	cb->type = IEEE802154_FC_TYPE_DATA;
@@ -77,7 +77,7 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 
 	cb->ackreq = !lowpan_is_addr_broadcast(daddr);
 
-	return dev_hard_header(skb, lowpan_dev_info(ldev)->real_dev,
+	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
 			type, (void *)&da, (void *)&sa, 0);
 }
 
@@ -85,22 +85,22 @@ static struct sk_buff*
 lowpan_alloc_frag(struct sk_buff *skb, int size,
 		  const struct ieee802154_hdr *master_hdr)
 {
-	struct net_device *real_dev = lowpan_dev_info(skb->dev)->real_dev;
+	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct sk_buff *frag;
 	int rc;
 
-	frag = alloc_skb(real_dev->hard_header_len +
-			 real_dev->needed_tailroom + size,
+	frag = alloc_skb(wdev->hard_header_len +
+			 wdev->needed_tailroom + size,
 			 GFP_ATOMIC);
 
 	if (likely(frag)) {
-		frag->dev = real_dev;
+		frag->dev = wdev;
 		frag->priority = skb->priority;
-		skb_reserve(frag, real_dev->hard_header_len);
+		skb_reserve(frag, wdev->hard_header_len);
 		skb_reset_network_header(frag);
 		*mac_cb(frag) = *mac_cb(skb);
 
-		rc = dev_hard_header(frag, real_dev, 0, &master_hdr->dest,
+		rc = dev_hard_header(frag, wdev, 0, &master_hdr->dest,
 				     &master_hdr->source, size);
 		if (rc < 0) {
 			kfree_skb(frag);
@@ -214,7 +214,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	max_single = ieee802154_max_payload(&wpan_hdr);
 
 	if (skb_tail_pointer(skb) - skb_network_header(skb) <= max_single) {
-		skb->dev = lowpan_dev_info(ldev)->real_dev;
+		skb->dev = lowpan_dev_info(ldev)->wdev;
 		return dev_queue_xmit(skb);
 	} else {
 		netdev_tx_t rc;

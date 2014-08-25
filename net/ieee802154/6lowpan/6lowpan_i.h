@@ -6,7 +6,7 @@
 
 /* private device info */
 struct lowpan_dev_info {
-	struct net_device	*real_dev; /* real WPAN device ptr */
+	struct net_device	*wdev; /* real WPAN device ptr */
 	__be16			fragment_tag;
 };
 
