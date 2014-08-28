@@ -20,7 +20,8 @@ struct lowpan_dev_info {
 
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
-	/* non converted address mode bits here */
+	/* non converted address mode bits here 
+	 * make this at first, improve memcmp on this struct */
 	__le16 mode;
 	union {
 		/* IPv6 needs big endian here */
@@ -32,7 +33,7 @@ struct lowpan_addr {
 static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
 				     const struct lowpan_addr *saddr)
 {
-	return !memcmp(&daddr->addr, &saddr->addr, sizeof(daddr->addr));
+	return !memcmp(&daddr, &saddr, sizeof(*daddr));
 }
 
 struct lowpan_addr_info {
