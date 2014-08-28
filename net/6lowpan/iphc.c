@@ -175,7 +175,6 @@ static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
 		       struct net_device *dev, skb_delivery_cb deliver_skb)
 {
 	struct sk_buff *new;
-	int stat;
 
 	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
 			      GFP_ATOMIC);
@@ -195,11 +194,7 @@ static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
 	raw_dump_table(__func__, "raw skb data dump before receiving",
 		       new->data, new->len);
 
-	stat = deliver_skb(new, dev);
-
-	kfree_skb(new);
-
-	return stat;
+	return deliver_skb(new, dev);
 }
 
 /* Uncompress function for multicast destination address,
