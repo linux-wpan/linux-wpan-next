@@ -299,7 +299,7 @@ static int nl802154_set_page(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 page = 0;
 
-	if (info->attrs[NL802154_ATTR_PAGE])
+	if (!info->attrs[NL802154_ATTR_PAGE])
 		return -EINVAL;
 
 	page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
@@ -314,7 +314,7 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 channel;
 
-	if (info->attrs[NL802154_ATTR_CHANNEL])
+	if (!info->attrs[NL802154_ATTR_CHANNEL])
 		return -EINVAL;
 
 	channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
