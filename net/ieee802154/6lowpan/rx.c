@@ -17,37 +17,59 @@
 
 #include <net/cfg802154.h>
 #include <net/af_ieee802154.h>
+#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/6lowpan.h>
 
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
-static int lowpan_give_skb_to_devices(struct sk_buff *skb,
-				      struct net_device *wdev)
+static void
+lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 {
-	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
-	struct sk_buff *skb_cp;
-
-	skb_cp = skb_copy(skb, GFP_ATOMIC);
-	if (!skb_cp)
-		return NET_RX_DROP;
-
-	skb_cp->dev = ldev;
-
-	return netif_rx(skb_cp);
+	switch (res) {
+	case RX_DROP_UNUSABLE:
+		kfree_skb(skb);
+		break;
+	}
 }
 
-static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
+static int lowpan_give_skb_to_devices(struct sk_buff *skb,
+				      struct net_device *ldev)
 {
-	u8 iphc0, iphc1;
-	struct ieee802154_addr_sa sa, da;
-	void *sap, *dap;
+	ldev->stats.rx_packets++;
+	ldev->stats.rx_bytes += skb->len;
+
+	netif_receive_skb(skb);
+
+	return 0;
+}
+
+static void lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info);
+
+static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	int ret;
+
+	if (((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAG1) &&
+	    ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAGN))
+		return RX_CONTINUE;
+
+	ret = lowpan_frag_rcv(skb, skb->data[0] & 0xe0, info);
+	if (ret == 1)
+		lowpan_rx_handlers(skb, info);
+
+	return RX_QUEUED;
+}
+
+static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	u8 iphc0, iphc1, daddr_mode, saddr_mode;
+
+	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_IPHC)
+		return RX_CONTINUE;
 
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
-	/* at least two bytes will be used for the encoding */
-	if (skb->len < 2)
-		goto drop;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc0))
 		goto drop;
@@ -55,92 +77,188 @@ static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	if (lowpan_fetch_skb_u8(skb, &iphc1))
 		goto drop;
 
-	ieee802154_addr_to_sa(&sa, &hdr->source);
-	ieee802154_addr_to_sa(&da, &hdr->dest);
+	/* TODO remove this handling do __le16 handling in lowpan_process_data */
+	/* TODO we shouldn't convert mac values to cpu understandable things */
+	switch (info->daddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		daddr_mode = IEEE802154_ADDR_LONG;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		daddr_mode = IEEE802154_ADDR_SHORT;
+		break;
+	default:
+		BUG();
+	}
 
-	if (sa.addr_type == IEEE802154_ADDR_SHORT)
-		sap = &sa.short_addr;
-	else
-		sap = &sa.hwaddr;
+	/* TODO remove this handling do __le16 handling in lowpan_process_data */
+	/* TODO we shouldn't convert mac values to cpu understandable things */
+	switch (info->saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		saddr_mode = IEEE802154_ADDR_LONG;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		saddr_mode = IEEE802154_ADDR_SHORT;
+		break;
+	default:
+		BUG();
+	}
 
-	if (da.addr_type == IEEE802154_ADDR_SHORT)
-		dap = &da.short_addr;
-	else
-		dap = &da.hwaddr;
 
-	return lowpan_process_data(skb, skb->dev, sap, sa.addr_type,
-				   IEEE802154_ADDR_LEN, dap, da.addr_type,
+	return lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr, saddr_mode,
+				   IEEE802154_ADDR_LEN, (u8 *)&info->daddr, daddr_mode,
 				   IEEE802154_ADDR_LEN, iphc0, iphc1,
 				   lowpan_give_skb_to_devices);
 
+	return RX_QUEUED;
 drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	return RX_DROP_UNUSABLE;
+}
+
+static int lowpan_rx_h_ipv6(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	int ret;
+
+	if (skb->data[0] != LOWPAN_DISPATCH_IPV6)
+		return RX_CONTINUE;
+
+	skb->protocol = htons(ETH_P_IPV6);
+
+	/* Pull off the 1-byte of 6lowpan header. */
+	skb_pull(skb, 1);
+
+	ret = lowpan_give_skb_to_devices(skb, NULL);
+	if (ret < 0)
+		return RX_DROP_UNUSABLE;
+
+	return RX_QUEUED;
+}
+
+static void
+lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	int ret;
+
+#define CALL_RXH(rxh)			\
+	do {				\
+		ret = rxh(skb, info);	\
+		if (ret != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0);
+
+	/* likely at first */
+	CALL_RXH(lowpan_rx_h_frag);
+	CALL_RXH(lowpan_rx_h_iphc);
+	CALL_RXH(lowpan_rx_h_ipv6);
+
+rxh_next:
+	lowpan_rx_handlers_result(skb, ret);
+#undef CALL_RXH
+}
+
+static inline void
+lowpan_addr_info_from_le_to_be(struct lowpan_addr_info *info)
+{
+	switch (info->daddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		info->daddr.addr.extended = swab64(info->daddr.addr.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		info->daddr.addr.short_ = swab16(info->daddr.addr.short_);
+		break;
+	default:
+		BUG();
+	}
+
+	switch (info->saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		info->saddr.addr.extended = swab64(info->saddr.addr.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		info->saddr.addr.short_ = swab16(info->saddr.addr.short_);
+		break;
+	default:
+		BUG();
+	}
+}
+
+static inline void
+lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_data *hdr,
+			      struct lowpan_addr_info *info)
+{
+	__le16 fc = hdr->frame_control;
+
+	info->daddr.mode = ieee802154_daddr_mode(fc);
+	memcpy(&info->daddr.addr, ieee802154_hdr_data_dest_addr(hdr),
+	       sizeof(info->daddr.addr));
+
+	info->saddr.mode = ieee802154_saddr_mode(fc);
+	memcpy(&info->saddr.addr, ieee802154_hdr_data_src_addr(hdr),
+	       sizeof(info->saddr.addr));
+
+	/* finally swab byte order, was copied from le now it should be be */
+	lowpan_addr_info_from_le_to_be(info);
+}
+
+static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
+					  struct lowpan_addr_info *info)
+{
+	struct ieee802154_hdr_data *hdr;
+	__le16 fc;
+
+	if (skb->len < 2)
+		return RX_DROP_UNUSABLE;
+
+	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
+	fc = hdr->frame_control;
+
+	if (!ieee802154_is_data(fc))
+		return RX_DROP_UNUSABLE;
+
+	lowpan_get_addr_info_from_hdr(hdr, info);
+
+	return RX_CONTINUE;
+}
+
+static void ieee802154_invoke_rx_handlers(struct sk_buff *skb)
+{
+	struct lowpan_addr_info info;
+	int res;
+
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(skb, &info);	\
+		if (res != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0)
+
+	CALL_RXH(lowpan_rx_h_check);
+
+	lowpan_rx_handlers(skb, &info);
+	return;
+
+rxh_next:
+	lowpan_rx_handlers_result(skb, res);
 }
 
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		      struct packet_type *pt, struct net_device *orig_wdev)
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
-	struct ieee802154_hdr hdr;
-	int ret;
-	int hlen;
+
+	if (!netif_running(ldev) && !netif_running(wdev))
+		goto drop;
+
+	if (wdev->type != ARPHRD_IEEE802154)
+		goto drop;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
 
-	/* TODO checking on !ldev needs locking? maybe we can stop rx queue */
-	if (!ldev && !netif_running(ldev) && !netif_running(wdev))
-		goto drop_skb;
-
-	if (wdev->type != ARPHRD_IEEE802154)
-		goto drop_skb;
-
-	hlen = ieee802154_hdr_peek_addrs(skb, &hdr);
-
-	/* check that it's our buffer */
-	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
-		skb->protocol = htons(ETH_P_IPV6);
-		skb->pkt_type = PACKET_HOST;
-
-		/* Pull off the 1-byte of 6lowpan header. */
-		skb_pull(skb, 1);
-
-		ret = lowpan_give_skb_to_devices(skb, NULL);
-		if (ret == NET_RX_DROP)
-			goto drop;
-	} else {
-		switch (skb->data[0] & 0xe0) {
-		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
-			ret = process_data(skb, &hdr);
-			if (ret == NET_RX_DROP)
-				goto drop;
-			break;
-		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
-			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAG1);
-			if (ret == 1) {
-				ret = process_data(skb, &hdr);
-				if (ret == NET_RX_DROP)
-					goto drop;
-			}
-			break;
-		case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
-			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAGN);
-			if (ret == 1) {
-				ret = process_data(skb, &hdr);
-				if (ret == NET_RX_DROP)
-					goto drop;
-			}
-			break;
-		default:
-			break;
-		}
-	}
+	skb->dev = ldev;
+	ieee802154_invoke_rx_handlers(skb);
 
 	return NET_RX_SUCCESS;
-drop_skb:
-	kfree_skb(skb);
 drop:
 	return NET_RX_DROP;
 }

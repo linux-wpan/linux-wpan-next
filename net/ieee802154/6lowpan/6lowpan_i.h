@@ -4,10 +4,40 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 
+#include <net/ieee802154.h>
+
+typedef unsigned __bitwise__ lowpan_rx_result;
+#define RX_CONTINUE             ((__force lowpan_rx_result) 0u)
+#define RX_DROP_UNUSABLE        ((__force lowpan_rx_result) 1u)
+/* don't use 2u for monitor, it's the same like 80211 and 802154 */
+#define RX_QUEUED               ((__force lowpan_rx_result) 3u)
+
 /* private device info */
 struct lowpan_dev_info {
 	struct net_device	*wdev; /* real WPAN device ptr */
 	__be16			fragment_tag;
+};
+
+/* don't save pan id, it's intra pan */
+struct lowpan_addr {
+	/* non converted address mode bits here */
+	__le16 mode;
+	union {
+		/* IPv6 needs big endian here */
+		__be64 extended;
+		__be16 short_;
+	} addr;
+};
+
+static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
+				     const struct lowpan_addr *saddr)
+{
+	return !memcmp(&daddr->addr, &saddr->addr, sizeof(daddr->addr));
+}
+
+struct lowpan_addr_info {
+	struct lowpan_addr daddr;
+	struct lowpan_addr saddr;
 };
 
 static inline struct

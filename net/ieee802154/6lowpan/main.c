@@ -116,16 +116,24 @@ static void lowpan_set_lockdep_class_one(struct net_device *ldev,
 			  &lowpan_netdev_xmit_lock_key);
 }
 
-
 static int lowpan_dev_init(struct net_device *ldev)
 {
 	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
 	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
+
+	lowpan_init_rx();
+
 	return 0;
+}
+
+static void lowpan_dev_uninit(struct net_device *ldev)
+{
+	lowpan_cleanup_rx();
 }
 
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
+	.ndo_uninit		= lowpan_dev_uninit,
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_set_mac_address	= lowpan_set_address,
 };
@@ -141,7 +149,7 @@ static void lowpan_setup(struct net_device *ldev)
 {
 	ldev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(ldev->broadcast, 0xff, IEEE802154_ADDR_LEN);
-	ldev->type		= ARPHRD_IEEE802154;
+	ldev->type		= ARPHRD_6LOWPAN;
 	/* Frame Control + Sequence Number + Address fields + Security Header */
 	ldev->hard_header_len	= 2 + 1 + 20 + 14;
 	ldev->needed_tailroom	= 2; /* FCS */
@@ -169,6 +177,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *wdev;
+
+	ASSERT_RTNL();
 
 	pr_debug("adding new link\n");
 
@@ -205,6 +215,7 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 	ASSERT_RTNL();
 
 	unregister_netdevice_queue(ldev, head);
+	wdev->ieee802154_ptr->lowpan_dev = NULL;
 	dev_put(wdev);
 }
 
@@ -217,44 +228,24 @@ static struct rtnl_link_ops lowpan_link_ops __read_mostly = {
 	.validate	= lowpan_validate,
 };
 
-static inline int __init lowpan_netlink_init(void)
-{
-	return rtnl_link_register(&lowpan_link_ops);
-}
-
-static inline void lowpan_netlink_fini(void)
-{
-	rtnl_link_unregister(&lowpan_link_ops);
-}
-
 static int __init lowpan_init_module(void)
 {
-	int err = 0;
+	int ret;
 
-	err = lowpan_net_frag_init();
-	if (err < 0)
-		goto out;
+	ret = lowpan_net_frag_init();
+	if (ret < 0)
+		return ret;
 
-	err = lowpan_netlink_init();
-	if (err < 0)
-		goto out_frag;
+	ret = rtnl_link_register(&lowpan_link_ops);
+	if (ret < 0)
+		lowpan_net_frag_exit();
 
-	lowpan_init_rx();
-
-	return 0;
-
-out_frag:
-	lowpan_net_frag_exit();
-out:
-	return err;
+	return ret;
 }
 
 static void __exit lowpan_cleanup_module(void)
 {
-	lowpan_netlink_fini();
-
-	lowpan_cleanup_rx();
-
+	rtnl_link_unregister(&lowpan_link_ops);
 	lowpan_net_frag_exit();
 }
 

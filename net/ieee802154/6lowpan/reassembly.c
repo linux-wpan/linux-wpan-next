@@ -28,6 +28,7 @@
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
+#include "6lowpan_i.h"
 #include "reassembly.h"
 
 static const char lowpan_frags_cache_name[] = "lowpan-frags";
@@ -38,9 +39,11 @@ struct lowpan_frag_info {
 	u8 d_offset;
 };
 
-static struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
+static inline struct lowpan_frag_info *lowpan_frag_cb(struct sk_buff *skb)
 {
-	return (struct lowpan_frag_info *)skb->cb;
+	BUILD_BUG_ON(sizeof(skb->cb) < (sizeof(struct lowpan_frag_info)));
+
+	return (struct lowpan_frag_info *)(skb->cb);
 }
 
 static struct inet_frags lowpan_frags;
@@ -49,8 +52,8 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
 			     struct sk_buff *prev, struct net_device *dev);
 
 static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
-				     const struct ieee802154_addr *saddr,
-				     const struct ieee802154_addr *daddr)
+				     const struct lowpan_addr *saddr,
+				     const struct lowpan_addr *daddr)
 {
 	net_get_random_once(&lowpan_frags.rnd, sizeof(lowpan_frags.rnd));
 	return jhash_3words(ieee802154_addr_hash(saddr),
@@ -74,8 +77,8 @@ static bool lowpan_frag_match(const struct inet_frag_queue *q, const void *a)
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return	fq->tag == arg->tag && fq->d_size == arg->d_size &&
-		ieee802154_addr_equal(&fq->saddr, arg->src) &&
-		ieee802154_addr_equal(&fq->daddr, arg->dst);
+		lowpan_addr_equal(&fq->saddr, arg->src) &&
+		lowpan_addr_equal(&fq->daddr, arg->dst);
 }
 
 static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
@@ -112,8 +115,8 @@ out:
 
 static inline struct lowpan_frag_queue *
 fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
-	const struct ieee802154_addr *src,
-	const struct ieee802154_addr *dst)
+	const struct lowpan_addr *src,
+	const struct lowpan_addr *dst)
 {
 	struct inet_frag_queue *q;
 	struct lowpan_create_arg arg;
@@ -147,8 +150,8 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
-	offset = lowpan_cb(skb)->d_offset << 3;
-	end = lowpan_cb(skb)->d_size;
+	offset = lowpan_frag_cb(skb)->d_offset << 3;
+	end = lowpan_frag_cb(skb)->d_size;
 
 	/* Is this the final fragment? */
 	if (offset + skb->len == end) {
@@ -174,13 +177,15 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	 * this fragment, right?
 	 */
 	prev = fq->q.fragments_tail;
-	if (!prev || lowpan_cb(prev)->d_offset < lowpan_cb(skb)->d_offset) {
+	if (!prev || lowpan_frag_cb(prev)->d_offset <
+		     lowpan_frag_cb(skb)->d_offset) {
 		next = NULL;
 		goto found;
 	}
 	prev = NULL;
 	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (lowpan_cb(next)->d_offset >= lowpan_cb(skb)->d_offset)
+		if (lowpan_frag_cb(next)->d_offset >=
+		    lowpan_frag_cb(skb)->d_offset)
 			break;	/* bingo! */
 		prev = next;
 	}
@@ -349,18 +354,15 @@ static int lowpan_get_frag_info(struct sk_buff *skb, const u8 frag_type,
 	return 0;
 }
 
-int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
+int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type,
+		    const struct lowpan_addr_info *info)
 {
 	struct lowpan_frag_queue *fq;
 	struct net *net = dev_net(skb->dev);
-	struct lowpan_frag_info *frag_info = lowpan_cb(skb);
-	struct ieee802154_addr source, dest;
+	struct lowpan_frag_info *frag_info = lowpan_frag_cb(skb);
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
 	int err;
-
-	source = mac_cb(skb)->source;
-	dest = mac_cb(skb)->dest;
 
 	err = lowpan_get_frag_info(skb, frag_type, frag_info);
 	if (err < 0)
@@ -369,7 +371,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 	if (frag_info->d_size > ieee802154_lowpan->max_dsize)
 		goto err;
 
-	fq = fq_find(net, frag_info, &source, &dest);
+	fq = fq_find(net, frag_info, &info->saddr, &info->daddr);
 	if (fq != NULL) {
 		int ret;
 
@@ -382,7 +384,6 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 	}
 
 err:
-	kfree_skb(skb);
 	return -1;
 }
 EXPORT_SYMBOL(lowpan_frag_rcv);
@@ -554,7 +555,7 @@ static struct pernet_operations lowpan_frags_ops = {
 	.exit = lowpan_frags_exit_net,
 };
 
-int __init lowpan_net_frag_init(void)
+int lowpan_net_frag_init(void)
 {
 	int ret;
 
