@@ -115,7 +115,7 @@ static int uncompress_addr(struct sk_buff *skb,
 			ipaddr->s6_addr[1] = 0x80;
 			ipaddr->s6_addr[11] = 0xFF;
 			ipaddr->s6_addr[12] = 0xFE;
-			ipaddr->s6_addr16[7] = htons(*((u16 *)lladdr));
+			ipaddr->s6_addr16[7] = *((u16 *)lladdr);
 			break;
 		default:
 			pr_debug("Invalid addr_type set\n");
