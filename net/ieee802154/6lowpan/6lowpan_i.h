@@ -33,7 +33,7 @@ struct lowpan_addr {
 static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
 				     const struct lowpan_addr *saddr)
 {
-	return !memcmp(&daddr, &saddr, sizeof(*daddr));
+	return !memcmp(daddr, saddr, sizeof(*daddr));
 }
 
 struct lowpan_addr_info {
