@@ -65,6 +65,7 @@ static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	u8 iphc0, iphc1, daddr_mode, saddr_mode;
+	int ret;
 
 	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_IPHC)
 		return RX_CONTINUE;
@@ -104,10 +105,13 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	}
 
 
-	return lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr, saddr_mode,
-				   IEEE802154_ADDR_LEN, (u8 *)&info->daddr, daddr_mode,
-				   IEEE802154_ADDR_LEN, iphc0, iphc1,
-				   lowpan_give_skb_to_devices);
+	ret = lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr, saddr_mode,
+				  IEEE802154_ADDR_LEN, (u8 *)&info->daddr, daddr_mode,
+				  IEEE802154_ADDR_LEN, iphc0, iphc1,
+				  lowpan_give_skb_to_devices);
+
+	if (ret < 0)
+		return RX_DROP_UNUSABLE;
 
 	return RX_QUEUED;
 drop:
