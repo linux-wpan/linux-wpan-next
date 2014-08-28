@@ -62,15 +62,23 @@
 
 static int lowpan_set_address(struct net_device *ldev, void *p)
 {
+	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 	struct sockaddr *sa = p;
+	int ret;
+
+	ASSERT_RTNL();
 
 	if (netif_running(ldev))
 		return -EBUSY;
 
-	/* TODO: validate addr */
+	ret = wdev->netdev_ops->ndo_set_mac_address(wdev, p);
+	if (ret < 0)
+		return ret;
+
+	/* address validation should already done by wpan dev call */
 	memcpy(ldev->dev_addr, sa->sa_data, ldev->addr_len);
 
-	return 0;
+	return ret;
 }
 
 static struct wpan_phy *lowpan_get_phy(const struct net_device *ldev)
