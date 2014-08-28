@@ -233,6 +233,15 @@ static inline int ieee802154_is_intra_pan(__le16 fc)
 }
 
 /**
+ * ieee802154_daddr_mode - get daddr bits from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_daddr_mode(__le16 fc)
+{
+        return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
+}
+
+/**
  * ieee802154_is_daddr_none - check if daddr mode is none
  * @fc: frame control bytes in little-endian byteorder
  */
@@ -270,6 +279,15 @@ static inline int ieee802154_is_daddr_extended(__le16 fc)
 {
         return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
                 cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
+}
+
+/**
+ * ieee802154_xisdaddr_mode - get saddr bits from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_saddr_mode(__le16 fc)
+{
+        return fc & cpu_to_le16(IEEE802154_FCTL_SADDR);
 }
 
 /**
