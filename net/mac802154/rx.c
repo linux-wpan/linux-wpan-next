@@ -78,7 +78,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	__le16 fc, *src_pan_id;
 	u16 hdr_len = 5;
 
-	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
+	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
+	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))
 		return RX_CONTINUE;
@@ -87,8 +88,6 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (unlikely(ieee802154_is_daddr_none(fc) ||
 		     ieee802154_is_saddr_none(fc)))
 		return RX_DROP_UNUSABLE;
-
-	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
 
 	src_pan_id = ieee802154_hdr_data_src_pan_id(hdr);
 	dest = ieee802154_hdr_data_dest_addr(hdr);
