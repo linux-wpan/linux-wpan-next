@@ -22,6 +22,14 @@
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
+static inline struct lowpan_addr_info *
+lowpan_skb_priv(const struct sk_buff *skb)
+{
+	//TODO add check for headroom is available
+
+	return (struct lowpan_addr_info *)(skb->data -
+					   sizeof(struct lowpan_addr_info));
+}
 
 int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 			 unsigned short type, const void *_daddr,
@@ -29,8 +37,10 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 {
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
-	struct ieee802154_addr sa, da;
-	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+	struct lowpan_addr_info *info;
+
+	//struct ieee802154_addr sa, da;
+	//struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
 	/* TODO:
 	 * if this package isn't ipv6 one, where should it be routed?
@@ -44,6 +54,30 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	raw_dump_inline(__func__, "saddr", (unsigned char *)saddr, 8);
 	raw_dump_inline(__func__, "daddr", (unsigned char *)daddr, 8);
 
+	/* TODO ask david or marc if this run into trouble */
+	info = lowpan_skb_priv(skb);
+
+	/* TODO need to be handled like this, we don't support short address right now */
+#if 0
+	if (lowpan_is_addr_broadcast(ldev, daddr)) {
+		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
+		memcpy(&info->daddr.addr.short_, saddr,
+		       IEEE802154_SHORT_ADDR_LEN); 
+	} else {
+		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
+		memcpy(&info->daddr.addr.extended, daddr,
+		       IEEE802154_EXTENDED_ADDR_LEN); 
+	}
+#endif
+	memcpy(&info->daddr.addr.extended, daddr,
+	       IEEE802154_EXTENDED_ADDR_LEN);
+
+	info->saddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
+	memcpy(&info->saddr.addr.extended, saddr,
+	       IEEE802154_EXTENDED_ADDR_LEN);
+
+	return 0;
+#if 0
 	lowpan_header_compress(skb, ldev, type, daddr, saddr, len);
 
 	/* NOTE1: I'm still unsure about the fact that compression and WPAN
@@ -79,6 +113,7 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 
 	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
 			type, (void *)&da, (void *)&sa, 0);
+#endif
 }
 
 static struct sk_buff*
@@ -107,7 +142,7 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 			return ERR_PTR(-rc);
 		}
 	} else {
-		frag = ERR_PTR(ENOMEM);
+		frag = ERR_PTR(-ENOMEM);
 	}
 
 	return frag;
@@ -199,12 +234,65 @@ err:
 	return rc;
 }
 
+static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
+{
+	struct lowpan_addr_info *info = lowpan_skb_priv(skb);
+	struct ieee802154_addr sa, da;
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+	void *daddr, *saddr;
+
+	/* TODO complicated bug why we support extended_addr only */
+	daddr = &info->saddr.addr.extended;
+	saddr = &info->daddr.addr.extended;
+	
+	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
+
+	/* NOTE1: I'm still unsure about the fact that compression and WPAN
+	 * header are created here and not later in the xmit. So wait for
+	 * an opinion of net maintainers.
+	 */
+	/* NOTE2: to be absolutely correct, we must derive PANid information
+	 * from MAC subif of the 'ldev' and 'wdev' network devices, but
+	 * this isn't implemented in mainline yet, so currently we assign 0xff
+	 */
+	cb->type = IEEE802154_FC_TYPE_DATA;
+
+	/* prepare wpan address data */
+	sa.mode = IEEE802154_ADDR_LONG;
+	sa.pan_id = ieee802154_mlme_ops(ldev)->get_pan_id(ldev);
+	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
+
+	/* intra-PAN communications */
+	da.pan_id = sa.pan_id;
+
+	/* if the destination address is the broadcast address, use the
+	 * corresponding short address
+	 */
+	if (lowpan_is_addr_broadcast(ldev, daddr)) {
+		da.mode = IEEE802154_ADDR_SHORT;
+		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+	} else {
+		da.mode = IEEE802154_ADDR_LONG;
+		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
+	}
+
+	cb->ackreq = !lowpan_is_addr_broadcast(ldev, daddr);
+
+	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
+			ETH_P_IPV6, (void *)&da, (void *)&sa, 0);
+}
+
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct ieee802154_hdr wpan_hdr;
-	int max_single;
+	int max_single, ret;
 
 	pr_debug("package xmit\n");
+	ret = lowpan_header(skb, ldev);
+	if (ret < 0) {
+		kfree_skb(skb);
+		return NET_XMIT_DROP;
+	}
 
 	if (ieee802154_hdr_peek(skb, &wpan_hdr) < 0) {
 		kfree_skb(skb);
