@@ -281,6 +281,21 @@ static inline int ieee802154_is_daddr_extended(__le16 fc)
                 cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
 }
 
+static inline size_t ieee802154_daddr_len(__le16 fc)
+{
+	switch (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		return IEEE802154_SHORT_ADDR_LEN;
+	default:
+		/* useful to check none here? should already check by _is_none 
+		 * functions.
+		 */
+		BUG();
+	}
+}
+
 /**
  * ieee802154_xisdaddr_mode - get saddr bits from fc
  * @fc: frame control bytes in little-endian byteorder
@@ -328,6 +343,21 @@ static inline int ieee802154_is_saddr_extended(__le16 fc)
 {
         return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
                 cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
+}
+
+static inline size_t ieee802154_saddr_len(__le16 fc)
+{
+	switch (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		return IEEE802154_SHORT_ADDR_LEN;
+	default:
+		/* useful to check none here? should already check by _is_none 
+		 * functions.
+		 */
+		BUG();
+	}
 }
 
 static inline union ieee802154_addr_foo *

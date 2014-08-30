@@ -193,11 +193,11 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_data *hdr,
 
 	info->daddr.mode = ieee802154_daddr_mode(fc);
 	memcpy(&info->daddr.u, ieee802154_hdr_data_daddr(hdr),
-	       sizeof(info->daddr.u));
+	       ieee802154_daddr_len(fc));
 
 	info->saddr.mode = ieee802154_saddr_mode(fc);
 	memcpy(&info->saddr.u, ieee802154_hdr_data_saddr(hdr),
-	       sizeof(info->saddr.u));
+	       ieee802154_saddr_len(fc));
 
 	/* finally swab byte order, was copied from le now it should be be */
 	lowpan_addr_info_from_le_to_be(info);
@@ -225,7 +225,7 @@ static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 
 static void ieee802154_invoke_rx_handlers(struct sk_buff *skb)
 {
-	struct lowpan_addr_info info;
+	struct lowpan_addr_info info = { };
 	int res;
 
 #define CALL_RXH(rxh)			\
