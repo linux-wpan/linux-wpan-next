@@ -1153,6 +1153,7 @@ at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode, bool mode3_and)
 	struct at86rf230_local *lp = hw->priv;
 	u8 reg;
 
+	/* mapping 802.15.4 to driver spec */
 	switch (mode) {
 	case IEEE802154_CCA_ENERGY:
 		reg = 1;
@@ -1339,8 +1340,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	rc = at86rf230_write_subreg(lp, SR_CLKM_SHA_SEL, 0x00);
 	if (rc)
 		return rc;
-
-	rc = at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
 
 	/* Turn CLKM Off */
 	rc = at86rf230_write_subreg(lp, SR_CLKM_CTRL, 0x00);
