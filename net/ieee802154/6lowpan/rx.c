@@ -164,10 +164,10 @@ lowpan_addr_info_from_le_to_be(struct lowpan_addr_info *info)
 {
 	switch (info->daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		info->daddr.addr.extended = swab64(info->daddr.addr.extended);
+		info->daddr.u.extended = swab64(info->daddr.u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		info->daddr.addr.short_ = swab16(info->daddr.addr.short_);
+		info->daddr.u.short_ = swab16(info->daddr.u.short_);
 		break;
 	default:
 		BUG();
@@ -175,10 +175,10 @@ lowpan_addr_info_from_le_to_be(struct lowpan_addr_info *info)
 
 	switch (info->saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		info->saddr.addr.extended = swab64(info->saddr.addr.extended);
+		info->saddr.u.extended = swab64(info->saddr.u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		info->saddr.addr.short_ = swab16(info->saddr.addr.short_);
+		info->saddr.u.short_ = swab16(info->saddr.u.short_);
 		break;
 	default:
 		BUG();
@@ -192,12 +192,12 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_data *hdr,
 	__le16 fc = hdr->frame_control;
 
 	info->daddr.mode = ieee802154_daddr_mode(fc);
-	memcpy(&info->daddr.addr, ieee802154_hdr_data_dest_addr(hdr),
-	       sizeof(info->daddr.addr));
+	memcpy(&info->daddr.u, ieee802154_hdr_data_daddr(hdr),
+	       sizeof(info->daddr.u));
 
 	info->saddr.mode = ieee802154_saddr_mode(fc);
-	memcpy(&info->saddr.addr, ieee802154_hdr_data_src_addr(hdr),
-	       sizeof(info->saddr.addr));
+	memcpy(&info->saddr.u, ieee802154_hdr_data_saddr(hdr),
+	       sizeof(info->saddr.u));
 
 	/* finally swab byte order, was copied from le now it should be be */
 	lowpan_addr_info_from_le_to_be(info);

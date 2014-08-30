@@ -69,12 +69,10 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 		       IEEE802154_EXTENDED_ADDR_LEN); 
 	}
 #endif
-	memcpy(&info->daddr.addr.extended, daddr,
-	       IEEE802154_EXTENDED_ADDR_LEN);
+	memcpy(&info->daddr.u.extended, daddr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	info->saddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
-	memcpy(&info->saddr.addr.extended, saddr,
-	       IEEE802154_EXTENDED_ADDR_LEN);
+	memcpy(&info->saddr.u.extended, saddr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	return 0;
 #if 0
@@ -242,8 +240,8 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 	void *daddr, *saddr;
 
 	/* TODO complicated bug why we support extended_addr only */
-	daddr = &info->saddr.addr.extended;
-	saddr = &info->daddr.addr.extended;
+	daddr = &info->saddr.u.extended;
+	saddr = &info->daddr.u.extended;
 	
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
 

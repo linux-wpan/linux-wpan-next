@@ -77,8 +77,8 @@ static bool lowpan_frag_match(const struct inet_frag_queue *q, const void *a)
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return	fq->tag == arg->tag && fq->d_size == arg->d_size &&
-		lowpan_addr_equal(&fq->saddr, arg->src) &&
-		lowpan_addr_equal(&fq->daddr, arg->dst);
+		lowpan_addr_equal(&fq->saddr, arg->saddr) &&
+		lowpan_addr_equal(&fq->daddr, arg->daddr);
 }
 
 static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
@@ -90,8 +90,8 @@ static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 
 	fq->tag = arg->tag;
 	fq->d_size = arg->d_size;
-	fq->saddr = *arg->src;
-	fq->daddr = *arg->dst;
+	fq->saddr = *arg->saddr;
+	fq->daddr = *arg->daddr;
 }
 
 static void lowpan_frag_expire(unsigned long data)
@@ -115,8 +115,8 @@ out:
 
 static inline struct lowpan_frag_queue *
 fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
-	const struct lowpan_addr *src,
-	const struct lowpan_addr *dst)
+	const struct lowpan_addr *saddr,
+	const struct lowpan_addr *daddr)
 {
 	struct inet_frag_queue *q;
 	struct lowpan_create_arg arg;
@@ -126,10 +126,11 @@ fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 
 	arg.tag = frag_info->d_tag;
 	arg.d_size = frag_info->d_size;
-	arg.src = src;
-	arg.dst = dst;
+	arg.saddr = saddr;
+	arg.daddr = daddr;
 
-	hash = lowpan_hash_frag(frag_info->d_tag, frag_info->d_size, src, dst);
+	hash = lowpan_hash_frag(frag_info->d_tag, frag_info->d_size, saddr,
+			        daddr);
 
 	q = inet_frag_find(&ieee802154_lowpan->frags,
 			   &lowpan_frags, &arg, hash);

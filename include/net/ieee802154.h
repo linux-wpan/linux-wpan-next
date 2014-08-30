@@ -145,8 +145,8 @@
 
 /* TODO remove the foo and ieee802154_addr struct */
 union ieee802154_addr_foo {
-	__le16 short_addr;
-	__le64 extended_addr;
+	__le16 short_;
+	__le64 extended;
 };
 
 /* TODO remove the foo and ieee802154_hdr struct */
@@ -159,7 +159,7 @@ struct ieee802154_hdr_foo {
 struct ieee802154_hdr_data {
 	__le16 frame_control;
 	u8 sequence_number;
-	__le16 dest_pan_id;
+	__le16 dpan_id;
 	u8 payload[0];
 } __attribute__ ((packed));
 
@@ -331,16 +331,16 @@ static inline int ieee802154_is_saddr_extended(__le16 fc)
 }
 
 static inline union ieee802154_addr_foo *
-ieee802154_hdr_data_dest_addr(struct ieee802154_hdr_data *hdr)
+ieee802154_hdr_data_daddr(struct ieee802154_hdr_data *hdr)
 {
 	return (union ieee802154_addr_foo *)hdr->payload;
 }
 
 static inline __le16 *
-ieee802154_hdr_data_src_pan_id(struct ieee802154_hdr_data *hdr)
+ieee802154_hdr_data_span_id(struct ieee802154_hdr_data *hdr)
 {
 	if (ieee802154_is_intra_pan(hdr->frame_control))
-		return (__le16 *)(&hdr->dest_pan_id);
+		return (__le16 *)(&hdr->dpan_id);
 
 	if (ieee802154_is_daddr_extended(hdr->frame_control))
 		return (__le16 *)(hdr->payload + IEEE802154_EXTENDED_ADDR_LEN);
@@ -349,7 +349,7 @@ ieee802154_hdr_data_src_pan_id(struct ieee802154_hdr_data *hdr)
 }
 
 static inline union ieee802154_addr_foo *
-ieee802154_hdr_data_src_addr(struct ieee802154_hdr_data *hdr)
+ieee802154_hdr_data_saddr(struct ieee802154_hdr_data *hdr)
 {
 	if (ieee802154_is_intra_pan(hdr->frame_control)) {
 		if (ieee802154_is_daddr_extended(hdr->frame_control))
@@ -361,7 +361,7 @@ ieee802154_hdr_data_src_addr(struct ieee802154_hdr_data *hdr)
 	}
 
 	return (union ieee802154_addr_foo *)
-		(((u8 *)ieee802154_hdr_data_src_pan_id(hdr)) +
+		(((u8 *)ieee802154_hdr_data_span_id(hdr)) +
 		 IEEE802154_PAN_ID_LEN);
 }
 

@@ -8,8 +8,8 @@
 struct lowpan_create_arg {
 	__be16 tag;
 	u16 d_size;
-	const struct lowpan_addr *src;
-	const struct lowpan_addr *dst;
+	const struct lowpan_addr *saddr;
+	const struct lowpan_addr *daddr;
 };
 
 /* Equivalent of ipv4 struct ip
@@ -28,10 +28,10 @@ static inline u32 ieee802154_addr_hash(const struct lowpan_addr *a)
 	/* byte ordering doesn't matter to create hash */
 	switch (a->mode) {
 	case IEEE802154_ADDR_LONG:
-		return (((__force u64)a->addr.extended) >> 32) ^
-			(((__force u64)a->addr.extended) & 0xffffffff);
+		return (((__force u64)a->u.extended) >> 32) ^
+			(((__force u64)a->u.extended) & 0xffffffff);
 	case IEEE802154_ADDR_SHORT:
-		return (__force u32)(a->addr.short_);
+		return (__force u32)(a->u.short_);
 	default:
 		return 0;
 	}

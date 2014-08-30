@@ -27,7 +27,7 @@ struct lowpan_addr {
 		/* IPv6 needs big endian here */
 		__be64 extended;
 		__be16 short_;
-	} addr;
+	} u;
 };
 
 static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
