@@ -117,7 +117,8 @@
 	 (((a)->s6_addr[14]) == 0))
 
 #define lowpan_is_addr_broadcast(dev, a)	\
-	memcmp(dev->broadcast, a, dev->addr_len) 
+	(!memcmp(dev->broadcast, a,		\
+		 dev->addr_len))
 
 #define LOWPAN_DISPATCH_IPV6	0x41 /* 01000001 = 65 */
 #define LOWPAN_DISPATCH_HC1	0x42 /* 01000010 = 66 */

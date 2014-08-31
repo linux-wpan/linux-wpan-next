@@ -155,7 +155,6 @@ static struct ieee802154_mlme_ops lowpan_mlme = {
 
 static void lowpan_setup(struct net_device *ldev)
 {
-	memset(ldev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 	ldev->type		= ARPHRD_6LOWPAN;
 	ldev->mtu		= IPV6_MIN_MTU;
 	ldev->tx_queue_len	= 0;
@@ -208,6 +207,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	/* Set the lowpan harware address to the wpan hardware address. */
 	ldev->addr_len = wdev->addr_len;
 	memcpy(ldev->dev_addr, wdev->dev_addr, ldev->addr_len);
+	memcpy(ldev->broadcast, wdev->broadcast, ldev->addr_len);
 	ldev->hard_header_len = wdev->hard_header_len;
 	ldev->needed_tailroom = wdev->needed_tailroom;
 

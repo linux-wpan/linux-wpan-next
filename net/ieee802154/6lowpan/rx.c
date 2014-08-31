@@ -88,6 +88,7 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 		daddr_mode = IEEE802154_ADDR_SHORT;
 		break;
 	default:
+		/* dataframes should contain real addresses */
 		BUG();
 	}
 
@@ -101,6 +102,7 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 		saddr_mode = IEEE802154_ADDR_SHORT;
 		break;
 	default:
+		/* dataframes should contain real addresses */
 		BUG();
 	}
 

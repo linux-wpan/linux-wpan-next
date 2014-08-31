@@ -171,7 +171,7 @@ static inline bool ieee802154_addr_equal(const struct ieee802154_addr *a1,
 
 static inline __le64 ieee802154_devaddr_from_raw(const void *raw)
 {
-	u64 temp;
+	__be64 temp;
 
 	memcpy(&temp, raw, IEEE802154_ADDR_LEN);
 	return (__force __le64)swab64(temp);
