@@ -162,59 +162,48 @@ rxh_next:
 }
 
 static inline void
-lowpan_addr_info_from_le_to_be(struct lowpan_addr_info *info)
-{
-	switch (info->daddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		info->daddr.u.extended = swab64(info->daddr.u.extended);
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		info->daddr.u.short_ = swab16(info->daddr.u.short_);
-		break;
-	default:
-		BUG();
-	}
-
-	switch (info->saddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		info->saddr.u.extended = swab64(info->saddr.u.extended);
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		info->saddr.u.short_ = swab16(info->saddr.u.short_);
-		break;
-	default:
-		BUG();
-	}
-}
-
-static inline void
-lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_data *hdr,
+lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_foo *hdr,
 			      struct lowpan_addr_info *info)
 {
-	__le16 fc = hdr->frame_control;
+	struct ieee802154_addr_foo daddr, saddr;
 
-	info->daddr.mode = ieee802154_daddr_mode(fc);
-	memcpy(&info->daddr.u, ieee802154_hdr_data_daddr(hdr),
-	       ieee802154_daddr_len(fc));
+	daddr = ieee802154_hdr_daddr(hdr);
+	info->daddr.mode = daddr.mode;
+	switch (info->daddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		info->daddr.u.extended = swab64(daddr.u.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		info->daddr.u.short_ = swab16(daddr.u.short_);
+		break;
+	default:
+		BUG();
+	}
 
-	info->saddr.mode = ieee802154_saddr_mode(fc);
-	memcpy(&info->saddr.u, ieee802154_hdr_data_saddr(hdr),
-	       ieee802154_saddr_len(fc));
-
-	/* finally swab byte order, was copied from le now it should be be */
-	lowpan_addr_info_from_le_to_be(info);
+	saddr = ieee802154_hdr_saddr(hdr);
+	info->saddr.mode = saddr.mode;
+	switch (info->saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		info->saddr.u.extended = swab64(saddr.u.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		info->saddr.u.short_ = swab16(saddr.u.short_);
+		break;
+	default:
+		BUG();
+	}
 }
 
 static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 					  struct lowpan_addr_info *info)
 {
-	struct ieee802154_hdr_data *hdr;
+	struct ieee802154_hdr_foo *hdr;
 	__le16 fc;
 
 	if (skb->len < 2)
 		return RX_DROP_UNUSABLE;
 
-	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
+	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
 	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))

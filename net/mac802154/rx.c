@@ -58,7 +58,7 @@ ieee802154_rx_h_beacon(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_beacon(fc))
@@ -72,13 +72,13 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 {
 	struct ieee802154_sub_if_data *sdata = rx->sdata;
 	struct net_device *dev = sdata->dev;
-	struct ieee802154_hdr_data *hdr;
-	union ieee802154_addr_foo *saddr, *daddr;
+	struct ieee802154_hdr_foo *hdr;
+	struct ieee802154_addr_foo saddr, daddr;
 	struct sk_buff *skb = rx->skb;
-	__le16 fc, *span_id;
+	__le16 fc;
 	u16 hdr_len = 5;
 
-	hdr = (struct ieee802154_hdr_data *)skb_mac_header(skb);
+	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
 	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))
@@ -89,30 +89,30 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		     ieee802154_is_saddr_none(fc)))
 		return RX_DROP_UNUSABLE;
 
-	span_id = ieee802154_hdr_data_span_id(hdr);
-	daddr = ieee802154_hdr_data_daddr(hdr);
-	saddr = ieee802154_hdr_data_saddr(hdr);
+	daddr = ieee802154_hdr_daddr(hdr);
+	saddr = ieee802154_hdr_saddr(hdr);
 
 	/* check if source pan_id is broadcast */
-	if (unlikely(*span_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)))
+	if (unlikely(saddr.pan_id ==
+		     cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)))
 		return RX_DROP_UNUSABLE;
 
 	if (ieee802154_is_daddr_extended(fc)) {
 		if (unlikely(!ieee802154_is_valid_extended_addr(
-						&daddr->extended)))
+						&daddr.u.extended)))
 			return RX_DROP_UNUSABLE;
 
 		/* else branch, because it can be only short xor extended */
-		if (likely(daddr->extended == sdata->extended_addr))
+		if (likely(daddr.u.extended == sdata->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 	} else {
-		if (daddr->short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+		if (daddr.u.short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
 			skb->pkt_type = PACKET_BROADCAST;
-		else if (daddr->short_ == sdata->short_addr)
+		else if (daddr.u.short_ == sdata->short_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -122,12 +122,12 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 	if (ieee802154_is_saddr_extended(fc)) {
 		if (unlikely(!ieee802154_is_valid_extended_addr(
-						&saddr->extended)))
+						&saddr.u.extended)))
 			return RX_DROP_UNUSABLE;
 
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 	} else {
-		if (unlikely(saddr->short_ ==
+		if (unlikely(saddr.u.short_ ==
 			     cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
 			return RX_DROP_UNUSABLE;
 
@@ -138,14 +138,12 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_intra_pan(fc))
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
-	if (unlikely(hdr->dpan_id != sdata->wpan_dev.pan_id &&
-		     hdr->dpan_id !=
+	if (unlikely(daddr.pan_id != sdata->wpan_dev.pan_id &&
+		     daddr.pan_id !=
 		     cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))) {
 		skb->pkt_type = PACKET_OTHERHOST;
-		goto deliver;
 	}
 
-deliver:
 	skb->dev = dev;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
@@ -163,7 +161,7 @@ ieee802154_rx_h_ack(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_ack(fc))
@@ -178,7 +176,7 @@ ieee802154_rx_h_cmd(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_data *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_cmd(fc))

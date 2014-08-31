@@ -143,23 +143,22 @@
 /* reserved is 100-111, so if 0x0004 bit is set */
 #define IEEE802154_FTYPE_RESERVED               0x0004
 
-/* TODO remove the foo and ieee802154_addr struct */
-union ieee802154_addr_foo {
+union ieee802154_addr_u {
 	__le16 short_;
 	__le64 extended;
+};
+
+/* TODO remove the foo and ieee802154_addr struct */
+struct ieee802154_addr_foo {
+	__le16 mode;
+	__le16 pan_id;
+	union ieee802154_addr_u u;
 };
 
 /* TODO remove the foo and ieee802154_hdr struct */
 struct ieee802154_hdr_foo {
 	__le16 frame_control;
 	u8 sequence_number;
-	u8 payload[0];
-} __attribute__ ((packed));
-
-struct ieee802154_hdr_data {
-	__le16 frame_control;
-	u8 sequence_number;
-	__le16 dpan_id;
 	u8 payload[0];
 } __attribute__ ((packed));
 
@@ -353,46 +352,78 @@ static inline size_t ieee802154_saddr_len(__le16 fc)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		return IEEE802154_SHORT_ADDR_LEN;
 	default:
-		/* useful to check none here? should already check by _is_none 
-		 * functions.
-		 */
+		/* reserved and none should never happen */
 		BUG();
 	}
 }
 
-static inline union ieee802154_addr_foo *
-ieee802154_hdr_data_daddr(struct ieee802154_hdr_data *hdr)
+static inline struct ieee802154_addr_foo
+ieee802154_hdr_daddr(struct ieee802154_hdr_foo *hdr)
 {
-	return (union ieee802154_addr_foo *)hdr->payload;
-}
+	struct ieee802154_addr_foo addr = {};
+	u8 *payload = hdr->payload;
 
-static inline __le16 *
-ieee802154_hdr_data_span_id(struct ieee802154_hdr_data *hdr)
-{
-	if (ieee802154_is_intra_pan(hdr->frame_control))
-		return (__le16 *)(&hdr->dpan_id);
+	addr.mode = ieee802154_daddr_mode(hdr->frame_control);
+	addr.pan_id = *((__le16 *)payload);
+	payload += IEEE802154_PAN_ID_LEN;
 
-	if (ieee802154_is_daddr_extended(hdr->frame_control))
-		return (__le16 *)(hdr->payload + IEEE802154_EXTENDED_ADDR_LEN);
-	else
-		return (__le16 *)(hdr->payload + IEEE802154_SHORT_ADDR_LEN);
-}
-
-static inline union ieee802154_addr_foo *
-ieee802154_hdr_data_saddr(struct ieee802154_hdr_data *hdr)
-{
-	if (ieee802154_is_intra_pan(hdr->frame_control)) {
-		if (ieee802154_is_daddr_extended(hdr->frame_control))
-			return (union ieee802154_addr_foo *)
-				(hdr->payload + IEEE802154_EXTENDED_ADDR_LEN);
-		else
-			return (union ieee802154_addr_foo *)
-				(hdr->payload + IEEE802154_SHORT_ADDR_LEN);
+	switch (addr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		memcpy(&addr.u.extended, payload,
+		       IEEE802154_EXTENDED_ADDR_LEN);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
+		break;
+	default:
+		/* reserved and none should never happen */
+		BUG();
 	}
 
-	return (union ieee802154_addr_foo *)
-		(((u8 *)ieee802154_hdr_data_span_id(hdr)) +
-		 IEEE802154_PAN_ID_LEN);
+	return addr;
+}
+
+static inline struct ieee802154_addr_foo
+ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
+{
+	struct ieee802154_addr_foo addr = {};
+	u8 *payload = hdr->payload;
+
+	addr.mode = ieee802154_saddr_mode(hdr->frame_control);
+	addr.pan_id = *((__le16 *)payload);
+	payload += IEEE802154_PAN_ID_LEN;
+
+	switch (ieee802154_daddr_mode(hdr->frame_control)) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		payload += IEEE802154_EXTENDED_ADDR_LEN;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		payload += IEEE802154_SHORT_ADDR_LEN;
+		break;
+	default:
+		/* reserved and none should never happen */
+		BUG();
+	}
+
+	if (!ieee802154_is_intra_pan(hdr->frame_control)) {
+		addr.pan_id = *((__le16 *)payload);
+		payload += IEEE802154_PAN_ID_LEN;
+	}
+
+	switch (addr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		memcpy(&addr.u.extended, payload,
+		       IEEE802154_EXTENDED_ADDR_LEN);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
+		break;
+	default:
+		/* reserved and none should never happen */
+		BUG();
+	}
+
+	return addr;
 }
 
 /*
