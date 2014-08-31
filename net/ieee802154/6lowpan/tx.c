@@ -39,14 +39,14 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	const u8 *daddr = _daddr;
 	struct lowpan_addr_info *info;
 
-	//struct ieee802154_addr sa, da;
-	//struct ieee802154_mac_cb *cb = mac_cb_init(skb);
-
-	/* TODO:
-	 * if this package isn't ipv6 one, where should it be routed?
+	/* if this package isn't ipv6 one, where should it be routed?
+	 * Answer: nowhere.
 	 */
-	if (type != ETH_P_IPV6)
-		return 0;
+	if (type != ETH_P_IPV6) {
+		/* dropping */
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	if (!saddr)
 		saddr = ldev->dev_addr;
@@ -76,43 +76,6 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	memcpy(&info->saddr.u.extended, saddr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	return 0;
-#if 0
-	lowpan_header_compress(skb, ldev, type, daddr, saddr, len);
-
-	/* NOTE1: I'm still unsure about the fact that compression and WPAN
-	 * header are created here and not later in the xmit. So wait for
-	 * an opinion of net maintainers.
-	 */
-	/* NOTE2: to be absolutely correct, we must derive PANid information
-	 * from MAC subif of the 'ldev' and 'wdev' network devices, but
-	 * this isn't implemented in mainline yet, so currently we assign 0xff
-	 */
-	cb->type = IEEE802154_FC_TYPE_DATA;
-
-	/* prepare wpan address data */
-	sa.mode = IEEE802154_ADDR_LONG;
-	sa.pan_id = ieee802154_mlme_ops(ldev)->get_pan_id(ldev);
-	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
-
-	/* intra-PAN communications */
-	da.pan_id = sa.pan_id;
-
-	/* if the destination address is the broadcast address, use the
-	 * corresponding short address
-	 */
-	if (lowpan_is_addr_broadcast(daddr)) {
-		da.mode = IEEE802154_ADDR_SHORT;
-		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
-	} else {
-		da.mode = IEEE802154_ADDR_LONG;
-		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
-	}
-
-	cb->ackreq = !lowpan_is_addr_broadcast(daddr);
-
-	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
-			type, (void *)&da, (void *)&sa, 0);
-#endif
 }
 
 static struct sk_buff*
