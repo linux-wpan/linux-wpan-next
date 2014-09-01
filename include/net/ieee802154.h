@@ -426,31 +426,40 @@ ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 	return addr;
 }
 
-static inline bool ieee802154_is_valid_frame_len(const u8 len)
+static inline bool __ieee802154_is_valid_frame_len(const u8 len)
 {
-	if (unlikely(len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_SIZE))
+	if (len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_SIZE)
 		return false;
 
 	return true;
 }
 
-static inline bool ieee802154_is_valid_short_addr(const __le16 *addr)
+#define ieee802154_is_valid_frame_len(len)		\
+	likely(__ieee802154_is_valid_frame_len(len))
+
+static inline bool __ieee802154_is_valid_short_addr(const __le16 *addr)
 {
 	static const __le16 broadcast = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
 
-	return unlikely(memcmp(addr, &broadcast, IEEE802154_SHORT_ADDR_LEN));
+	return memcmp(addr, &broadcast, IEEE802154_SHORT_ADDR_LEN);
 }
 
-static inline bool ieee802154_is_valid_extended_addr(const __le64 *addr)
+#define ieee802154_is_valid_short_addr(addr)			\
+	likely(__ieee802154_is_valid_short_addr(addr))
+
+static inline bool __ieee802154_is_valid_extended_addr(const __le64 *addr)
 {
 	static const u8 zero[IEEE802154_EXTENDED_ADDR_LEN] = { };
 	static u8 full[IEEE802154_EXTENDED_ADDR_LEN];
 
 	memset(full, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
-	return unlikely(memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
-			memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN));
+	return memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
+	       memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
 }
+
+#define ieee802154_is_valid_extended_addr(addr)			\
+	likely(__ieee802154_is_valid_extended_addr(addr))
 
 static inline void ieee802154_random_extended_addr(__le64 *addr)
 {
@@ -458,7 +467,7 @@ static inline void ieee802154_random_extended_addr(__le64 *addr)
 
 	/* toggle some bit if we hit an invalid extended addr */
 	if (!ieee802154_is_valid_extended_addr(addr))
-		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
+		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 1;
 }
 
 /**
@@ -474,7 +483,7 @@ static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
 	return pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST);
 }
 
-static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
+static inline bool __ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 {
 	bool ret = false;
 
@@ -494,7 +503,10 @@ static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 	return ret;
 }
 
-static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
+#define ieee802154_is_valid_saddr(addr)			\
+	likely(__ieee802154_is_valid_saddr(addr))
+
+static inline bool __ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 {
 	bool ret = false;
 
@@ -513,5 +525,8 @@ static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 
 	return ret;
 }
+
+#define ieee802154_is_valid_daddr(addr)			\
+	likely(__ieee802154_is_valid_daddr(addr))
 
 #endif
