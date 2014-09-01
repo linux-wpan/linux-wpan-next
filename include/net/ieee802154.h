@@ -476,7 +476,7 @@ static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
 
 static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 {
-	bool ret;
+	bool ret = false;
 
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
@@ -487,7 +487,8 @@ static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 		break;
 	default:
 		/* reserved and none should never happen */
-		BUG();
+		/* is false here. */
+		break;
 	}
 
 	return ret;
@@ -495,17 +496,19 @@ static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 
 static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 {
-	bool ret = true;
+	bool ret = false;
 
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		ret = ieee802154_is_valid_extended_addr(&addr->u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		ret = true;
 		break;
 	default:
 		/* reserved and none should never happen */
-		BUG();
+		/* is false here. */
+		break;
 	}
 
 	return ret;

@@ -84,11 +84,6 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_data(fc))
 		return RX_CONTINUE;
 
-	/* dataframes should have short and extended address */
-	if (unlikely(ieee802154_is_daddr_none(fc) ||
-		     ieee802154_is_saddr_none(fc)))
-		return RX_DROP_UNUSABLE;
-
 	daddr = ieee802154_hdr_daddr(hdr);
 	if (!ieee802154_is_valid_daddr(&daddr))
 		return RX_DROP_UNUSABLE;
