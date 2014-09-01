@@ -90,48 +90,47 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	daddr = ieee802154_hdr_daddr(hdr);
-	saddr = ieee802154_hdr_saddr(hdr);
-
-	/* check if source pan_id is broadcast */
-	if (unlikely(saddr.pan_id ==
-		     cpu_to_le16(IEEE802154_PAN_ID_BROADCAST)))
+	if (!ieee802154_is_valid_daddr(&daddr))
 		return RX_DROP_UNUSABLE;
 
-	if (ieee802154_is_daddr_extended(fc)) {
-		if (unlikely(!ieee802154_is_valid_extended_addr(
-						&daddr.u.extended)))
-			return RX_DROP_UNUSABLE;
+	saddr = ieee802154_hdr_saddr(hdr);
+	if (!ieee802154_is_valid_saddr(&saddr))
+		return RX_DROP_UNUSABLE;
 
-		/* else branch, because it can be only short xor extended */
+	switch (daddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		if (likely(daddr.u.extended == sdata->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
-	} else {
-		if (daddr.u.short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
-			skb->pkt_type = PACKET_BROADCAST;
-		else if (daddr.u.short_ == sdata->short_addr)
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		if (daddr.u.short_ == sdata->short_addr)
 			skb->pkt_type = PACKET_HOST;
+		else if (ieee802154_is_broadcast(&daddr))
+			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
+		break;
+	default:
+		/* reserved and none should never happen */
+		BUG();
 	}
 
-	if (ieee802154_is_saddr_extended(fc)) {
-		if (unlikely(!ieee802154_is_valid_extended_addr(
-						&saddr.u.extended)))
-			return RX_DROP_UNUSABLE;
-
+	switch (saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
-	} else {
-		if (unlikely(saddr.u.short_ ==
-			     cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST)))
-			return RX_DROP_UNUSABLE;
-
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
+		break;
+	default:
+		/* reserved and none should never happen */
+		BUG();
 	}
 
 	/* add src pan length */
@@ -139,10 +138,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
 	if (unlikely(daddr.pan_id != sdata->wpan_dev.pan_id &&
-		     daddr.pan_id !=
-		     cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))) {
+		     !ieee802154_is_pan_broadcast(daddr.pan_id)))
 		skb->pkt_type = PACKET_OTHERHOST;
-	}
 
 	skb->dev = dev;
 	dev->stats.rx_packets++;
