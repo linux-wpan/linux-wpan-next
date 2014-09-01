@@ -107,8 +107,8 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	}
 
 
-	ret = lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr, saddr_mode,
-				  IEEE802154_ADDR_LEN, (u8 *)&info->daddr, daddr_mode,
+	ret = lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr.u, saddr_mode,
+				  IEEE802154_ADDR_LEN, (u8 *)&info->daddr.u, daddr_mode,
 				  IEEE802154_ADDR_LEN, iphc0, iphc1,
 				  lowpan_give_skb_to_devices);
 
