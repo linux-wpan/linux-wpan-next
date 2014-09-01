@@ -18,16 +18,18 @@ struct lowpan_dev_info {
 	__be16			fragment_tag;
 };
 
+union lowpan_addr_u {
+	/* IPv6 needs big endian here */
+	__be64 extended;
+	__be16 short_;
+};
+
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
 	/* non converted address mode bits here 
 	 * make this at first, improve memcmp on this struct */
 	__le16 mode;
-	union {
-		/* IPv6 needs big endian here */
-		__be64 extended;
-		__be16 short_;
-	} u;
+	union lowpan_addr_u u;
 };
 
 static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
