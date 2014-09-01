@@ -65,6 +65,7 @@ static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	u8 iphc0, iphc1, daddr_mode, saddr_mode;
+	void *daddr, *saddr;
 	int ret;
 
 	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_IPHC)
@@ -83,9 +84,11 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	switch (info->daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		daddr_mode = IEEE802154_ADDR_LONG;
+		daddr = &info->daddr.u.extended;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		daddr_mode = IEEE802154_ADDR_SHORT;
+		daddr = &info->daddr.u.short_;
 		break;
 	default:
 		/* dataframes should contain real addresses */
@@ -97,9 +100,11 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	switch (info->saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		saddr_mode = IEEE802154_ADDR_LONG;
+		saddr = &info->saddr.u.extended;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		saddr_mode = IEEE802154_ADDR_SHORT;
+		saddr = &info->saddr.u.short_;
 		break;
 	default:
 		/* dataframes should contain real addresses */
@@ -107,8 +112,8 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	}
 
 
-	ret = lowpan_process_data(skb, skb->dev, (u8 *)&info->saddr.u, saddr_mode,
-				  IEEE802154_ADDR_LEN, (u8 *)&info->daddr.u, daddr_mode,
+	ret = lowpan_process_data(skb, skb->dev, saddr, saddr_mode,
+				  IEEE802154_ADDR_LEN, daddr, daddr_mode,
 				  IEEE802154_ADDR_LEN, iphc0, iphc1,
 				  lowpan_give_skb_to_devices);
 
