@@ -199,6 +199,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_TX_POWER] = { .type = NLA_S8, },
 
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
+	[NL802154_ATTR_CCA_MODE3_AND] = { .type = NLA_U8, },
 
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
 
@@ -341,6 +342,7 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	u8 cca_mode;
+	bool cca_mode3_and;
 
 	if (info->attrs[NL802154_ATTR_CCA_MODE])
 		return -EINVAL;
@@ -349,7 +351,15 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	if (cca_mode < 1 || cca_mode > 6)
 		return -EINVAL;
 
-	return rdev_set_cca_mode(rdev, cca_mode);
+	if (cca_mode == IEEE802154_CCA_ENERGY_CARRIER) {
+		if (info->attrs[NL802154_ATTR_CCA_MODE3_AND])
+			return -EINVAL;
+
+		cca_mode3_and =
+			!!nla_get_u8(info->attrs[NL802154_ATTR_CCA_MODE3_AND]);
+	}
+
+	return rdev_set_cca_mode(rdev, cca_mode, cca_mode3_and);
 }
 
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)

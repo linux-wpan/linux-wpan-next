@@ -107,10 +107,12 @@ ieee802154_set_tx_power(struct wpan_phy *wpan_phy, s8 dbm)
 }
 
 static int
-ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode)
+ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode,
+			const bool cca_mode3_and)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	u8 current_cca_mode = wpan_phy->cca_mode;
+	bool current_cca_mode3_and = wpan_phy->cca_mode3_and;
 	int ret;
 
 	ASSERT_RTNL();
@@ -118,12 +120,15 @@ ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode)
 	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE))
 		return -ENOTSUPP;
 
-	if (current_cca_mode == cca_mode)
+	if (current_cca_mode == cca_mode &&
+	    current_cca_mode3_and == cca_mode3_and)
 		return 0;
 
-	ret = drv_set_cca_mode(local, cca_mode);
-	if (!ret)
+	ret = drv_set_cca_mode(local, cca_mode, cca_mode3_and);
+	if (!ret) {
 		wpan_phy->cca_mode = cca_mode;
+		wpan_phy->cca_mode3_and = cca_mode3_and;
+	}
 
 	return ret;
 }
