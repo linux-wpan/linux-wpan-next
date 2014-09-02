@@ -559,11 +559,10 @@ at86rf230_async_state_delay(void *context)
 	case STATE_TRX_OFF:
 		switch (ctx->to_state) {
 		case STATE_RX_AACK_ON:
-			usleep_range(c->t_off_to_aack, c->t_off_to_aack + 10);
+			udelay(c->t_off_to_aack);
 			goto change;
 		case STATE_TX_ON:
-			usleep_range(c->t_off_to_tx_on,
-				     c->t_off_to_tx_on + 10);
+			udelay(c->t_off_to_tx_on);
 			goto change;
 		default:
 			break;
@@ -590,7 +589,7 @@ at86rf230_async_state_delay(void *context)
 	case STATE_P_ON:
 		switch (ctx->to_state) {
 		case STATE_TRX_OFF:
-			usleep_range(c->t_reset_to_off, c->t_reset_to_off + 10);
+			udelay(c->t_reset_to_off);
 			goto change;
 		default:
 			break;
@@ -1006,9 +1005,9 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	 * This is currently a workaround to avoid fragmenation issues.
 	 */
 	if (skb->len > 18)
-		usleep_range(lp->data->t_lifs, lp->data->t_lifs + 10);
+		udelay(lp->data->t_lifs);
 	else
-		usleep_range(lp->data->t_sifs, lp->data->t_sifs + 10);
+		udelay(lp->data->t_sifs);
 
 	return 0;
 }
