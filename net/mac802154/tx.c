@@ -114,14 +114,6 @@ err_tx:
 netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	int rc;
-
-	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
-	if (rc) {
-		pr_warn("encryption failed: %i\n", rc);
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
 
 	skb->skb_iif = dev->ifindex;
 	dev->stats.tx_packets++;

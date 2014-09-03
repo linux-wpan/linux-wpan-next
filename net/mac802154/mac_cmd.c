@@ -41,22 +41,6 @@ static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 	return to_phy(get_device(&sdata->local->phy->dev));
 }
 
-static struct ieee802154_llsec_ops mac802154_llsec_ops = {
-	.get_params = mac802154_get_params,
-	.set_params = mac802154_set_params,
-	.add_key = mac802154_add_key,
-	.del_key = mac802154_del_key,
-	.add_dev = mac802154_add_dev,
-	.del_dev = mac802154_del_dev,
-	.add_devkey = mac802154_add_devkey,
-	.del_devkey = mac802154_del_devkey,
-	.add_seclevel = mac802154_add_seclevel,
-	.del_seclevel = mac802154_del_seclevel,
-	.lock_table = mac802154_lock_table,
-	.get_table = mac802154_get_table,
-	.unlock_table = mac802154_unlock_table,
-};
-
 struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced = {
 	.get_phy = mac802154_get_phy,
 };
@@ -66,6 +50,4 @@ struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.get_pan_id = mac802154_dev_get_pan_id,
 	.get_short_addr = mac802154_dev_get_short_addr,
 	.get_dsn = mac802154_dev_get_dsn,
-
-	.llsec = &mac802154_llsec_ops,
 };

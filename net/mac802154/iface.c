@@ -242,38 +242,6 @@ static int mac802154_wpan_open(struct net_device *dev)
 	return mac802154_slave_open(dev);
 }
 
-static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
-					 struct ieee802154_hdr *hdr,
-					 const struct ieee802154_mac_cb *cb)
-{
-	struct ieee802154_llsec_params params;
-	u8 level;
-
-	mac802154_llsec_get_params(&sdata->sec, &params);
-
-	if (!params.enabled && cb->secen_override && cb->secen)
-		return -EINVAL;
-	if (!params.enabled ||
-	    (cb->secen_override && !cb->secen) ||
-	    !params.out_level)
-		return 0;
-	if (cb->seclevel_override && !cb->seclevel)
-		return -EINVAL;
-
-	level = cb->seclevel_override ? cb->seclevel : params.out_level;
-
-	hdr->fc.security_enabled = 1;
-	hdr->sec.level = level;
-	hdr->sec.key_id_mode = params.out_key.mode;
-	if (params.out_key.mode == IEEE802154_SCF_KEY_SHORT_INDEX)
-		hdr->sec.short_src = params.out_key.short_source;
-	else if (params.out_key.mode == IEEE802154_SCF_KEY_HW_INDEX)
-		hdr->sec.extended_src = params.out_key.extended_source;
-	hdr->sec.key_id = params.out_key.id;
-
-	return 0;
-}
-
 static int mac802154_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
@@ -294,9 +262,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 	hdr.fc.security_enabled = cb->secen;
 	hdr.fc.ack_request = cb->ackreq;
 	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
-
-	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
-		return -EINVAL;
 
 	if (!saddr) {
 		spin_lock_bh(&sdata->mib_lock);
@@ -364,10 +329,6 @@ static const struct net_device_ops mac802154_wpan_ops = {
 
 static void mac802154_wpan_free(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mac802154_llsec_destroy(&sdata->sec);
-
 	free_netdev(dev);
 }
 
@@ -402,8 +363,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 	sdata->wpan_dev.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
-
-	mac802154_llsec_init(&sdata->sec);
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
