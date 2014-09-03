@@ -36,9 +36,7 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	spin_lock_bh(&sdata->mib_lock);
 	ret = sdata->wpan_dev.short_addr;
-	spin_unlock_bh(&sdata->mib_lock);
 
 	return ret;
 }
@@ -50,9 +48,7 @@ __le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	spin_lock_bh(&sdata->mib_lock);
 	ret = sdata->wpan_dev.pan_id;
-	spin_unlock_bh(&sdata->mib_lock);
 
 	return ret;
 }

@@ -90,8 +90,6 @@ __cfg802154_wpan_dev_from_attrs(struct net *netns, struct nlattr **attrs)
 	if (result)
 		return result;
 
-	printk(KERN_INFO "LALA NODEV\n"); 
-
 	return ERR_PTR(-ENODEV);	
 }
 
@@ -365,11 +363,15 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
-	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
 	u16 pan_id;
 
 	if (!info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
+
+	if (netif_running(dev))
+		return -EBUSY;
 
 	pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
 	if (pan_id == IEEE802154_PAN_ID_BROADCAST)
@@ -593,8 +595,7 @@ static const struct genl_ops nl802154_ops[] = {
 		.doit = nl802154_set_pan_id,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
-				  NL802154_FLAG_NEED_NETDEV_UP |
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
