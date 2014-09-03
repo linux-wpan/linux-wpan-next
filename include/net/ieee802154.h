@@ -426,7 +426,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 	return addr;
 }
 
-static inline bool __ieee802154_is_valid_frame_len(const u8 len)
+static inline bool ieee802154_is_valid_frame_len(const u8 len)
 {
 	if (len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_SIZE)
 		return false;
@@ -434,65 +434,51 @@ static inline bool __ieee802154_is_valid_frame_len(const u8 len)
 	return true;
 }
 
-#define ieee802154_is_valid_frame_len(len)		\
-	likely(__ieee802154_is_valid_frame_len(len))
+#define ieee802154_is_valid_short_saddr(addr)			\
+	(addr = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
 
-static inline bool __ieee802154_is_valid_short_addr(const __le16 *addr)
-{
-	static const __le16 broadcast = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
 
-	return memcmp(addr, &broadcast, IEEE802154_SHORT_ADDR_LEN);
-}
-
-#define ieee802154_is_valid_short_addr(addr)			\
-	likely(__ieee802154_is_valid_short_addr(addr))
-
-static inline bool __ieee802154_is_valid_extended_addr(const __le64 *addr)
+static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 {
 	static const u8 zero[IEEE802154_EXTENDED_ADDR_LEN] = { };
 	static u8 full[IEEE802154_EXTENDED_ADDR_LEN];
 
 	memset(full, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
-	return memcmp(addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
-	       memcmp(addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
+	return memcmp(&addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
+	       memcmp(&addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
 }
-
-#define ieee802154_is_valid_extended_addr(addr)			\
-	likely(__ieee802154_is_valid_extended_addr(addr))
 
 static inline void ieee802154_random_extended_addr(__le64 *addr)
 {
 	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	/* toggle some bit if we hit an invalid extended addr */
-	if (!ieee802154_is_valid_extended_addr(addr))
+	if (!ieee802154_is_valid_extended_addr(*addr))
 		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 1;
 }
 
 /**
  * should only call with destination address */
-static inline bool ieee802154_is_broadcast(struct ieee802154_addr_foo *daddr)
-{
-	return daddr->mode == cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT) &&
-	       daddr->u.short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
-}
+#define ieee802154_is_broadcast(daddr_short_)				\
+	(daddr_short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
 
-static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
-{
-	return pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST);
-}
+#define ieee802154_is_pan_broadcast(pan_id)			\
+	(pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 
-static inline bool __ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
+static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 {
 	bool ret = false;
 
+	if (ieee802154_is_pan_broadcast(addr->pan_id))
+		return ret;
+
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		ret = ieee802154_is_valid_extended_addr(&addr->u.extended);
+		ret = ieee802154_is_valid_extended_addr(addr->u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		ret = ieee802154_is_valid_short_addr(&addr->u.short_);
+		ret = ieee802154_is_valid_short_saddr(addr->u.short_);
 		break;
 	default:
 		/* reserved and none should never happen */
@@ -503,16 +489,13 @@ static inline bool __ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 	return ret;
 }
 
-#define ieee802154_is_valid_saddr(addr)			\
-	likely(__ieee802154_is_valid_saddr(addr))
-
-static inline bool __ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
+static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 {
 	bool ret = false;
 
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		ret = ieee802154_is_valid_extended_addr(&addr->u.extended);
+		ret = ieee802154_is_valid_extended_addr(addr->u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		ret = true;
@@ -525,8 +508,5 @@ static inline bool __ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 
 	return ret;
 }
-
-#define ieee802154_is_valid_daddr(addr)			\
-	likely(__ieee802154_is_valid_daddr(addr))
 
 #endif

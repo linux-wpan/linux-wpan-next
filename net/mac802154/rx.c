@@ -102,10 +102,10 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		if (daddr.u.short_ == sdata->short_addr)
-			skb->pkt_type = PACKET_HOST;
-		else if (ieee802154_is_broadcast(&daddr))
+		if (ieee802154_is_broadcast(daddr.u.short_))
 			skb->pkt_type = PACKET_BROADCAST;
+		else if (daddr.u.short_ == sdata->short_addr)
+			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
