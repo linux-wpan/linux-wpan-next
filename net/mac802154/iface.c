@@ -133,6 +133,8 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
+	ASSERT_RTNL();
+
 	switch (cmd) {
 	case SIOCGIFADDR:
 	{
