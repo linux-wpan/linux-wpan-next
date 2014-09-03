@@ -114,6 +114,42 @@ static inline int drv_set_extended_addr(struct ieee802154_local *local,
 					    IEEE802154_AFILT_IEEEADDR_CHANGED);
 }
 
+static inline int drv_set_short_addr(struct ieee802154_local *local,
+				     const __le16 short_addr)
+{
+	struct ieee802154_hw_addr_filt filt;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.short_addr = short_addr;
+
+	return local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_SADDR_CHANGED);
+}
+
+static inline int drv_set_pan_coord(struct ieee802154_local *local,
+				    const bool is_coord)
+{
+	struct ieee802154_hw_addr_filt filt;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.pan_coord = is_coord;
+
+	return local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_PANC_CHANGED);
+}
+
 static inline int drv_set_csma_params(struct ieee802154_local *local,
 				      u8 min_be, u8 max_be,
 				      u8 max_csma_backoffs)

@@ -594,6 +594,7 @@ static const struct genl_ops nl802154_ops[] = {
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_NETDEV_UP |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
