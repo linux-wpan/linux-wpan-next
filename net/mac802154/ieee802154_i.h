@@ -58,9 +58,6 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	__le16 short_addr;
-	__le64 extended_addr;
-
 	/* MAC BSN field */
 	u8 bsn;
 	/* MAC DSN field */

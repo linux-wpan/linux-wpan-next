@@ -117,6 +117,8 @@ struct wpan_dev {
 	u32 owner_nlportid;
 
 	/* MAC PIB */
+	__le64 extended_addr;
+	__le16 short_addr;
 	__le16 pan_id;
 
 	u8 min_be;

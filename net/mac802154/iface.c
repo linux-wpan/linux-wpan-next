@@ -42,7 +42,7 @@ static int mac802154_slave_open(struct net_device *dev)
 	ASSERT_RTNL();
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		ret = drv_set_extended_addr(local, sdata->extended_addr);
+		ret = drv_set_extended_addr(local, wpan_dev->extended_addr);
 		if (ret < 0)
 			return ret;
 	}
@@ -111,32 +111,11 @@ static int mac802154_slave_close(struct net_device *dev)
 	return 0;
 }
 
-static int mac802154_wpan_update_llsec(struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
-	int rc = 0;
-
-	if (ops->llsec) {
-		struct ieee802154_llsec_params params;
-		int changed = 0;
-
-		params.pan_id = sdata->wpan_dev.pan_id;
-		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
-
-		params.hwaddr = sdata->extended_addr;
-		changed |= IEEE802154_LLSEC_PARAM_HWADDR;
-
-		rc = ops->llsec->set_params(dev, &params, changed);
-	}
-
-	return rc;
-}
-
 static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct sockaddr_ieee802154 *sa =
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
@@ -148,8 +127,8 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	{
 		u16 pan_id, short_addr;
 
-		pan_id = le16_to_cpu(sdata->wpan_dev.pan_id);
-		short_addr = le16_to_cpu(sdata->short_addr);
+		pan_id = le16_to_cpu(wpan_dev->pan_id);
+		short_addr = le16_to_cpu(wpan_dev->short_addr);
 		if (pan_id == IEEE802154_PANID_BROADCAST ||
 		    short_addr == IEEE802154_ADDR_BROADCAST) {
 			err = -EADDRNOTAVAIL;
@@ -176,10 +155,9 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			break;
 		}
 
-		sdata->wpan_dev.pan_id = cpu_to_le16(sa->addr.pan_id);
-		sdata->short_addr = cpu_to_le16(sa->addr.short_addr);
+		wpan_dev->pan_id = cpu_to_le16(sa->addr.pan_id);
+		wpan_dev->short_addr = cpu_to_le16(sa->addr.short_addr);
 
-		err = mac802154_wpan_update_llsec(dev);
 		break;
 	}
 
@@ -190,6 +168,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct sockaddr *addr = p;
 	int ret;
 
@@ -200,15 +179,15 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 
 	/* FIXME: validate addr */
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	sdata->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	wpan_dev->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
 	if (sdata->local->hw.flags & IEEE802154_HW_AFILT) {
 		ret = drv_set_extended_addr(sdata->local,
-					    sdata->extended_addr);
+					    wpan_dev->extended_addr);
 		if (ret < 0)
 			return ret;
 	}
 
-	return mac802154_wpan_update_llsec(dev);
+	return 0;
 }
 
 static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
@@ -251,6 +230,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 {
 	struct ieee802154_hdr hdr;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	int hlen;
 
@@ -266,18 +246,18 @@ static int mac802154_header_create(struct sk_buff *skb,
 	if (!saddr) {
 		spin_lock_bh(&sdata->mib_lock);
 
-		if (sdata->short_addr ==
+		if (wpan_dev->short_addr ==
 		    cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
-		    sdata->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
-		    sdata->wpan_dev.pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
+		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
 			hdr.source.mode = IEEE802154_ADDR_LONG;
-			hdr.source.extended_addr = sdata->extended_addr;
+			hdr.source.extended_addr = wpan_dev->extended_addr;
 		} else {
 			hdr.source.mode = IEEE802154_ADDR_SHORT;
-			hdr.source.short_addr = sdata->short_addr;
+			hdr.source.short_addr = wpan_dev->short_addr;
 		}
 
-		hdr.source.pan_id = sdata->wpan_dev.pan_id;
+		hdr.source.pan_id = wpan_dev->pan_id;
 
 		spin_unlock_bh(&sdata->mib_lock);
 	} else {
@@ -360,9 +340,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 	get_random_bytes(&sdata->bsn, 1);
 	get_random_bytes(&sdata->dsn, 1);
-
-	sdata->wpan_dev.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
-	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
@@ -377,7 +354,9 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 	/* mac pib defaults here */
 	/* defaults per 802.15.4-2011 */
-	sdata->extended_addr = local->hw.phy->perm_extended_addr;
+	wpan_dev->extended_addr = local->hw.phy->perm_extended_addr;
+	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
+	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;

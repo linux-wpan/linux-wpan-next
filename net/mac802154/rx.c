@@ -71,6 +71,7 @@ static ieee802154_rx_result
 ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 {
 	struct ieee802154_sub_if_data *sdata = rx->sdata;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct net_device *dev = sdata->dev;
 	struct ieee802154_hdr_foo *hdr;
 	struct ieee802154_addr_foo saddr, daddr;
@@ -94,7 +95,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 	switch (daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		if (likely(daddr.u.extended == sdata->extended_addr))
+		if (likely(daddr.u.extended == wpan_dev->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -104,7 +105,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		if (ieee802154_is_broadcast(daddr.u.short_))
 			skb->pkt_type = PACKET_BROADCAST;
-		else if (daddr.u.short_ == sdata->short_addr)
+		else if (daddr.u.short_ == wpan_dev->short_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -132,7 +133,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_intra_pan(fc))
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
-	if (unlikely(daddr.pan_id != sdata->wpan_dev.pan_id &&
+	if (unlikely(daddr.pan_id != wpan_dev->pan_id &&
 		     !ieee802154_is_pan_broadcast(daddr.pan_id)))
 		skb->pkt_type = PACKET_OTHERHOST;
 
