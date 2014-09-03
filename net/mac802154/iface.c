@@ -241,7 +241,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 	hdr.fc.type = cb->type;
 	hdr.fc.security_enabled = cb->secen;
 	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+	hdr.seq = wpan_dev->dsn++;
 
 	if (!saddr) {
 		spin_lock_bh(&sdata->mib_lock);
@@ -338,8 +338,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 	spin_lock_init(&sdata->mib_lock);
 	mutex_init(&sdata->sec_mtx);
 
-	get_random_bytes(&sdata->bsn, 1);
-	get_random_bytes(&sdata->dsn, 1);
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
@@ -357,6 +355,9 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->extended_addr = local->hw.phy->perm_extended_addr;
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+
+	get_random_bytes(&wpan_dev->bsn, 1);
+	get_random_bytes(&wpan_dev->dsn, 1);
 
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;

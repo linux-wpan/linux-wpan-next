@@ -121,6 +121,11 @@ struct wpan_dev {
 	__le16 short_addr;
 	__le16 pan_id;
 
+	/* MAC BSN field */
+	u8 bsn;
+	/* MAC DSN field */
+	u8 dsn;
+
 	u8 min_be;
 	u8 max_be;
 	u8 csma_retries;

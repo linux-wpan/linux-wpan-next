@@ -58,11 +58,6 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	/* MAC BSN field */
-	u8 bsn;
-	/* MAC DSN field */
-	u8 dsn;
-
 	/* protects sec from concurrent access by netlink. access by
 	 * encrypt/decrypt/header_create safe without additional protection.
 	 */
