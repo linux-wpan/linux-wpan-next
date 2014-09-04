@@ -408,11 +408,7 @@ static int nl802154_set_max_be(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
-	if (max_be < 3 || max_be > 8)
-		return -EINVAL;
-
-	/* check if violate min_be condition */
-	if (wpan_dev->min_be > max_be)
+	if (max_be < 3 || max_be > 8 || max_be > wpan_dev->min_be)
 		return -EINVAL;
 
 	return rdev_set_max_be(rdev, wpan_dev, max_be);
