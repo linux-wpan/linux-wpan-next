@@ -200,6 +200,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_CCA_MODE3_AND] = { .type = NLA_U8, },
 
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
+	[NL802154_ATTR_SHORT_ADDR] = { .type = NLA_U16, },
 
 	[NL802154_ATTR_MAX_FRAME_RETRIES] = { .type = NLA_S8, },
 
@@ -378,6 +379,26 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
+}
+
+static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	u16 short_addr;
+
+	if (!info->attrs[NL802154_ATTR_SHORT_ADDR])
+		return -EINVAL;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	short_addr = nla_get_u16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
+	if (short_addr == IEEE802154_SHORT_ADDR_BROADCAST)
+		return -EINVAL;
+
+	return rdev_set_short_addr(rdev, wpan_dev, short_addr);
 }
 
 static int nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info *info)
@@ -589,6 +610,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_PAN_ID,
 		.doit = nl802154_set_pan_id,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_SHORT_ADDR,
+		.doit = nl802154_set_short_addr,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |

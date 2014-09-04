@@ -154,6 +154,27 @@ static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 	return ret;
 }
 
+static int ieee802154_set_short_addr(struct wpan_phy *wpan_phy,
+				     struct wpan_dev *wpan_dev, u16 short_addr)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const __le16 __le16_short_addr = cpu_to_le16(short_addr);
+	int ret = 0;
+
+	ASSERT_RTNL();
+
+	if (wpan_dev->short_addr == __le16_short_addr)
+		return 0;
+
+	if (local->hw.flags & IEEE802154_HW_AFILT)
+	       ret = drv_set_short_addr(local, __le16_short_addr);
+
+	if (!ret)
+		wpan_dev->pan_id = __le16_short_addr;
+	
+	return ret;
+}
+
 static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 					    struct wpan_dev *wpan_dev,
 					    s8 max_frame_retries)
@@ -257,6 +278,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_tx_power = ieee802154_set_tx_power,
 	.set_cca_mode = ieee802154_set_cca_mode,
 	.set_pan_id = ieee802154_set_pan_id,
+	.set_short_addr = ieee802154_set_short_addr,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_max_be = ieee802154_set_max_be,
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,

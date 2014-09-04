@@ -50,6 +50,13 @@ rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 }
 
 static inline int
+rdev_set_short_addr(struct cfg802154_registered_device *rdev,
+		    struct wpan_dev *wpan_dev, u16 short_addr)
+{
+	return rdev->ops->set_short_addr(&rdev->wpan_phy, wpan_dev, short_addr);
+}
+
+static inline int
 rdev_set_max_frame_retries(struct cfg802154_registered_device *rdev,
 			   struct wpan_dev *wpan_dev,
 			   const s8 max_frame_retries)
