@@ -17,6 +17,7 @@
 
 #include <net/af_ieee802154.h>
 #include <net/ieee802154_netdev.h>
+#include <net/cfg802154.h>
 #include <net/6lowpan.h>
 
 #include "6lowpan_i.h"
@@ -199,6 +200,8 @@ err:
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct lowpan_addr_info *info = lowpan_skb_priv(skb);
+	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
+	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
 	struct ieee802154_addr sa, da;
 	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 	void *daddr, *saddr;
@@ -221,7 +224,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 
 	/* prepare wpan address data */
 	sa.mode = IEEE802154_ADDR_LONG;
-	sa.pan_id = ieee802154_mlme_ops(ldev)->get_pan_id(ldev);
+	sa.pan_id = wpan_dev->pan_id;
 	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
 
 	/* intra-PAN communications */

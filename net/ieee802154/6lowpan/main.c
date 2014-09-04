@@ -81,27 +81,6 @@ static int lowpan_set_address(struct net_device *ldev, void *p)
 	return ret;
 }
 
-static struct wpan_phy *lowpan_get_phy(const struct net_device *ldev)
-{
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
-
-	return ieee802154_mlme_ops(wdev)->get_phy(wdev);
-}
-
-static __le16 lowpan_get_pan_id(const struct net_device *ldev)
-{
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
-
-	return ieee802154_mlme_ops(wdev)->get_pan_id(wdev);
-}
-
-static __le16 lowpan_get_short_addr(const struct net_device *ldev)
-{
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
-
-	return ieee802154_mlme_ops(wdev)->get_short_addr(wdev);
-}
-
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -139,12 +118,6 @@ static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_set_mac_address	= lowpan_set_address,
 };
 
-static struct ieee802154_mlme_ops lowpan_mlme = {
-	.get_pan_id = lowpan_get_pan_id,
-	.get_phy = lowpan_get_phy,
-	.get_short_addr = lowpan_get_short_addr,
-};
-
 static void lowpan_setup(struct net_device *ldev)
 {
 	ldev->type		= ARPHRD_6LOWPAN;
@@ -155,7 +128,6 @@ static void lowpan_setup(struct net_device *ldev)
 
 	ldev->netdev_ops	= &lowpan_netdev_ops;
 	ldev->header_ops	= &lowpan_header_ops;
-	ldev->ml_priv		= &lowpan_mlme;
 	ldev->destructor	= free_netdev;
 }
 

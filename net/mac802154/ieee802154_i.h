@@ -56,13 +56,6 @@ struct ieee802154_sub_if_data {
 	unsigned long state;
 	char name[IFNAMSIZ];
 
-	spinlock_t mib_lock;
-
-	/* protects sec from concurrent access by netlink. access by
-	 * encrypt/decrypt/header_create safe without additional protection.
-	 */
-	struct mutex sec_mtx;
-
 	struct mac802154_llsec sec;
 	/* must be last, dynamically sized area in this! */
 	struct ieee802154_vif vif;
@@ -135,9 +128,6 @@ ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
 }
 
-extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
-extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
-
 int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		      struct wpan_dev **new_wdev, enum nl802154_iftype type);
 
@@ -145,47 +135,5 @@ void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 void ieee802154_remove_interfaces(struct ieee802154_local *local);
 
 netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev);
-
-/* MIB callbacks */
-void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
-__le16 mac802154_dev_get_short_addr(const struct net_device *dev);
-void mac802154_dev_set_ieee_addr(struct net_device *dev);
-__le16 mac802154_dev_get_pan_id(const struct net_device *dev);
-void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
-void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
-u8 mac802154_dev_get_dsn(const struct net_device *dev);
-
-int mac802154_get_params(struct net_device *dev,
-			 struct ieee802154_llsec_params *params);
-int mac802154_set_params(struct net_device *dev,
-			 const struct ieee802154_llsec_params *params,
-			 int changed);
-
-int mac802154_add_key(struct net_device *dev,
-		      const struct ieee802154_llsec_key_id *id,
-		      const struct ieee802154_llsec_key *key);
-int mac802154_del_key(struct net_device *dev,
-		      const struct ieee802154_llsec_key_id *id);
-
-int mac802154_add_dev(struct net_device *dev,
-		      const struct ieee802154_llsec_device *llsec_dev);
-int mac802154_del_dev(struct net_device *dev, __le64 dev_addr);
-
-int mac802154_add_devkey(struct net_device *dev,
-			 __le64 device_addr,
-			 const struct ieee802154_llsec_device_key *key);
-int mac802154_del_devkey(struct net_device *dev,
-			 __le64 device_addr,
-			 const struct ieee802154_llsec_device_key *key);
-
-int mac802154_add_seclevel(struct net_device *dev,
-			   const struct ieee802154_llsec_seclevel *sl);
-int mac802154_del_seclevel(struct net_device *dev,
-			   const struct ieee802154_llsec_seclevel *sl);
-
-void mac802154_lock_table(struct net_device *dev);
-void mac802154_get_table(struct net_device *dev,
-			 struct ieee802154_llsec_table **t);
-void mac802154_unlock_table(struct net_device *dev);
 
 #endif /* __IEEE802154_I_H */

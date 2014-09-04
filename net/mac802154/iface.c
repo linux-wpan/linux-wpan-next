@@ -338,14 +338,9 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 	dev->destructor		= mac802154_wpan_free;
 	dev->netdev_ops		= &mac802154_wpan_ops;
-	dev->ml_priv		= &mac802154_mlme_wpan;
 
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->vif.type = NL802154_IFTYPE_NODE;
-
-	spin_lock_init(&sdata->mib_lock);
-	mutex_init(&sdata->sec_mtx);
-
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
