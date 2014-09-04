@@ -102,7 +102,7 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	cb->skb = skb;
 	cb->local = local;
 
-	queue_work(local->dev_workqueue, &cb->work);
+	queue_work(local->workqueue, &cb->work);
 
 	return NETDEV_TX_OK;
 

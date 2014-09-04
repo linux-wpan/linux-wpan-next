@@ -81,10 +81,7 @@ struct ieee802154_local {
 	struct list_head	interfaces;
 	struct mutex		iflist_mtx;
 
-	/* This one is used for scanning and other jobs not to be interfered
-	 * with serial driver.
-	 */
-	struct workqueue_struct	*dev_workqueue;
+	struct workqueue_struct	*workqueue;
 
 	bool started;
 
