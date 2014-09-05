@@ -328,8 +328,6 @@ static void mac802154_wpan_free(struct net_device *dev)
 
 static void ieee802154_if_setup(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata;
-
 	dev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 
@@ -343,9 +341,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 	dev->destructor		= mac802154_wpan_free;
 	dev->netdev_ops		= &mac802154_wpan_ops;
-
-	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	sdata->vif.type = NL802154_IFTYPE_NODE;
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
