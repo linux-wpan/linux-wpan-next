@@ -340,7 +340,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->tx_queue_len	= 1000;
 	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
-	dev->watchdog_timeo	= 0;
 
 	dev->destructor		= mac802154_wpan_free;
 	dev->netdev_ops		= &mac802154_wpan_ops;
