@@ -48,6 +48,7 @@ struct cfg802154_ops {
 	int	(*set_tx_power)(struct wpan_phy *wpan_phy, s8 dbm);
 	int	(*set_cca_mode)(struct wpan_phy *wpan_phy, const u8 cca_mode,
 				const bool cca_mode3_and);
+	int	(*set_cca_ed_level)(struct wpan_phy *wpan_phy, const s32 ed_level);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u16 pan_id);
 	int	(*set_short_addr)(struct wpan_phy *wpan_phy,

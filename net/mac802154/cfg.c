@@ -133,6 +133,19 @@ ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode,
 	return ret;
 }
 
+static int
+ieee802154_set_cca_ed_level(struct wpan_phy *wpan_phy, const s32 ed_level)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL))
+		return -ENOTSUPP;
+
+	return drv_set_cca_ed_level(local, ed_level);
+}
+
 static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev, u16 pan_id)
 {
@@ -277,6 +290,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_page = ieee802154_set_page,
 	.set_tx_power = ieee802154_set_tx_power,
 	.set_cca_mode = ieee802154_set_cca_mode,
+	.set_cca_ed_level = ieee802154_set_cca_ed_level,
 	.set_pan_id = ieee802154_set_pan_id,
 	.set_short_addr = ieee802154_set_short_addr,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,

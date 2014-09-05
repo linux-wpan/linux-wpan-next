@@ -43,6 +43,13 @@ rdev_set_cca_mode(struct cfg802154_registered_device *rdev, const u8 cca_mode,
 }
 
 static inline int
+rdev_set_cca_ed_level(struct cfg802154_registered_device *rdev,
+		      const s32 ed_level)
+{
+	return rdev->ops->set_cca_ed_level(&rdev->wpan_phy, ed_level);
+}
+
+static inline int
 rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 		struct wpan_dev *wpan_dev, u16 pan_id)
 {

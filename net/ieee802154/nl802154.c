@@ -198,6 +198,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
 	[NL802154_ATTR_CCA_MODE3_AND] = { .type = NLA_U8, },
+	[NL802154_ATTR_CCA_ED_LEVEL] = { .type = NLA_S32, },
 
 	[NL802154_ATTR_PAN_ID] = { .type = NLA_U16, },
 	[NL802154_ATTR_SHORT_ADDR] = { .type = NLA_U16, },
@@ -359,6 +360,22 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	return rdev_set_cca_mode(rdev, cca_mode, cca_mode3_and);
+}
+
+static int nl802154_set_cca_ed_level(struct sk_buff *skb,
+				     struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	s32 ed_level;
+
+	if (info->attrs[NL802154_ATTR_CCA_ED_LEVEL])
+		return -EINVAL;
+
+	/* direct driver call, nothing to save in pib/mib.
+	 * driver will check constraints of this value.
+	 */
+	ed_level = nla_get_s32(info->attrs[NL802154_ATTR_CCA_ED_LEVEL]);
+	return rdev_set_cca_ed_level(rdev, ed_level);
 }
 
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
@@ -606,6 +623,14 @@ static const struct genl_ops nl802154_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
 				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_CCA_ED_LEVEL,
+		.doit = nl802154_set_cca_ed_level,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		/* no changes on pib, no rtnl lock needed */
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY,
 	},
 	{
 		.cmd = NL802154_CMD_SET_PAN_ID,
