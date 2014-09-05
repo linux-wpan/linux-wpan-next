@@ -75,6 +75,12 @@ static int mac802154_slave_open(struct net_device *dev)
 			return ret;
 	}
 
+	if (local->hw.flags & IEEE802154_HW_LBT) {
+		ret = drv_set_lbt_mode(local, wpan_dev->lbt);
+		if (ret < 0)
+			return ret;
+	}
+
 	switch (sdata->vif.type) {
 	case NL802154_IFTYPE_NODE:
 	case NL802154_IFTYPE_MONITOR:
