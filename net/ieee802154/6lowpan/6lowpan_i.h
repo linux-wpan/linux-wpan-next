@@ -32,12 +32,6 @@ struct lowpan_addr {
 	union lowpan_addr_u u;
 };
 
-static inline bool lowpan_addr_equal(const struct lowpan_addr *daddr,
-				     const struct lowpan_addr *saddr)
-{
-	return !memcmp(daddr, saddr, sizeof(*daddr));
-}
-
 struct lowpan_addr_info {
 	struct lowpan_addr daddr;
 	struct lowpan_addr saddr;

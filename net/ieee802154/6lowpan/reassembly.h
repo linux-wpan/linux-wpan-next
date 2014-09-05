@@ -8,8 +8,8 @@
 struct lowpan_create_arg {
 	__be16 tag;
 	u16 d_size;
-	const struct lowpan_addr *saddr;
-	const struct lowpan_addr *daddr;
+	const union lowpan_addr_u *saddr;
+	const union lowpan_addr_u *daddr;
 };
 
 /* Equivalent of ipv4 struct ip
@@ -19,22 +19,24 @@ struct lowpan_frag_queue {
 
 	__be16			tag;
 	u16			d_size;
-	struct lowpan_addr	saddr;
-	struct lowpan_addr	daddr;
+	union lowpan_addr_u	saddr;
+	union lowpan_addr_u	daddr;
 };
 
-static inline u32 ieee802154_addr_hash(const struct lowpan_addr *a)
+static inline bool lowpan_addr_equal(const union lowpan_addr_u *daddr,
+				     const union lowpan_addr_u *saddr)
 {
-	/* byte ordering doesn't matter to create hash */
-	switch (a->mode) {
-	case IEEE802154_ADDR_LONG:
-		return (((__force u64)a->u.extended) >> 32) ^
-			(((__force u64)a->u.extended) & 0xffffffff);
-	case IEEE802154_ADDR_SHORT:
-		return (__force u32)(a->u.short_);
-	default:
-		return 0;
-	}
+	return !memcmp(daddr, saddr, sizeof(*daddr));
+}
+
+static inline u32 ieee802154_addr_hash(const union lowpan_addr_u *a)
+{
+	/* byte ordering doesn't matter to create hash, using big endian here.
+	 * short address should have short address and rest of these bytes
+	 * should be zero, so xor with that doesn't matter.
+	 */
+	return ((((__force u64)a->extended) >> 32) ^
+		(((__force u64)a->extended) & 0xffffffff));
 }
 
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type,
