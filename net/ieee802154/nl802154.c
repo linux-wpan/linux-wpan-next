@@ -208,6 +208,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_MAX_BE] = { .type = NLA_U8, },
 	[NL802154_ATTR_MAX_CSMA_BACKOFFS] = { .type = NLA_U8, },
 	[NL802154_ATTR_MIN_BE] = { .type = NLA_U8, },
+
+	[NL802154_ATTR_LBT_MODE] = { .type = NLA_U8, },
 };
 
 /* message building helper */
@@ -485,6 +487,19 @@ static int nl802154_set_min_be(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_min_be(rdev, wpan_dev, min_be);
 }
 
+static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	bool mode;
+
+	if (!info->attrs[NL802154_ATTR_LBT_MODE])
+		return -EINVAL;
+
+	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -675,6 +690,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_MIN_BE,
 		.doit = nl802154_set_min_be,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_LBT_MODE,
+		.doit = nl802154_set_lbt_mode,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |

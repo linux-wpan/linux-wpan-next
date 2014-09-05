@@ -97,4 +97,11 @@ rdev_set_min_be(struct cfg802154_registered_device *rdev,
 	return rdev->ops->set_min_be(&rdev->wpan_phy, wpan_dev, min_be);
 }
 
+static inline int
+rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
+		  struct wpan_dev *wpan_dev, const bool mode)
+{
+	return rdev->ops->set_lbt_mode(&rdev->wpan_phy, wpan_dev, mode);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

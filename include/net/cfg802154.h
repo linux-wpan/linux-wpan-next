@@ -63,6 +63,8 @@ struct cfg802154_ops {
 					 u8 max_csma_backoffs);
 	int	(*set_min_be)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u8 min_be);
+	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev, const bool mode);
 };
 
 /**

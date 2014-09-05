@@ -78,6 +78,19 @@ static inline int drv_set_cca_mode(struct ieee802154_local *local,
 	return local->ops->set_cca_mode(&local->hw, cca_mode, cca_mode3_and);
 }
 
+static inline int drv_set_lbt_mode(struct ieee802154_local *local,
+				   const bool mode)
+{
+	might_sleep();
+
+	if (!local->ops->set_lbt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	return local->ops->set_lbt(&local->hw, mode);
+}
+
 static inline int drv_set_cca_ed_level(struct ieee802154_local *local,
 				       const s32 ed_level)
 {

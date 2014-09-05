@@ -283,6 +283,29 @@ static int ieee802154_set_min_be(struct wpan_phy *wpan_phy,
 	return ret;
 }
 
+static int ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy,
+				   struct wpan_dev *wpan_dev,
+				   const bool mode)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	const bool current_lbt = wpan_dev->lbt;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_LBT))
+		return -ENOTSUPP;
+
+	if (current_lbt == mode)
+		return 0;
+
+	ret = drv_set_lbt_mode(local, mode);
+	if (!ret)
+		wpan_dev->lbt = mode;
+
+	return ret;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
@@ -297,4 +320,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_be = ieee802154_set_max_be,
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_min_be = ieee802154_set_min_be,
+	.set_lbt_mode = ieee802154_set_lbt_mode,
 };
