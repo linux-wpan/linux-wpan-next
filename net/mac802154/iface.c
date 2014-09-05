@@ -187,6 +187,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	__le64 __le64_extended_addr;
 	struct sockaddr *addr = p;
 	int ret;
 
@@ -195,9 +196,14 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	/* FIXME: validate addr */
+	__le64_extended_addr = swab64(*((__be64 *)dev->dev_addr));
+
+	if (ieee802154_is_valid_extended_addr(__le64_extended_addr))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	wpan_dev->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	wpan_dev->extended_addr = __le64_extended_addr;
+
 	if (sdata->local->hw.flags & IEEE802154_HW_AFILT) {
 		ret = drv_set_extended_addr(sdata->local,
 					    wpan_dev->extended_addr);
