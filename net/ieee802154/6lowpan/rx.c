@@ -24,14 +24,16 @@
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
-static void
+static int
 lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 {
 	switch (res) {
 	case RX_DROP_UNUSABLE:
 		kfree_skb(skb);
-		break;
+		return NET_RX_DROP;
 	}
+
+	return NET_RX_SUCCESS;
 }
 
 static int lowpan_give_skb_to_devices(struct sk_buff *skb,
@@ -45,7 +47,7 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 	return 0;
 }
 
-static void lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info);
+static int lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info);
 
 static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
@@ -57,6 +59,9 @@ static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 
 	ret = lowpan_frag_rcv(skb, skb->data[0] & 0xe0, info);
 	if (ret == 1)
+		/* rerun lowpan_rx_handlers, if full reassembled,
+		 * don't need to check return values, last frag is queued.
+		 */
 		lowpan_rx_handlers(skb, info);
 
 	return RX_QUEUED;
@@ -144,7 +149,7 @@ static int lowpan_rx_h_ipv6(struct sk_buff *skb, struct lowpan_addr_info *info)
 	return RX_QUEUED;
 }
 
-static void
+static int
 lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	int ret;
@@ -162,7 +167,7 @@ lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
 	CALL_RXH(lowpan_rx_h_ipv6);
 
 rxh_next:
-	lowpan_rx_handlers_result(skb, ret);
+	return lowpan_rx_handlers_result(skb, ret);
 #undef CALL_RXH
 }
 
@@ -219,7 +224,7 @@ static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 	return RX_CONTINUE;
 }
 
-static void ieee802154_invoke_rx_handlers(struct sk_buff *skb)
+static int ieee802154_invoke_rx_handlers(struct sk_buff *skb)
 {
 	struct lowpan_addr_info info = { };
 	int res;
@@ -233,11 +238,10 @@ static void ieee802154_invoke_rx_handlers(struct sk_buff *skb)
 
 	CALL_RXH(lowpan_rx_h_check);
 
-	lowpan_rx_handlers(skb, &info);
-	return;
+	return lowpan_rx_handlers(skb, &info);
 
 rxh_next:
-	lowpan_rx_handlers_result(skb, res);
+	return lowpan_rx_handlers_result(skb, res);
 }
 
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
@@ -256,9 +260,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		goto drop;
 
 	skb->dev = ldev;
-	ieee802154_invoke_rx_handlers(skb);
-
-	return NET_RX_SUCCESS;
+	return ieee802154_invoke_rx_handlers(skb);
 drop:
 	return NET_RX_DROP;
 }
