@@ -94,7 +94,7 @@ static int uncompress_addr(struct sk_buff *skb,
 		case IEEE802154_ADDR_LONG:
 			/* fe:80::XXXX:XXXX:XXXX:XXXX
 			 *        \_________________/
-			 *              hwaddr
+			 *              eui64
 			 */
 			ipaddr->s6_addr[0] = 0xFE;
 			ipaddr->s6_addr[1] = 0x80;
