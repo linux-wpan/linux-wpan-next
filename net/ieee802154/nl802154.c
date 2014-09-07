@@ -390,6 +390,7 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
 
+	/* conflict here while tx/rx calls */
 	if (netif_running(dev))
 		return -EBUSY;
 
@@ -410,6 +411,7 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_SHORT_ADDR])
 		return -EINVAL;
 
+	/* conflict here while tx/rx calls */
 	if (netif_running(dev))
 		return -EBUSY;
 
