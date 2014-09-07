@@ -703,20 +703,17 @@ at86rf230_tx_complete(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 	struct sk_buff *skb = lp->tx_skb;
 
-	if (lp->tx_max_frame_retries > 0) {
-		ieee802154_xmit_complete(lp->hw, skb);
-		return;
-	}
-
 	/* Interfame spacing time, which is phy depend.
 	 * TODO
 	 * Move this handling in MAC 802.15.4 layer.
 	 * This is currently a workaround to avoid fragmenation issues.
+	 *
+	 * additional 50 us for tolerance
 	 */
 	if (skb->len > 18)
-		udelay(lp->data->t_lifs);
+		udelay(lp->data->t_lifs + 50);
 	else
-		udelay(lp->data->t_sifs);
+		udelay(lp->data->t_sifs + 50);
 
 	ieee802154_xmit_complete(lp->hw, skb);
 }
@@ -756,7 +753,7 @@ at86rf230_tx_trac_check(void *context)
 	const u8 trac = (buf[1] & 0xe0) >> 5;
 	int rc;
 
-	if (!lp->tx_max_frame_retries) {
+	if (lp->tx_max_frame_retries == 0) {
 		at86rf230_tx_on(context);
 		return;
 	}
