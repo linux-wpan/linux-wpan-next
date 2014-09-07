@@ -1111,10 +1111,7 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(&lp->spi->dev,
 			"at86rf230_set_hw_addr_filt called for panc change\n");
-		if (filt->pan_coord)
-			at86rf230_write_subreg(lp, SR_AACK_I_AM_COORD, 1);
-		else
-			at86rf230_write_subreg(lp, SR_AACK_I_AM_COORD, 0);
+		at86rf230_write_subreg(lp, SR_AACK_I_AM_COORD, !!filt->pan_coord);
 	}
 
 	return 0;
