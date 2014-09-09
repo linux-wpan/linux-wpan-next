@@ -32,7 +32,7 @@
 #include "driver-ops.h"
 #include "ieee802154_i.h"
 
-static int mac802154_slave_open(struct net_device *dev)
+static int ieee802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
@@ -111,7 +111,7 @@ err:
 	return ret;
 }
 
-static int mac802154_slave_close(struct net_device *dev)
+static int ieee802154_slave_close(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
@@ -131,7 +131,7 @@ static int mac802154_slave_close(struct net_device *dev)
 }
 
 static int
-mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+ieee802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -172,7 +172,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
+static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -223,7 +223,7 @@ static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdat
 	return 0;
 }
 
-static int mac802154_wpan_open(struct net_device *dev)
+static int ieee802154_wpan_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int ret;
@@ -232,10 +232,10 @@ static int mac802154_wpan_open(struct net_device *dev)
 	if (ret < 0)
 		return ret;
 
-	return mac802154_slave_open(dev);
+	return ieee802154_slave_open(dev);
 }
 
-static int mac802154_header_create(struct sk_buff *skb,
+static int ieee802154_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
 				   const void *daddr,
@@ -290,7 +290,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 }
 
 static int
-mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+ieee802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	struct ieee802154_hdr hdr;
 	struct ieee802154_addr *addr = (struct ieee802154_addr *)haddr;
@@ -304,20 +304,20 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return sizeof(*addr);
 }
 
-static struct header_ops mac802154_header_ops = {
-	.create		= mac802154_header_create,
-	.parse		= mac802154_header_parse,
+static struct header_ops ieee802154_header_ops = {
+	.create		= ieee802154_header_create,
+	.parse		= ieee802154_header_parse,
 };
 
-static const struct net_device_ops mac802154_wpan_ops = {
-	.ndo_open		= mac802154_wpan_open,
-	.ndo_stop		= mac802154_slave_close,
+static const struct net_device_ops ieee802154_wpan_ops = {
+	.ndo_open		= ieee802154_wpan_open,
+	.ndo_stop		= ieee802154_slave_close,
 	.ndo_start_xmit		= ieee802154_xmit,
-	.ndo_do_ioctl		= mac802154_wpan_ioctl,
-	.ndo_set_mac_address	= mac802154_wpan_mac_addr,
+	.ndo_do_ioctl		= ieee802154_wpan_ioctl,
+	.ndo_set_mac_address	= ieee802154_wpan_mac_addr,
 };
 
-static void mac802154_wpan_free(struct net_device *dev)
+static void ieee802154_wpan_free(struct net_device *dev)
 {
 	free_netdev(dev);
 }
@@ -328,15 +328,15 @@ static void ieee802154_if_setup(struct net_device *dev)
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
-	dev->header_ops		= &mac802154_header_ops;
+	dev->header_ops		= &ieee802154_header_ops;
 	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 1000;
 	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
 
-	dev->destructor		= mac802154_wpan_free;
-	dev->netdev_ops		= &mac802154_wpan_ops;
+	dev->destructor		= ieee802154_wpan_free;
+	dev->netdev_ops		= &ieee802154_wpan_ops;
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
