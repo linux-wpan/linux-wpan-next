@@ -199,16 +199,18 @@ err:
 
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 {
-	struct lowpan_addr_info *info = lowpan_skb_priv(skb);
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
 	struct ieee802154_addr sa, da;
 	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+	struct lowpan_addr_info info;
 	void *daddr, *saddr;
 
+	memcpy(&info, lowpan_skb_priv(skb), sizeof(info));
+
 	/* TODO complicated bug why we support extended_addr only */
-	daddr = &info->daddr.u.extended;
-	saddr = &info->saddr.u.extended;
+	daddr = &info.daddr.u.extended;
+	saddr = &info.saddr.u.extended;
 	
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
 
