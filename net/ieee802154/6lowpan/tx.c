@@ -236,12 +236,12 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 	if (lowpan_is_addr_broadcast(ldev, daddr)) {
 		da.mode = IEEE802154_ADDR_SHORT;
 		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+		cb->ackreq = false;
 	} else {
 		da.mode = IEEE802154_ADDR_LONG;
 		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
+		cb->ackreq = true;
 	}
-
-	cb->ackreq = !lowpan_is_addr_broadcast(ldev, daddr);
 
 	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
 			ETH_P_IPV6, (void *)&da, (void *)&sa, 0);
@@ -251,6 +251,9 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct ieee802154_hdr wpan_hdr;
 	int max_single, ret;
+
+	ldev->stats.rx_packets++;
+	ldev->stats.rx_bytes += skb->len;
 
 	pr_debug("package xmit\n");
 	ret = lowpan_header(skb, ldev);
