@@ -1329,6 +1329,12 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 
+	/* set SR_SLOTTED_OPERATION to zero, to be sure
+	 * sometimes I expire that this is set without modification */
+	rc = at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
+	if (rc)
+		return rc;
+
 	/* CLKM changes are applied immediately */
 	rc = at86rf230_write_subreg(lp, SR_CLKM_SHA_SEL, 0x00);
 	if (rc)
