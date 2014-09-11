@@ -47,8 +47,6 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 	return 0;
 }
 
-static int lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info);
-
 static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	int ret;
