@@ -59,10 +59,10 @@ static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 
 	ret = lowpan_frag_rcv(skb, skb->data[0] & 0xe0, info);
 	if (ret == 1)
-		/* rerun lowpan_rx_handlers, if full reassembled,
-		 * don't need to check return values, last frag is queued.
+		/* reassmbled fragment contains also
+		 * a DISPATCH, check on this.
 		 */
-		lowpan_rx_handlers(skb, info);
+		return RX_CONTINUE;
 
 	return RX_QUEUED;
 }
@@ -161,8 +161,9 @@ lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
 			goto rxh_next;	\
 	} while (0);
 
-	/* likely at first */
+	/* first reassmble all frags */
 	CALL_RXH(lowpan_rx_h_frag);
+	/* likely at first */
 	CALL_RXH(lowpan_rx_h_iphc);
 	CALL_RXH(lowpan_rx_h_ipv6);
 
