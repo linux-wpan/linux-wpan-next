@@ -195,7 +195,7 @@ static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 	/* big endian to little */
 	__le64_extended_addr = swab64(*((__be64 *)addr->sa_data));
 
-	if (ieee802154_is_valid_extended_addr(__le64_extended_addr))
+	if (!ieee802154_is_valid_extended_addr(__le64_extended_addr))
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
