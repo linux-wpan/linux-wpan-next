@@ -1236,6 +1236,33 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 	return rc;
 }
 
+static int
+at86rf230_set_promiscous_mode(struct ieee802154_hw *hw, const bool on)
+{
+	struct at86rf230_local *lp = hw->priv;
+	int rc;
+
+	if (on) {
+		rc = at86rf230_write_subreg(lp, SR_AACK_DIS_ACK, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = at86rf230_write_subreg(lp, SR_AACK_PROM_MODE, 1);
+		if (rc < 0)
+			return rc;
+	} else {
+		rc = at86rf230_write_subreg(lp, SR_AACK_PROM_MODE, 0);
+		if (rc < 0)
+			return rc;
+
+		rc = at86rf230_write_subreg(lp, SR_AACK_DIS_ACK, 0);
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
 static const struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit_async = at86rf230_xmit,
@@ -1250,6 +1277,7 @@ static const struct ieee802154_ops at86rf230_ops = {
 	.set_cca_ed_level = at86rf230_set_cca_ed_level,
 	.set_csma_params = at86rf230_set_csma_params,
 	.set_frame_retries = at86rf230_set_frame_retries,
+	.set_promiscous_mode = at86rf230_set_promiscous_mode,
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
