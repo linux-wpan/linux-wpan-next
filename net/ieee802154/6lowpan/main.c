@@ -101,7 +101,7 @@ static int lowpan_dev_init(struct net_device *ldev)
 	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
 	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
 
-	/* two avoid races between receiving and netdev setup */
+	/* to avoid races between receiving and netdev setup */
 	lowpan_init_rx();
 
 	return 0;
