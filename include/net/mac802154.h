@@ -108,9 +108,8 @@ struct ieee802154_hw {
 /* Indicates that transceiver will support hardware address filter setting. */
 #define	IEEE802154_HW_AFILT		0x00000100
 
-/* This groups the most common CSMA support fields into one. */
-#define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \
-					 IEEE802154_HW_CCA_ED_LEVEL | \
+/* This groups the most common ARET support fields into one. */
+#define IEEE802154_HW_ARET		(IEEE802154_HW_CCA_MODE | \
 					 IEEE802154_HW_CSMA_PARAMS | \
 					 IEEE802154_HW_FRAME_RETRIES)
 
