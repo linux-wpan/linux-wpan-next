@@ -81,6 +81,13 @@ static int ieee802154_slave_open(struct net_device *dev)
 			return ret;
 	}
 
+	if (local->hw.flags & IEEE802154_HW_PROMISCOUS) {
+		ret = drv_set_promiscous_mode(local, sdata->vif.type ==
+						     NL802154_IFTYPE_MONITOR);
+		if (ret < 0)
+			return ret;
+	}
+
 	switch (sdata->vif.type) {
 	case NL802154_IFTYPE_NODE:
 	case NL802154_IFTYPE_MONITOR:
@@ -390,8 +397,8 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
-		break;
 	case NL802154_IFTYPE_MONITOR:
+		break;
 	case NL802154_IFTYPE_COORD:
 		ret = -EOPNOTSUPP;
 		goto err;
