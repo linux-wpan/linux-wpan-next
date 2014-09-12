@@ -198,13 +198,6 @@ static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (ieee802154_is_valid_extended_addr(__le64_extended_addr))
 		return -EINVAL;
 
-	if (sdata->local->hw.flags & IEEE802154_HW_AFILT) {
-		ret = drv_set_extended_addr(sdata->local,
-					    __le64_extended_addr);
-		if (ret < 0)
-			return ret;
-	}
-
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	wpan_dev->extended_addr = __le64_extended_addr;
 
