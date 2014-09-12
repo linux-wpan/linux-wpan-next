@@ -157,7 +157,7 @@ ieee802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		sa->addr.short_addr = le16_to_cpu(wpan_dev->short_addr);
 		break;
 	case SIOCSIFADDR:
-		if (netif_running(dev))
+		if (ieee802154_sdata_running(sdata))
 			return -EBUSY;
 
 		dev_warn(&dev->dev,
@@ -189,7 +189,7 @@ static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 
 	ASSERT_RTNL();
 
-	if (netif_running(dev))
+	if (ieee802154_sdata_running(sdata))
 		return -EBUSY;
 
 	/* big endian to little */
