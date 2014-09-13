@@ -16,6 +16,7 @@ typedef unsigned __bitwise__ lowpan_rx_result;
 struct lowpan_dev_info {
 	struct net_device	*wdev; /* real WPAN device ptr */
 	__be16			fragment_tag;
+	int			open_count;
 };
 
 union lowpan_addr_u {

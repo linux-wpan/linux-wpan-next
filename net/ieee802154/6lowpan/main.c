@@ -101,21 +101,11 @@ static int lowpan_dev_init(struct net_device *ldev)
 	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
 	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
 
-	/* to avoid races between receiving and netdev setup */
-	/* TODO this doesn't work */
-	lowpan_init_rx();
-
 	return 0;
-}
-
-static void lowpan_dev_uninit(struct net_device *ldev)
-{
-	lowpan_cleanup_rx();
 }
 
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
-	.ndo_uninit		= lowpan_dev_uninit,
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_set_mac_address	= lowpan_set_address,
 };
@@ -170,6 +160,9 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	dev_hold(ldev);
 	wdev->ieee802154_ptr->lowpan_dev = ldev;
 	lowpan_dev_info(ldev)->wdev = wdev;
+	/* private data of lowpan dev set the wdev, init rx handling here */
+	if (!lowpan_dev_info(ldev)->open_count)
+		lowpan_init_rx();
 
 	/* Set the lowpan harware address to the wpan hardware address. */
 	ldev->addr_len = wdev->addr_len;
@@ -183,6 +176,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 		wdev->ieee802154_ptr->lowpan_dev = NULL;
 		dev_put(ldev);
 		dev_put(wdev);
+	} else {
+		lowpan_dev_info(ldev)->open_count++;
 	}
 
 	return ret;
@@ -199,6 +194,9 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 	wdev->ieee802154_ptr->lowpan_dev = NULL;
 	dev_put(ldev);
 	dev_put(wdev);
+	lowpan_dev_info(ldev)->open_count--;
+	if (!lowpan_dev_info(ldev)->open_count)
+		lowpan_cleanup_rx();
 }
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {

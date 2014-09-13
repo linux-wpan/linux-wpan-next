@@ -247,7 +247,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 
-	/* TODO will crash, use lists */
+	/* ldev should be assign to valid pointer here, see main.c */
 	if (!netif_running(ldev) && !netif_running(wdev))
 		goto drop;
 
