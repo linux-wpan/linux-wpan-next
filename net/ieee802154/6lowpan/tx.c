@@ -254,8 +254,8 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	struct ieee802154_hdr wpan_hdr;
 	int max_single, ret;
 
-	ldev->stats.rx_packets++;
-	ldev->stats.rx_bytes += skb->len;
+	ldev->stats.tx_packets++;
+	ldev->stats.tx_bytes += skb->len;
 
 	pr_debug("package xmit\n");
 	ret = lowpan_header(skb, ldev);
