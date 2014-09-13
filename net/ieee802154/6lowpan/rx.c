@@ -42,7 +42,7 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 	ldev->stats.rx_packets++;
 	ldev->stats.rx_bytes += skb->len;
 
-	netif_receive_skb(skb);
+	netif_rx(skb);
 
 	return 0;
 }
@@ -119,7 +119,6 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 				  IEEE802154_ADDR_LEN, daddr, daddr_mode,
 				  IEEE802154_ADDR_LEN, iphc0, iphc1,
 				  lowpan_give_skb_to_devices);
-
 	if (ret < 0)
 		return RX_DROP_UNUSABLE;
 
@@ -140,7 +139,7 @@ static int lowpan_rx_h_ipv6(struct sk_buff *skb, struct lowpan_addr_info *info)
 	/* Pull off the 1-byte of 6lowpan header. */
 	skb_pull(skb, 1);
 
-	ret = lowpan_give_skb_to_devices(skb, NULL);
+	ret = lowpan_give_skb_to_devices(skb, skb->dev);
 	if (ret < 0)
 		return RX_DROP_UNUSABLE;
 
@@ -248,6 +247,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 
+	/* TODO will crash, use lists */
 	if (!netif_running(ldev) && !netif_running(wdev))
 		goto drop;
 

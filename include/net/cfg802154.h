@@ -137,9 +137,12 @@ struct wpan_dev {
 	s8 frame_retries;
 
 	bool lbt;
+
+	bool promiscous_mode;
 };
 
-#define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+#define wpan_dev_is_coord(wpan_dev)	\
+	(wpan_dev->iftype == NL802154_IFTYPE_COORD)
 
 static inline struct net *wpan_phy_net(struct wpan_phy *phy)
 {

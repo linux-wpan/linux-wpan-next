@@ -48,6 +48,7 @@ static void ieee802154_deliver_skb(struct ieee802154_rx_data *rx)
 {
 	struct sk_buff *skb = rx->skb;
 
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->protocol = htons(ETH_P_IEEE802154);
 	netif_receive_skb(skb);
 }
@@ -133,8 +134,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_intra_pan(fc))
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
-	if (unlikely(daddr.pan_id != wpan_dev->pan_id &&
-		     !ieee802154_is_pan_broadcast(daddr.pan_id)))
+	if (daddr.pan_id != wpan_dev->pan_id &&
+	    !ieee802154_is_pan_broadcast(daddr.pan_id))
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	skb->dev = dev;
@@ -157,8 +158,12 @@ ieee802154_rx_h_ack(struct ieee802154_rx_data *rx)
 	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
-	if (ieee802154_is_ack(fc))
+	if (ieee802154_is_ack(fc)) {
+		if (!(rx->local->hw.flags & IEEE802154_HW_AACK))
+			WARN_ONCE(1, "ACK frame received. Handling via PHY MAC sublayer only\n");
+
 		return RX_DROP_UNUSABLE;
+	}
 
 	return RX_CONTINUE;
 }
@@ -190,9 +195,10 @@ static void ieee802154_rx_handlers(struct ieee802154_rx_data *rx)
 	} while (0)
 
 	CALL_RXH(ieee802154_rx_h_data);
-	CALL_RXH(ieee802154_rx_h_ack);
 	CALL_RXH(ieee802154_rx_h_beacon);
 	CALL_RXH(ieee802154_rx_h_cmd);
+	/* unlikely */
+	CALL_RXH(ieee802154_rx_h_ack);
 
 rxh_next:
 	ieee802154_rx_handlers_result(rx, res);
@@ -259,8 +265,8 @@ __ieee802154_rx_handle_packet(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata;
 	struct ieee802154_rx_data rx = { };
+	struct sk_buff *skb2;
 
-	rx.skb = skb;
 	rx.local = local;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -270,13 +276,48 @@ __ieee802154_rx_handle_packet(struct ieee802154_hw *hw, struct sk_buff *skb)
 		if (sdata->vif.type == NL802154_IFTYPE_MONITOR)
 			continue;
 
-		rx.sdata = sdata;
-		ieee802154_invoke_rx_handlers(&rx);
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2) {
+			rx.skb = skb2;
+			rx.sdata = sdata;
+			ieee802154_invoke_rx_handlers(&rx);
+		}
+	}
+}
+
+static void
+ieee802154_rx_monitor(struct ieee802154_local *local, struct sk_buff *skb)
+{
+	struct ieee802154_sub_if_data *sdata;
+	struct sk_buff *skb2;
+
+	skb_reset_mac_header(skb);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->pkt_type = PACKET_OTHERHOST;
+	skb->protocol = htons(ETH_P_IEEE802154);
+
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (sdata->vif.type != NL802154_IFTYPE_MONITOR)
+			continue;
+
+		if (!ieee802154_sdata_running(sdata))
+			continue;
+
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2) {
+			skb2->dev = sdata->dev;
+			netif_receive_skb(skb2);
+		}
+
+		sdata->dev->stats.rx_packets++;
+		sdata->dev->stats.rx_bytes += skb->len;
 	}
 }
 
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
+	struct ieee802154_local *local = hw_to_local(hw);
+
 	WARN_ON_ONCE(softirq_count() == 0);
 
 	/* TODO this don't work for FCS with monitor vifs
@@ -293,10 +334,13 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 
 	rcu_read_lock();
-	
+
+	ieee802154_rx_monitor(local, skb);
 	__ieee802154_rx_handle_packet(hw, skb);
 	
 	rcu_read_unlock();
+
+	consume_skb(skb);
 
 	return;
 
