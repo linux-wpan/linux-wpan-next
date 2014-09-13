@@ -431,7 +431,6 @@ static int nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info 
 	if (!info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES])
 		return -EINVAL;
 
-
 	max_frame_retries = nla_get_s8(
 			info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES]);
 	if (max_frame_retries < -1 || max_frame_retries > 7)
