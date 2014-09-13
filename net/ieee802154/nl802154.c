@@ -431,6 +431,10 @@ static int nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info 
 	if (!info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES])
 		return -EINVAL;
 
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
+
 	max_frame_retries = nla_get_s8(
 			info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES]);
 	if (max_frame_retries < -1 || max_frame_retries > 7)
@@ -448,6 +452,10 @@ static int nl802154_set_max_be(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_MAX_BE])
 		return -EINVAL;
 
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
+
 	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
 	if (max_be < 3 || max_be > 8 || max_be > wpan_dev->min_be)
 		return -EINVAL;
@@ -463,6 +471,10 @@ static int nl802154_set_max_csma_backoffs(struct sk_buff *skb, struct genl_info 
 
 	if (!info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS])
 		return -EINVAL;
+
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
 
 	max_csma_backoffs = nla_get_u8(
 			info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS]);
@@ -481,6 +493,10 @@ static int nl802154_set_min_be(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_MIN_BE])
 		return -EINVAL;
 
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
+
 	min_be = nla_get_u8(info->attrs[NL802154_ATTR_MIN_BE]);
 	if (min_be < 0 || min_be > wpan_dev->max_be)
 		return -EINVAL;
@@ -496,6 +512,10 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 
 	if (!info->attrs[NL802154_ATTR_LBT_MODE])
 		return -EINVAL;
+
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
 
 	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
 	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
