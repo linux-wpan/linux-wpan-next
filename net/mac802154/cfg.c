@@ -149,43 +149,23 @@ ieee802154_set_cca_ed_level(struct wpan_phy *wpan_phy, const s32 ed_level)
 static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev, u16 pan_id)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	const __le16 __le16_pan_id = cpu_to_le16(pan_id);
-	int ret = 0;
 
 	ASSERT_RTNL();
 
-	if (wpan_dev->pan_id == __le16_pan_id)
-		return 0;
-
-	if (local->hw.flags & IEEE802154_HW_AFILT)
-	       ret = drv_set_pan_id(local, __le16_pan_id);
-
-	if (!ret)
-		wpan_dev->pan_id = __le16_pan_id;
-	
-	return ret;
+	wpan_dev->pan_id = __le16_pan_id;
+	return 0;
 }
 
 static int ieee802154_set_short_addr(struct wpan_phy *wpan_phy,
 				     struct wpan_dev *wpan_dev, u16 short_addr)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	const __le16 __le16_short_addr = cpu_to_le16(short_addr);
-	int ret = 0;
 
 	ASSERT_RTNL();
 
-	if (wpan_dev->short_addr == __le16_short_addr)
-		return 0;
-
-	if (local->hw.flags & IEEE802154_HW_AFILT)
-	       ret = drv_set_short_addr(local, __le16_short_addr);
-
-	if (!ret)
-		wpan_dev->pan_id = __le16_short_addr;
-	
-	return ret;
+	wpan_dev->pan_id = __le16_short_addr;
+	return 0;
 }
 
 static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
@@ -193,22 +173,14 @@ static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 					    s8 max_frame_retries)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-	u8 current_max_frame_retries = wpan_dev->frame_retries;
-	int ret;
 
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (current_max_frame_retries == max_frame_retries)
-		return 0;
-
-	ret = drv_set_max_frame_retries(local, max_frame_retries);
-	if (!ret)
-		wpan_dev->frame_retries = max_frame_retries;
-
-	return ret;
+	wpan_dev->frame_retries = max_frame_retries;
+	return 0;
 }
 
 static int ieee802154_set_max_be(struct wpan_phy *wpan_phy,
@@ -216,23 +188,14 @@ static int ieee802154_set_max_be(struct wpan_phy *wpan_phy,
 				 const u8 max_be)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-	const u8 current_max_be = wpan_dev->max_be;
-	int ret;
 
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (current_max_be == max_be)
-		return 0;
-
-	ret = drv_set_csma_params(local, wpan_dev->min_be, max_be,
-				  wpan_dev->csma_retries);
-	if (!ret)
-		wpan_dev->max_be = max_be;
-
-	return ret;
+	wpan_dev->max_be = max_be;
+	return 0;
 }
 
 static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
@@ -240,23 +203,14 @@ static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 					    const u8 max_csma_backoffs)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-	const u8 current_max_csma_backoffs = wpan_dev->csma_retries;
-	int ret;
 
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (current_max_csma_backoffs == max_csma_backoffs)
-		return 0;
-
-	ret = drv_set_csma_params(local, wpan_dev->min_be, wpan_dev->max_be,
-				  max_csma_backoffs);
-	if (!ret)
-		wpan_dev->csma_retries = max_csma_backoffs;
-
-	return ret;
+	wpan_dev->csma_retries = max_csma_backoffs;
+	return 0;
 }
 
 static int ieee802154_set_min_be(struct wpan_phy *wpan_phy,
@@ -264,23 +218,14 @@ static int ieee802154_set_min_be(struct wpan_phy *wpan_phy,
 				 const u8 min_be)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-	const u8 current_min_be = wpan_dev->min_be;
-	int ret;
 
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (current_min_be == min_be)
-		return 0;
-
-	ret = drv_set_csma_params(local, min_be, wpan_dev->max_be,
-				  wpan_dev->csma_retries);
-	if (!ret)
-		wpan_dev->min_be = min_be;
-
-	return ret;
+	wpan_dev->min_be = min_be;
+	return 0;
 }
 
 static int ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy,
@@ -288,22 +233,14 @@ static int ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy,
 				   const bool mode)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-	const bool current_lbt = wpan_dev->lbt;
-	int ret;
 
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_LBT))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (current_lbt == mode)
-		return 0;
-
-	ret = drv_set_lbt_mode(local, mode);
-	if (!ret)
-		wpan_dev->lbt = mode;
-
-	return ret;
+	wpan_dev->lbt = mode;
+	return 0;
 }
 
 const struct cfg802154_ops mac802154_config_ops = {
