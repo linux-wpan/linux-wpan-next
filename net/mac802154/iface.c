@@ -261,7 +261,8 @@ static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdat
 				 /* hw filter is set to coord functionality,
 				  * check on iftypes which are not coords.
 				  */
-				 if (wpan_dev_is_coord(nwpan_dev))
+				 if (iftype == NL802154_IFTYPE_COORD &&
+				     !wpan_dev_is_coord(nwpan_dev))
 					 return -EBUSY;
 			 }
 
