@@ -107,8 +107,8 @@ struct ieee802154_hw {
 #define	IEEE802154_HW_FRAME_RETRIES	0x00000080
 /* Indicates that transceiver will support hardware address filter setting. */
 #define	IEEE802154_HW_AFILT		0x00000100
-/* Indicates that transceiver will support promiscous mode setting. */
-#define IEEE802154_HW_PROMISCOUS	0x00000200
+/* Indicates that transceiver will support promiscuous mode setting. */
+#define IEEE802154_HW_PROMISCUOUS	0x00000200
 
 /* This groups the most common ARET support fields into one. */
 #define IEEE802154_HW_ARET		(IEEE802154_HW_CCA_MODE | \
@@ -184,8 +184,8 @@ struct ieee802154_hw {
  *	  Sets the retransmission attempt limit. Called with pib_lock held.
  *	  Returns either zero, or negative errno.
  *
- * set_promiscous_mode
- *	  Enables or disable promiscous mode.
+ * set_promiscuous_mode
+ *	  Enables or disable promiscuous mode.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -210,8 +210,8 @@ struct ieee802154_ops {
 					   u8 min_be, u8 max_be, u8 retries);
 	int		(*set_frame_retries)(struct ieee802154_hw *hw,
 					     s8 retries);
-	int             (*set_promiscous_mode)(struct ieee802154_hw *hw,
-					       const bool on);
+	int             (*set_promiscuous_mode)(struct ieee802154_hw *hw,
+						const bool on);
 };
 
 /* Basic interface to register ieee802154 hwice */

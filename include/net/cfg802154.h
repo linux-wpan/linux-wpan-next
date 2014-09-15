@@ -138,7 +138,7 @@ struct wpan_dev {
 
 	bool lbt;
 
-	bool promiscous_mode;
+	bool promiscuous_mode;
 };
 
 #define wpan_dev_is_coord(wpan_dev)	\

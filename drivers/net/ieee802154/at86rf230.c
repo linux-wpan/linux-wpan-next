@@ -1237,7 +1237,7 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 }
 
 static int
-at86rf230_set_promiscous_mode(struct ieee802154_hw *hw, const bool on)
+at86rf230_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
 	struct at86rf230_local *lp = hw->priv;
 	int rc;
@@ -1277,7 +1277,7 @@ static const struct ieee802154_ops at86rf230_ops = {
 	.set_cca_ed_level = at86rf230_set_cca_ed_level,
 	.set_csma_params = at86rf230_set_csma_params,
 	.set_frame_retries = at86rf230_set_frame_retries,
-	.set_promiscous_mode = at86rf230_set_promiscous_mode,
+	.set_promiscuous_mode = at86rf230_set_promiscuous_mode,
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
@@ -1448,7 +1448,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	lp->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
 			IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
 			IEEE802154_HW_AFILT | IEEE802154_HW_CCA_ED_LEVEL |
-			IEEE802154_HW_PROMISCOUS;
+			IEEE802154_HW_PROMISCUOUS;
 
 	switch (part) {
 	case 2:

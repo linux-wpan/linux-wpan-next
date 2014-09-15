@@ -39,17 +39,17 @@ static int ieee802154_setup_mac_sublayer(struct net_device *dev)
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	int ret;
 
-	if ((local->hw.flags & IEEE802154_HW_PROMISCOUS) &&
+	if ((local->hw.flags & IEEE802154_HW_PROMISCUOUS) &&
 	    (sdata->vif.type == NL802154_IFTYPE_MONITOR)) {
-		ret = drv_set_promiscous_mode(local, true);
+		ret = drv_set_promiscuous_mode(local, true);
 		if (ret < 0)
 			return ret;
 	}
 
 	if ((local->hw.flags & IEEE802154_HW_AFILT) &&
 	    (sdata->vif.type != NL802154_IFTYPE_MONITOR)) {
-		if (local->hw.flags & IEEE802154_HW_PROMISCOUS) {
-			ret = drv_set_promiscous_mode(local, false);
+		if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+			ret = drv_set_promiscuous_mode(local, false);
 			if (ret < 0)
 				return ret;
 		}
@@ -234,19 +234,19 @@ static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdat
 			 * We have only one phy, different values makes trouble.
 			 */
 
-			if ((local->hw.flags & IEEE802154_HW_PROMISCOUS) &&
+			if ((local->hw.flags & IEEE802154_HW_PROMISCUOUS) &&
 			    (iftype == NL802154_IFTYPE_MONITOR)) {
 				/* should never happen, to be sure */
-				if (wpan_dev->promiscous_mode !=
-						nwpan_dev->promiscous_mode)
+				if (wpan_dev->promiscuous_mode !=
+						nwpan_dev->promiscuous_mode)
 					return -EBUSY;
 			}
 
 			if ((local->hw.flags & IEEE802154_HW_AFILT) &&
 					(iftype != NL802154_IFTYPE_MONITOR)) {
 				/* should never happen, to be sure */
-				if (wpan_dev->promiscous_mode !=
-						nwpan_dev->promiscous_mode)
+				if (wpan_dev->promiscuous_mode !=
+						nwpan_dev->promiscuous_mode)
 					return -EBUSY;
 
 				if (wpan_dev->pan_id != nwpan_dev->pan_id)
@@ -437,7 +437,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	case NL802154_IFTYPE_NODE:
 		break;
 	case NL802154_IFTYPE_MONITOR:
-		wpan_dev->promiscous_mode = true;
+		wpan_dev->promiscuous_mode = true;
 		break;
 	case NL802154_IFTYPE_COORD:
 		break;

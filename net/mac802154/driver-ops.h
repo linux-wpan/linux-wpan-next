@@ -204,17 +204,17 @@ static inline int drv_set_max_frame_retries(struct ieee802154_local *local,
 	return local->ops->set_frame_retries(&local->hw, max_frame_retries);
 }
 
-static inline int drv_set_promiscous_mode(struct ieee802154_local *local,
+static inline int drv_set_promiscuous_mode(struct ieee802154_local *local,
 					  const bool on)
 {
 	might_sleep();
 
-	if (!local->ops->set_promiscous_mode) {
+	if (!local->ops->set_promiscuous_mode) {
 		WARN_ON(1);
 		return -EOPNOTSUPP;
 	}
 
-	return local->ops->set_promiscous_mode(&local->hw, on);
+	return local->ops->set_promiscuous_mode(&local->hw, on);
 }
 
 #endif /* __MAC802154_DRVIER_OPS */
