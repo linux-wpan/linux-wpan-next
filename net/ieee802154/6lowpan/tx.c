@@ -57,6 +57,7 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 
 	/* TODO ask david or marc if this run into trouble */
 	info = lowpan_skb_priv(skb);
+	memset(info, 0, sizeof(*info));
 
 	/* TODO need to be handled like this, we don't support short address right now */
 #if 0

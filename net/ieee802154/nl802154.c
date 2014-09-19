@@ -191,6 +191,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_IFACE_SOCKET_OWNER] = { .type = NLA_FLAG },
 
+	[NL802154_ATTR_SPLIT_WPAN_PHY_DUMP] = { .type = NLA_FLAG, },
+
 	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
 	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
 
@@ -210,6 +212,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_MIN_BE] = { .type = NLA_U8, },
 
 	[NL802154_ATTR_LBT_MODE] = { .type = NLA_U8, },
+
+	[NL802154_ATTR_SUPPORTED_CHANNEL] = { .type = NLA_U32, },
 };
 
 /* message building helper */
@@ -233,7 +237,50 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  int flags,
 				  struct nl802154_dump_wpan_phy_state *state)
 {
-	return -ENOTSUPP;
+	struct nlattr *nl_page;
+	void *hdr;
+	int page;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (WARN_ON(!state))
+		return -EINVAL;
+
+	if (nla_put_u32(msg, NL802154_ATTR_WPAN_PHY, rdev->wpan_phy_idx) ||
+	    nla_put_string(msg, NL802154_ATTR_WPAN_PHY_NAME,
+			   wpan_phy_name(&rdev->wpan_phy)) ||
+	    nla_put_u32(msg, NL802154_ATTR_GENERATION,
+		        cfg802154_rdev_list_generation))
+		goto nla_put_failure;
+
+	if (cmd != NL802154_CMD_NEW_WPAN_PHY)
+		goto finish;
+
+	if (nla_put_u8(msg, NL802154_ATTR_PAGE,
+		       rdev->wpan_phy.current_page) ||
+	    nla_put_u8(msg, NL802154_ATTR_CHANNEL,
+		       rdev->wpan_phy.current_channel))
+		goto nla_put_failure;
+
+	nl_page = nla_nest_start(msg, NL802154_ATTR_CHANNELS_SUPPORTED);
+	if (!nl_page)
+		goto nla_put_failure;
+
+	for (page = 0; page <= IEEE802154_MAX_PAGE; page++) {
+		if (nla_put_u32(msg, NL802154_ATTR_SUPPORTED_CHANNEL,
+				rdev->wpan_phy.channels_supported[page]))
+			goto nla_put_failure;
+	}
+	nla_nest_end(msg, nl_page);
+
+finish:
+	return genlmsg_end(msg, hdr);
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
 }
 
 static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
@@ -346,7 +393,7 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	u8 cca_mode;
 	bool cca_mode3_and;
 
-	if (info->attrs[NL802154_ATTR_CCA_MODE])
+	if (!info->attrs[NL802154_ATTR_CCA_MODE])
 		return -EINVAL;
 	
 	cca_mode = nla_get_u8(info->attrs[NL802154_ATTR_CCA_MODE]);
@@ -354,7 +401,7 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	if (cca_mode == IEEE802154_CCA_ENERGY_CARRIER) {
-		if (info->attrs[NL802154_ATTR_CCA_MODE3_AND])
+		if (!info->attrs[NL802154_ATTR_CCA_MODE3_AND])
 			return -EINVAL;
 
 		cca_mode3_and =
@@ -370,7 +417,7 @@ static int nl802154_set_cca_ed_level(struct sk_buff *skb,
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	s32 ed_level;
 
-	if (info->attrs[NL802154_ATTR_CCA_ED_LEVEL])
+	if (!info->attrs[NL802154_ATTR_CCA_ED_LEVEL])
 		return -EINVAL;
 
 	/* direct driver call, nothing to save in pib/mib.
@@ -611,7 +658,139 @@ static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		rtnl_unlock();
 }
 
+static int nl802154_dump_wpan_phy_parse(struct sk_buff *skb,
+					struct netlink_callback *cb,
+					struct nl802154_dump_wpan_phy_state *state)
+{
+	struct nlattr **tb = nl802154_fam.attrbuf;
+	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
+			      tb, nl802154_fam.maxattr, nl802154_policy);
+	/* TODO check if we can handle error here, we have no backward compatibility */
+	if (ret)
+		return 0;
+
+	state->split = tb[NL802154_ATTR_SPLIT_WPAN_PHY_DUMP];
+	if (tb[NL802154_ATTR_WPAN_PHY])
+		state->filter_wpan_phy = nla_get_u32(tb[NL802154_ATTR_WPAN_PHY]);
+	if (tb[NL802154_ATTR_WPAN_DEV])
+		 state->filter_wpan_phy = nla_get_u64(tb[NL802154_ATTR_WPAN_DEV]) >> 32;
+	if (tb[NL802154_ATTR_IFINDEX]) {
+		struct net_device *netdev;
+		struct cfg802154_registered_device *rdev;
+		int ifidx = nla_get_u32(tb[NL802154_ATTR_IFINDEX]);
+
+		netdev = __dev_get_by_index(sock_net(skb->sk), ifidx);
+		if (!netdev)
+			return -ENODEV;
+		if (netdev->ieee80211_ptr) {
+			rdev = wpan_phy_to_rdev(
+				netdev->ieee802154_ptr->wpan_phy);
+			state->filter_wpan_phy = rdev->wpan_phy_idx;
+		}
+	}
+		
+	return 0;
+}
+
+static int nl802154_dump_wpan_phy(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int idx = 0, ret;
+	struct nl802154_dump_wpan_phy_state *state = (void *)cb->args[0];
+	struct cfg802154_registered_device *rdev;
+
+	rtnl_lock();
+	if (!state) {
+		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		if (!state) {
+			rtnl_unlock();
+			return -ENOMEM;
+		}
+		state->filter_wpan_phy = -1;
+		ret = nl802154_dump_wpan_phy_parse(skb, cb, state);
+		if (ret) {
+			kfree(state);
+			rtnl_unlock();
+			return ret;
+		}
+		cb->args[0] = (long)state;
+	}
+
+	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
+		if (!net_eq(wpan_phy_net(&rdev->wpan_phy), sock_net(skb->sk)))
+			continue;
+		if (++idx <= state->start)
+			continue;
+		if (state->filter_wpan_phy != -1 &&
+		    state->filter_wpan_phy != rdev->wpan_phy_idx)
+			continue;
+		/* attempt to fit multiple wiphy data chunks into the skb */
+		do {
+			ret = nl802154_send_wpan_phy(rdev,
+						     NL802154_CMD_NEW_WPAN_PHY,
+						     skb,
+						     NETLINK_CB(cb->skb).portid,
+						     cb->nlh->nlmsg_seq,
+						     NLM_F_MULTI, state);
+			if (ret < 0) {
+				/* TODO some crazy comment in nl80211 */
+				if ((ret == -ENOBUFS || ret == -EMSGSIZE) &&
+				    !skb->len && !state->split &&
+				    cb->min_dump_alloc < 4096) {
+					cb->min_dump_alloc = 4096;
+					state->split_start = 0;
+					rtnl_unlock();
+					return 1;
+				}
+				idx--;
+				break;
+			}
+		} while (state->split_start > 0);
+		break;
+	}
+	rtnl_unlock();
+
+	state->start = idx;
+
+	return skb->len;
+}
+
+static int nl802154_dump_wpan_phy_done(struct netlink_callback *cb)
+{
+	kfree((void *)cb->args[0]);
+	return 0;
+}
+
+static int nl802154_get_wpan_phy(struct sk_buff *skb, struct genl_info *info)
+{
+	struct sk_buff *msg;
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct nl802154_dump_wpan_phy_state state = {};
+
+	msg = nlmsg_new(4096, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	if (nl802154_send_wpan_phy(rdev, NL802154_CMD_NEW_WPAN_PHY, msg,
+				   info->snd_portid, info->snd_seq, 0,
+				   &state) < 0) {
+		nlmsg_free(msg);
+		return -ENOBUFS;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
 static const struct genl_ops nl802154_ops[] = {
+	{
+		.cmd = NL802154_CMD_GET_WPAN_PHY,
+		.doit = nl802154_get_wpan_phy,
+		.dumpit = nl802154_dump_wpan_phy,
+		.done = nl802154_dump_wpan_phy_done,
+		.policy = nl802154_policy,
+		/* can be retrieved by unprivileged users */
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
 	{
 		.cmd = NL802154_CMD_NEW_INTERFACE,
 		.doit = nl802154_new_interface,
