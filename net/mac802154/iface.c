@@ -431,7 +431,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
 
-	wpan_dev->frame_retries = 3;
+	wpan_dev->frame_retries = -1;
 
 	switch (type) {
 	case NL802154_IFTYPE_NODE:

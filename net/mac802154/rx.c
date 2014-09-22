@@ -38,6 +38,9 @@ static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
 					  ieee802154_rx_result res)
 {
 	switch (res) {
+	case RX_CONTINUE:
+		/* packet was not queued should never occur */
+		WARN(1, "mac802154: frame wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(rx->skb);
 		break;
@@ -226,7 +229,7 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	/* if it's not ack and saddr is zero, dest
 	 * should be non zero */
 	if (unlikely(!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
-		     ieee802154_is_daddr_none(fc)))
+		     !ieee802154_is_daddr_none(fc)))
 		return RX_DROP_UNUSABLE;
 
 	skb_reset_mac_header(rx->skb);

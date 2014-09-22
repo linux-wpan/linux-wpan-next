@@ -255,6 +255,10 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	struct ieee802154_hdr wpan_hdr;
 	int max_single, ret;
 
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
+		return NET_XMIT_DROP;
+
 	ldev->stats.tx_packets++;
 	ldev->stats.tx_bytes += skb->len;
 
