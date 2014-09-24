@@ -224,12 +224,34 @@ static inline void *nl802154hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 	return genlmsg_put(skb, portid, seq, &nl802154_fam, flags, cmd);
 }
 
+/* TODO making splitted dump is currently not supported */
 struct nl802154_dump_wpan_phy_state {
 	s64 filter_wpan_phy;
 	long start;
-	long split_start, band_start, chan_start;
+	long split_start;
 	bool split;
 };
+
+static int
+nl802154_send_wpan_phy_channels(struct cfg802154_registered_device *rdev,
+				struct sk_buff *msg)
+{
+	struct nlattr *nl_page;
+	unsigned long page;
+
+	nl_page = nla_nest_start(msg, NL802154_ATTR_CHANNELS_SUPPORTED);
+	if (!nl_page)
+		return -ENOBUFS;
+
+	for (page = 0; page <= IEEE802154_MAX_PAGE; page++) {
+		if (nla_put_u32(msg, NL802154_ATTR_SUPPORTED_CHANNEL,
+				rdev->wpan_phy.channels_supported[page]))
+			return -ENOBUFS;
+	}
+	nla_nest_end(msg, nl_page);
+
+	return 0;
+}
 
 static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  enum nl802154_commands cmd,
@@ -237,9 +259,7 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  int flags,
 				  struct nl802154_dump_wpan_phy_state *state)
 {
-	struct nlattr *nl_page;
 	void *hdr;
-	int page;
 
 	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
 	if (!hdr)
@@ -258,22 +278,36 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 	if (cmd != NL802154_CMD_NEW_WPAN_PHY)
 		goto finish;
 
+	/* DUMP PHY PIB */
+
+	/* current channel settings */
 	if (nla_put_u8(msg, NL802154_ATTR_PAGE,
 		       rdev->wpan_phy.current_page) ||
 	    nla_put_u8(msg, NL802154_ATTR_CHANNEL,
 		       rdev->wpan_phy.current_channel))
 		goto nla_put_failure;
 
-	nl_page = nla_nest_start(msg, NL802154_ATTR_CHANNELS_SUPPORTED);
-	if (!nl_page)
+	/* supported channels array */
+	if (nl802154_send_wpan_phy_channels(rdev, msg))
 		goto nla_put_failure;
 
-	for (page = 0; page <= IEEE802154_MAX_PAGE; page++) {
-		if (nla_put_u32(msg, NL802154_ATTR_SUPPORTED_CHANNEL,
-				rdev->wpan_phy.channels_supported[page]))
+	/* cca mode */
+	if (nla_put_u8(msg, NL802154_ATTR_CCA_MODE,
+		       rdev->wpan_phy.cca_mode))
+		goto nla_put_failure;
+
+	/* special and/or flag on IEEE802154_CCA_ENERGY_CARRIER */
+	if (rdev->wpan_phy.cca_mode == IEEE802154_CCA_ENERGY_CARRIER) {
+		if (nla_put_u8(msg, NL802154_ATTR_CCA_MODE3_AND,
+			       rdev->wpan_phy.cca_mode3_and))
 			goto nla_put_failure;
+
 	}
-	nla_nest_end(msg, nl_page);
+
+	/* tx power */
+	if (nla_put_s8(msg, NL802154_ATTR_TX_POWER,
+		       rdev->wpan_phy.transmit_power))
+		goto nla_put_failure;
 
 finish:
 	return genlmsg_end(msg, hdr);
