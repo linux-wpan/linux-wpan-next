@@ -1389,7 +1389,22 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	return 0;
+	/* default channel/page */
+	lp->hw->phy->current_page = 0;
+	lp->hw->phy->current_channel = 11;
+	rc = at86rf230_channel(lp->hw, 0, 11);
+	if (rc)
+		return rc;
+
+	/* default cca mode */
+	lp->hw->phy->cca_mode = IEEE802154_CCA_ENERGY;
+	rc = at86rf230_set_cca_mode(lp->hw, IEEE802154_CCA_ENERGY, false);
+	if (rc)
+		return rc;
+
+	/* default tx pwr */
+	lp->hw->phy->transmit_power = 3;
+	return at86rf230_set_txpower(lp->hw, 3);
 }
 
 static struct at86rf230_platform_data *
