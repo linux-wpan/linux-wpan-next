@@ -230,21 +230,13 @@ static int ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdat
 			 * We have only one phy, different values makes trouble.
 			 */
 
-			if ((local->hw.flags & IEEE802154_HW_PROMISCUOUS) &&
-			    (iftype == NL802154_IFTYPE_MONITOR)) {
-				/* should never happen, to be sure */
+			if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
 				if (wpan_dev->promiscuous_mode !=
 						nwpan_dev->promiscuous_mode)
 					return -EBUSY;
 			}
 
-			if ((local->hw.flags & IEEE802154_HW_AFILT) &&
-					(iftype != NL802154_IFTYPE_MONITOR)) {
-				/* should never happen, to be sure */
-				if (wpan_dev->promiscuous_mode !=
-						nwpan_dev->promiscuous_mode)
-					return -EBUSY;
-
+			if (local->hw.flags & IEEE802154_HW_AFILT) {
 				if (wpan_dev->pan_id != nwpan_dev->pan_id)
 					return -EBUSY;
 
