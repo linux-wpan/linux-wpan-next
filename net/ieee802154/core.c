@@ -307,6 +307,7 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 		SET_NETDEV_DEVTYPE(dev, &wpan_phy_type);
 		break;
 	case NETDEV_REGISTER:
+		wpan_dev->identifier = ++rdev->wpan_dev_id;
 		list_add_rcu(&wpan_dev->list, &rdev->wpan_dev_list);
 		rdev->devlist_generation++;
 

@@ -39,21 +39,14 @@ static int ieee802154_setup_mac_sublayer(struct net_device *dev)
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	int ret;
 
-	if ((local->hw.flags & IEEE802154_HW_PROMISCUOUS) &&
-	    (sdata->vif.type == NL802154_IFTYPE_MONITOR)) {
-		ret = drv_set_promiscuous_mode(local, true);
+	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+		ret = drv_set_promiscuous_mode(local,
+					       wpan_dev->promiscuous_mode);
 		if (ret < 0)
 			return ret;
 	}
 
-	if ((local->hw.flags & IEEE802154_HW_AFILT) &&
-	    (sdata->vif.type != NL802154_IFTYPE_MONITOR)) {
-		if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-			ret = drv_set_promiscuous_mode(local, false);
-			if (ret < 0)
-				return ret;
-		}
-
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
 		ret = drv_set_pan_id(local, wpan_dev->pan_id);
 		if (ret < 0)
 			return ret;
@@ -201,6 +194,9 @@ static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	ASSERT_RTNL();
+
+	if (wpan_dev_is_monitor(wpan_dev))
+		return -EINVAL;
 
 	if (ieee802154_sdata_running(sdata))
 		return -EBUSY;
@@ -420,7 +416,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 	/* mac pib defaults here */
 	/* defaults per 802.15.4-2011 */
-	wpan_dev->extended_addr = local->hw.phy->perm_extended_addr;
+	wpan_dev->extended_addr = swab64(*((__be64 *)sdata->dev->dev_addr));
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
@@ -470,9 +466,15 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (ret < 0)
 		goto err;
 
+	netdev_addr = swab64(local->hw.phy->perm_extended_addr);
+	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_EXTENDED_ADDR_LEN);
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
+		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
+		break;
 	case NL802154_IFTYPE_MONITOR:
+		/* monitor should set this to zero */
+		memset(ndev->dev_addr, 0, IEEE802154_EXTENDED_ADDR_LEN);
 		break;
 	case NL802154_IFTYPE_COORD:
 		ret = -EOPNOTSUPP;
@@ -482,9 +484,6 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		BUG();
 	}
 
-	netdev_addr = swab64(local->hw.phy->perm_extended_addr);
-	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_ADDR_LEN);
-	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_ADDR_LEN);
 	SET_NETDEV_DEV(ndev, wpan_phy_dev(local->hw.phy));
 	sdata = netdev_priv(ndev);
 	ndev->ieee802154_ptr = &sdata->wpan_dev;

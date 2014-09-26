@@ -141,6 +141,9 @@ struct wpan_dev {
 	bool promiscuous_mode;
 };
 
+#define wpan_dev_is_monitor(wpan_dev)	\
+	(wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+
 #define wpan_dev_is_coord(wpan_dev)	\
 	(wpan_dev->iftype == NL802154_IFTYPE_COORD)
 
