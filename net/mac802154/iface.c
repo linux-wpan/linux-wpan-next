@@ -407,7 +407,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 				  enum nl802154_iftype type)
 {
-	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
 	/* set some type-dependent values */
@@ -427,7 +426,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
 
-	wpan_dev->frame_retries = -1;
+	wpan_dev->frame_retries = 3;
 
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
