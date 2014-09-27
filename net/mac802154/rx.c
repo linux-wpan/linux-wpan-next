@@ -110,9 +110,21 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
-		/* no daddr contained, only valid for coordinator */
-		if (!wpan_dev_is_coord(wpan_dev))
-			return RX_DROP_UNUSABLE;
+		/* 802.15.4-2011 comment:
+		 * If only source addressing fields are included in a data
+		 * or MAC command frame, the frame shall be accepted only
+		 * if the device is the PAN coordinator and the source PAN
+		 * identifier matches macPANId.
+		 *
+		 * alex comment:
+		 * if source is none the data frame is invalid, we check this
+		 * below. It's very unlikely.
+		 */
+		if (daddr->pan_id == wpan_dev->pan_id &&
+		    wpan_dev_is_coord(wpan_dev))
+			skb->pkt_type = PACKET_HOST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	default:
 		/* reserved should never happen */
@@ -128,7 +140,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
-		/* should always available */
+		/* should always available, no valid data frame */
 		return RX_DROP_UNUSABLE;
 	default:
 		/* reserved should never happen */
