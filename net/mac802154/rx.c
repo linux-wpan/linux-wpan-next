@@ -133,7 +133,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
 		/* should always available */
 		return RX_DROP_UNUSABLE;
 	default:
