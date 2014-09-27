@@ -43,6 +43,7 @@ static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
 		WARN(1, "mac802154: frame wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(rx->skb);
+		printk(KERN_INFO "dropping\n");
 		break;
 	}
 }
@@ -137,7 +138,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		/* should always available */
 		return RX_DROP_UNUSABLE;
 	default:
-		/* reserved and none should never happen */
+		/* reserved should never happen */
 		BUG();
 	}
 
