@@ -116,8 +116,13 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+		/* no daddr contained, only valid for coordinator */
+		if (!wpan_dev_is_coord(wpan_dev))
+			return RX_DROP_UNUSABLE;
+		break;
 	default:
-		/* reserved and none should never happen */
+		/* reserved should never happen */
 		BUG();
 	}
 
@@ -128,6 +133,9 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+		/* should always available */
+		return RX_DROP_UNUSABLE;
 	default:
 		/* reserved and none should never happen */
 		BUG();
