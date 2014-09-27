@@ -366,12 +366,19 @@ static struct header_ops ieee802154_header_ops = {
 	.parse		= ieee802154_header_parse,
 };
 
-static const struct net_device_ops ieee802154_wpan_ops = {
+
+static const struct net_device_ops ieee802154_dataif_ops = {
 	.ndo_open		= ieee802154_wpan_open,
 	.ndo_stop		= ieee802154_slave_close,
 	.ndo_start_xmit		= ieee802154_xmit,
 	.ndo_do_ioctl		= ieee802154_wpan_ioctl,
 	.ndo_set_mac_address	= ieee802154_wpan_mac_addr,
+};
+
+static const struct net_device_ops ieee802154_monitorif_ops = {
+	.ndo_open		= ieee802154_wpan_open,
+	.ndo_stop		= ieee802154_slave_close,
+	.ndo_start_xmit		= ieee802154_monitor_xmit,
 };
 
 static void ieee802154_wpan_free(struct net_device *dev)
@@ -389,11 +396,9 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 1000;
-	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
 
 	dev->destructor		= ieee802154_wpan_free;
-	dev->netdev_ops		= &ieee802154_wpan_ops;
 }
 
 static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
@@ -418,15 +423,16 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
 
-	wpan_dev->frame_retries = 3;
+	wpan_dev->frame_retries = -1;
 
 	switch (type) {
+	case NL802154_IFTYPE_COORD:
 	case NL802154_IFTYPE_NODE:
+		sdata->dev->netdev_ops = &ieee802154_dataif_ops;
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		wpan_dev->promiscuous_mode = true;
-		break;
-	case NL802154_IFTYPE_COORD:
+		sdata->dev->netdev_ops = &ieee802154_monitorif_ops;
 		break;
 	case NL802154_IFTYPE_UNSPEC:
 	case NUM_NL802154_IFTYPES:
@@ -461,9 +467,11 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_EXTENDED_ADDR_LEN);
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
+		ndev->type = ARPHRD_IEEE802154;
 		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 		break;
 	case NL802154_IFTYPE_MONITOR:
+		ndev->type = ARPHRD_IEEE802154_MONITOR;
 		/* monitor should set this to zero */
 		memset(ndev->dev_addr, 0, IEEE802154_EXTENDED_ADDR_LEN);
 		break;

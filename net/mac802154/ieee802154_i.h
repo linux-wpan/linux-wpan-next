@@ -132,5 +132,6 @@ void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 void ieee802154_remove_interfaces(struct ieee802154_local *local);
 
 netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t ieee802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev);
 
 #endif /* __IEEE802154_I_H */

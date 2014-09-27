@@ -67,6 +67,9 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 
 	/* Restart the netif queue on each sub_if_data object. */
 	ieee802154_xmit_complete(&local->hw, skb);
+
+	skb->dev->stats.tx_packets++;
+	skb->dev->stats.tx_bytes += skb->len;
 }
 
 static netdev_tx_t
@@ -75,16 +78,7 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	struct ieee802154_xmit_cb *cb = ieee802154_xmit_cb(skb);
 	int ret;
 
-	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
-		u16 crc = crc_ccitt(0, skb->data, skb->len);
-		u8 *data = skb_put(skb, 2);
-
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
-	}
-
-	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
-		goto err_tx;
+	skb->skb_iif = skb->dev->ifindex;
 
 	/* Stop the netif queue on each sub_if_data object. */
 	ieee802154_stop_queue(&local->hw);
@@ -94,8 +88,12 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		ret = drv_xmit_async(local, skb);
 		if (ret) {
 			ieee802154_wake_queue(&local->hw);
-			goto err_tx;
+			kfree_skb(skb);
+			return NETDEV_TX_OK;
 		}
+
+		skb->dev->stats.tx_packets++;
+		skb->dev->stats.tx_bytes += skb->len;
 
 		return NETDEV_TX_OK;
 	}
@@ -107,19 +105,32 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	queue_work(local->workqueue, &cb->work);
 
 	return NETDEV_TX_OK;
+}
 
-err_tx:
-	kfree_skb(skb);
-	return NETDEV_TX_OK;
+netdev_tx_t ieee802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	return ieee802154_tx(sdata->local, skb);
 }
 
 netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
 
-	skb->skb_iif = dev->ifindex;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
+	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+		u16 crc = crc_ccitt(0, skb->data, skb->len);
+		u8 *data = skb_put(skb, 2);
 
-	return ieee802154_tx(sdata->local, skb);
+		data[0] = crc & 0xff;
+		data[1] = crc >> 8;
+	}
+
+	if (skb_cow_head(skb, local->hw.extra_tx_headroom)) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	return ieee802154_tx(local, skb);
 }
