@@ -366,7 +366,6 @@ static struct header_ops ieee802154_header_ops = {
 	.parse		= ieee802154_header_parse,
 };
 
-
 static const struct net_device_ops ieee802154_dataif_ops = {
 	.ndo_open		= ieee802154_wpan_open,
 	.ndo_stop		= ieee802154_slave_close,
