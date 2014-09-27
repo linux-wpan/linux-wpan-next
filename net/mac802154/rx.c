@@ -43,7 +43,6 @@ static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
 		WARN(1, "mac802154: frame wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(rx->skb);
-		printk(KERN_INFO "dropping\n");
 		break;
 	}
 }
@@ -79,7 +78,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct net_device *dev = sdata->dev;
 	struct ieee802154_hdr_foo *hdr;
-	struct ieee802154_addr_foo saddr, daddr;
+	struct ieee802154_addr_foo *saddr, *daddr;
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 	u16 hdr_len = 5;
@@ -90,17 +89,10 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_data(fc))
 		return RX_CONTINUE;
 
-	daddr = ieee802154_hdr_daddr(hdr);
-	if (!ieee802154_is_valid_daddr(&daddr))
-		return RX_DROP_UNUSABLE;
-
-	saddr = ieee802154_hdr_saddr(hdr);
-	if (!ieee802154_is_valid_saddr(&saddr))
-		return RX_DROP_UNUSABLE;
-
-	switch (daddr.mode) {
+	daddr = &rx->daddr;
+	switch (daddr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		if (likely(daddr.u.extended == wpan_dev->extended_addr))
+		if (likely(daddr->u.extended == wpan_dev->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -108,9 +100,9 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		if (ieee802154_is_broadcast(daddr.u.short_))
+		if (ieee802154_is_broadcast(daddr->u.short_))
 			skb->pkt_type = PACKET_BROADCAST;
-		else if (daddr.u.short_ == wpan_dev->short_addr)
+		else if (daddr->u.short_ == wpan_dev->short_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -127,7 +119,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		BUG();
 	}
 
-	switch (saddr.mode) {
+	saddr = &rx->saddr;
+	switch (saddr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
@@ -146,8 +139,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_intra_pan(fc))
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
-	if (daddr.pan_id != wpan_dev->pan_id &&
-	    !ieee802154_is_pan_broadcast(daddr.pan_id))
+	if (daddr->pan_id != wpan_dev->pan_id &&
+	    !ieee802154_is_pan_broadcast(daddr->pan_id))
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	skb->dev = dev;
@@ -221,10 +214,12 @@ rxh_next:
 static ieee802154_rx_result
 ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 {
+	struct ieee802154_hdr_foo *hdr;
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+	hdr = (struct ieee802154_hdr_foo *)skb->data;
+	fc = hdr->frame_control;
 
 	/* check on reserved frame type and version */
 	if (unlikely(ieee802154_is_reserved(fc) ||
@@ -240,6 +235,16 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	 * should be non zero */
 	if (unlikely(!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
 		     !ieee802154_is_daddr_none(fc)))
+		return RX_DROP_UNUSABLE;
+
+	/* parse daddr address */
+	rx->daddr = ieee802154_hdr_daddr(hdr);
+	if (!ieee802154_is_valid_daddr(&rx->daddr))
+		return RX_DROP_UNUSABLE;
+
+	/* parse saddr address */
+	rx->saddr = ieee802154_hdr_saddr(hdr);
+	if (!ieee802154_is_valid_saddr(&rx->saddr))
 		return RX_DROP_UNUSABLE;
 
 	skb_reset_mac_header(rx->skb);

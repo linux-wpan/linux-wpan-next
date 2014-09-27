@@ -93,6 +93,7 @@ struct ieee802154_rx_data {
 	struct sk_buff *skb;
 	struct ieee802154_local *local;
 	struct ieee802154_sub_if_data *sdata;
+	struct ieee802154_addr_foo saddr, daddr;
 };
 
 typedef unsigned __bitwise__ ieee802154_rx_result;

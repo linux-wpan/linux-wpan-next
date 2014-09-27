@@ -387,8 +387,10 @@ ieee802154_hdr_daddr(struct ieee802154_hdr_foo *hdr)
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+		break;
 	default:
-		/* reserved and none should never happen */
+		/* reserved should never happen */
 		BUG();
 	}
 
@@ -412,8 +414,10 @@ ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		payload += IEEE802154_SHORT_ADDR_LEN;
 		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+		break;
 	default:
-		/* reserved and none should never happen */
+		/* reserved should never happen */
 		BUG();
 	}
 
@@ -430,8 +434,10 @@ ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+		break;
 	default:
-		/* reserved and none should never happen */
+		/* reserved should never happen */
 		BUG();
 	}
 
@@ -478,47 +484,44 @@ static inline void ieee802154_random_extended_addr(__le64 *addr)
 #define ieee802154_is_pan_broadcast(pan_id)			\
 	(pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 
+/**
+ * Generic function to validate 802.15.4 source address.
+ */
 static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 {
-	bool ret = false;
-
-	if (ieee802154_is_pan_broadcast(addr->pan_id))
-		return ret;
+	if (unlikely(ieee802154_is_pan_broadcast(addr->pan_id)))
+		return false;
 
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		ret = ieee802154_is_valid_extended_addr(addr->u.extended);
-		break;
+		return ieee802154_is_valid_extended_addr(addr->u.extended);
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		ret = ieee802154_is_valid_short_saddr(addr->u.short_);
-		break;
+		return ieee802154_is_valid_short_saddr(addr->u.short_);
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+		return true;
 	default:
-		/* reserved and none should never happen */
-		/* is false here. */
-		break;
+		/* reserved should never happen */
+		BUG();
+		return false;
 	}
-
-	return ret;
 }
 
+/**
+ * Generic function to validate 802.15.4 destination address.
+ */
 static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 {
-	bool ret = false;
-
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		ret = ieee802154_is_valid_extended_addr(addr->u.extended);
-		break;
+		return ieee802154_is_valid_extended_addr(addr->u.extended);
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		ret = true;
-		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+		return true;
 	default:
-		/* reserved and none should never happen */
-		/* is false here. */
-		break;
+		/* reserved should never happen */
+		BUG();
+		return false;
 	}
-
-	return ret;
 }
 
 #endif
