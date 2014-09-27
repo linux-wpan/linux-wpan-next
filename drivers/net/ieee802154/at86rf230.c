@@ -713,7 +713,6 @@ at86rf230_tx_complete(void *context)
 	 * Move this handling in MAC 802.15.4 layer.
 	 * This is currently a workaround to avoid fragmenation issues.
 	 *
-	 * additional 50 us for tolerance
 	 */
 	if (skb->len > 18)
 		udelay(lp->data->t_lifs);
