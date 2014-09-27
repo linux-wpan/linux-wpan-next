@@ -125,6 +125,8 @@
 #define IEEE802154_FCTL_VERS                    0x3000
 #define IEEE802154_FCTL_SADDR                   0xc000
 
+#define IEEE802154_FCTL_VERS_RESERVED		0x2000
+
 #define IEEE802154_FCTL_DADDR_NONE              0x0000
 #define IEEE802154_FCTL_DADDR_RESERVED          0x0400
 #define IEEE802154_FCTL_DADDR_SHORT             0x0800
@@ -238,6 +240,16 @@ static inline int ieee802154_is_intra_pan(__le16 fc)
 static inline __le16 ieee802154_daddr_mode(__le16 fc)
 {
         return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
+}
+
+/**
+ * ieee802154_is_vers_reserved - check if bit IEEE802154_FCTL_VERS_RESERVED is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_vers_reserved(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_VERS)) &
+                cpu_to_le16(IEEE802154_FCTL_VERS_RESERVED);
 }
 
 /**

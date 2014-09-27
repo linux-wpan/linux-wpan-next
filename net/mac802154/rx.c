@@ -217,8 +217,9 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 
 	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
 
-	/* check on reserved frame type */
-	if (unlikely(ieee802154_is_reserved(fc)))
+	/* check on reserved frame type and version */
+	if (unlikely(ieee802154_is_reserved(fc) ||
+		     ieee802154_is_vers_reserved(fc)))
 		return RX_DROP_UNUSABLE;
 
 	/* check on reserved address types */
