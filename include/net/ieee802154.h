@@ -516,6 +516,7 @@ static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		return ieee802154_is_valid_extended_addr(addr->u.extended);
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		return true;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
 		/* should always available on frames with address modes */
 		return false;
