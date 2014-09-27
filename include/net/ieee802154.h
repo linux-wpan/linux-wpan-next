@@ -498,6 +498,7 @@ static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr_foo *addr)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		return ieee802154_is_valid_short_saddr(addr->u.short_);
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+		/* can be none on coordinators */
 		return true;
 	default:
 		/* reserved should never happen */
@@ -516,7 +517,8 @@ static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr_foo *addr)
 		return ieee802154_is_valid_extended_addr(addr->u.extended);
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
-		return true;
+		/* should always available on frames with address modes */
+		return false;
 	default:
 		/* reserved should never happen */
 		BUG();
