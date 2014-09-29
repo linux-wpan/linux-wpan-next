@@ -25,7 +25,6 @@
 #include <linux/nl802154.h>
 #include <net/af_ieee802154.h>
 #include <net/mac802154.h>
-#include <net/ieee802154_netdev.h>
 #include <net/ieee802154.h>
 #include <net/cfg802154.h>
 
@@ -292,77 +291,30 @@ static int ieee802154_wpan_open(struct net_device *dev)
 	return ieee802154_slave_open(dev);
 }
 
-static int ieee802154_header_create(struct sk_buff *skb,
-				   struct net_device *dev,
-				   unsigned short type,
-				   const void *daddr,
-				   const void *saddr,
-				   unsigned len)
-{
-	struct ieee802154_hdr hdr;
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct ieee802154_mac_cb *cb = mac_cb(skb);
-	int hlen;
-
-	if (!daddr)
-		return -EINVAL;
-
-	memset(&hdr.fc, 0, sizeof(hdr.fc));
-	hdr.fc.type = cb->type;
-	hdr.fc.security_enabled = cb->secen;
-	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = wpan_dev->dsn++;
-
-	if (!saddr) {
-		if (wpan_dev->short_addr ==
-		    cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
-		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
-		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
-			hdr.source.mode = IEEE802154_ADDR_LONG;
-			hdr.source.extended_addr = wpan_dev->extended_addr;
-		} else {
-			hdr.source.mode = IEEE802154_ADDR_SHORT;
-			hdr.source.short_addr = wpan_dev->short_addr;
-		}
-
-		hdr.source.pan_id = wpan_dev->pan_id;
-	} else {
-		hdr.source = *(const struct ieee802154_addr *)saddr;
-	}
-
-	hdr.dest = *(const struct ieee802154_addr *)daddr;
-
-	hlen = ieee802154_hdr_push(skb, &hdr);
-	if (hlen < 0)
-		return -EINVAL;
-
-	skb_reset_mac_header(skb);
-	skb->mac_len = hlen;
-
-	if (len > ieee802154_max_payload(&hdr))
-		return -EMSGSIZE;
-
-	return hlen;
-}
-
+/* TODO This function only works for extended address, there is no marker
+ * for short address or extended address. Something is wrong here.
+ *
+ * Need to change that when we support short_addr handling inside of 6LoWPAN.
+ */
 static int
 ieee802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct ieee802154_hdr hdr;
-	struct ieee802154_addr *addr = (struct ieee802154_addr *)haddr;
+	struct ieee802154_hdr_foo *hdr;
+	struct ieee802154_addr_foo saddr;
 
-	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
-		pr_debug("malformed packet\n");
-		return 0;
+	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
+	saddr = ieee802154_hdr_saddr(hdr);
+
+	switch (saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		memcpy(haddr, &saddr.u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	default:
+		return -EADDRNOTAVAIL;
 	}
-
-	*addr = hdr.source;
-	return sizeof(*addr);
 }
 
 static struct header_ops ieee802154_header_ops = {
-	.create		= ieee802154_header_create,
 	.parse		= ieee802154_header_parse,
 };
 

@@ -26,11 +26,9 @@
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/crc-ccitt.h>
-#include <net/rtnetlink.h>
 #include <linux/nl802154.h>
 
 #include <net/mac802154.h>
-#include <net/ieee802154_netdev.h>
 
 #include "ieee802154_i.h"
 
@@ -377,7 +375,7 @@ ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 	struct ieee802154_local *local = hw_to_local(hw);
 
 	/* TODO should be accesable via netlink like scan dump */
-	mac_cb(skb)->lqi = lqi;
+	//mac_cb(skb)->lqi = lqi;
 	skb->pkt_type = IEEE802154_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);
 	tasklet_schedule(&local->tasklet);

@@ -21,13 +21,10 @@
 
 #include <linux/mutex.h>
 #include <net/mac802154.h>
-#include <net/ieee802154_netdev.h>
 
+#include <net/ieee802154.h>
 #include <net/cfg802154.h>
-#include <net/rtnetlink.h>
 #include <linux/nl802154.h>
-
-#include "llsec.h"
 
 struct ieee802154_local;
 
@@ -56,7 +53,6 @@ struct ieee802154_sub_if_data {
 	unsigned long state;
 	char name[IFNAMSIZ];
 
-	struct mac802154_llsec sec;
 	/* must be last, dynamically sized area in this! */
 	struct ieee802154_vif vif;
 };

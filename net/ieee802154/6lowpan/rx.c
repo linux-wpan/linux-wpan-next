@@ -18,7 +18,6 @@
 #include <net/cfg802154.h>
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
-#include <net/ieee802154_netdev.h>
 #include <net/6lowpan.h>
 
 #include "6lowpan_i.h"

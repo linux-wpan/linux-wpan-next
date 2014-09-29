@@ -373,18 +373,23 @@ static inline struct ieee802154_addr_foo
 ieee802154_hdr_daddr(struct ieee802154_hdr_foo *hdr)
 {
 	struct ieee802154_addr_foo addr = {};
-	u8 *payload = hdr->payload;
+	unsigned char *payload = hdr->payload;
 
 	addr.mode = ieee802154_daddr_mode(hdr->frame_control);
-	addr.pan_id = *((__le16 *)payload);
-	payload += IEEE802154_PAN_ID_LEN;
-
+	
+	/* pan_id only available on non none address mode */
 	switch (addr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		payload += IEEE802154_PAN_ID_LEN;
+
 		memcpy(&addr.u.extended, payload,
 		       IEEE802154_EXTENDED_ADDR_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		payload += IEEE802154_PAN_ID_LEN;
+
 		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
@@ -401,18 +406,21 @@ static inline struct ieee802154_addr_foo
 ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 {
 	struct ieee802154_addr_foo addr = {};
-	u8 *payload = hdr->payload;
+	unsigned char *payload = hdr->payload;
 
 	addr.mode = ieee802154_saddr_mode(hdr->frame_control);
-	addr.pan_id = *((__le16 *)payload);
-	payload += IEEE802154_PAN_ID_LEN;
 
+	/* pan_id only available on non none address mode */
 	switch (ieee802154_daddr_mode(hdr->frame_control)) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		payload += IEEE802154_EXTENDED_ADDR_LEN;
+		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		payload += IEEE802154_PAN_ID_LEN +
+			   IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		payload += IEEE802154_SHORT_ADDR_LEN;
+		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		payload += IEEE802154_PAN_ID_LEN +
+			   IEEE802154_SHORT_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
 		break;
@@ -421,17 +429,23 @@ ieee802154_hdr_saddr(struct ieee802154_hdr_foo *hdr)
 		BUG();
 	}
 
-	if (!ieee802154_is_intra_pan(hdr->frame_control)) {
-		addr.pan_id = *((__le16 *)payload);
-		payload += IEEE802154_PAN_ID_LEN;
-	}
-
+	/* pan_id only available on non none address mode */
 	switch (addr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		if (!ieee802154_is_intra_pan(hdr->frame_control)) {
+			memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+			payload += IEEE802154_PAN_ID_LEN;
+		}
+
 		memcpy(&addr.u.extended, payload,
 		       IEEE802154_EXTENDED_ADDR_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		if (!ieee802154_is_intra_pan(hdr->frame_control)) {
+			memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+			payload += IEEE802154_PAN_ID_LEN;
+		}
+
 		memcpy(&addr.u.short_, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):

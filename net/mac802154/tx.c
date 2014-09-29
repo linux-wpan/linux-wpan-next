@@ -25,7 +25,6 @@
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
 
-#include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 

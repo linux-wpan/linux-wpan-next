@@ -16,7 +16,6 @@
  */
 
 #include <net/af_ieee802154.h>
-#include <net/ieee802154_netdev.h>
 #include <net/cfg802154.h>
 #include <net/6lowpan.h>
 
@@ -55,55 +54,51 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	raw_dump_inline(__func__, "saddr", (unsigned char *)saddr, 8);
 	raw_dump_inline(__func__, "daddr", (unsigned char *)daddr, 8);
 
-	/* TODO ask david or marc if this run into trouble */
 	info = lowpan_skb_priv(skb);
-	memset(info, 0, sizeof(*info));
 
-	/* TODO need to be handled like this, we don't support short address right now */
-#if 0
 	if (lowpan_is_addr_broadcast(ldev, daddr)) {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
-		memcpy(&info->daddr.addr.short_, saddr,
-		       IEEE802154_SHORT_ADDR_LEN); 
+		info->daddr.u.short_ = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
 	} else {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
-		memcpy(&info->daddr.addr.extended, daddr,
+		memcpy(&info->daddr.u.extended, daddr,
 		       IEEE802154_EXTENDED_ADDR_LEN); 
 	}
-#endif
-	info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
-	memcpy(&info->daddr.u.extended, daddr, IEEE802154_EXTENDED_ADDR_LEN);
-
+	
 	info->saddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
 	memcpy(&info->saddr.u.extended, saddr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	return 0;
 }
 
+int ieee802154_create_h_data(struct sk_buff *skb,
+                             struct wpan_dev *wpan_dev,
+                             const struct ieee802154_addr_foo *saddr,
+                             const struct ieee802154_addr_foo *daddr,
+			     const bool ack_req);
+
 static struct sk_buff*
 lowpan_alloc_frag(struct sk_buff *skb, int size,
-		  const struct ieee802154_hdr *master_hdr)
+		  const struct ieee802154_addr_foo *daddr,
+		  const struct ieee802154_addr_foo *saddr)
 {
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
+	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
 	struct sk_buff *frag;
 	int rc;
 
-	frag = alloc_skb(wdev->hard_header_len +
-			 wdev->needed_tailroom + size,
-			 GFP_ATOMIC);
-
+	frag = netdev_alloc_skb(wdev, wdev->hard_header_len +
+				wdev->needed_tailroom + size);
 	if (likely(frag)) {
-		frag->dev = wdev;
 		frag->priority = skb->priority;
 		skb_reserve(frag, wdev->hard_header_len);
 		skb_reset_network_header(frag);
-		*mac_cb(frag) = *mac_cb(skb);
 
-		rc = dev_hard_header(frag, wdev, 0, &master_hdr->dest,
-				     &master_hdr->source, size);
+		rc = ieee802154_create_h_data(frag, wpan_dev,
+					      daddr, saddr, true);
 		if (rc < 0) {
 			kfree_skb(frag);
-			return ERR_PTR(-rc);
+			return ERR_PTR(rc);
 		}
 	} else {
 		frag = ERR_PTR(-ENOMEM);
@@ -113,17 +108,19 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 }
 
 static int
-lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
+lowpan_xmit_fragment(struct sk_buff *skb,
 		     u8 *frag_hdr, int frag_hdrlen,
-		     int offset, int len)
+		     int offset, int len,
+		     struct ieee802154_addr_foo *daddr,
+		     struct ieee802154_addr_foo *saddr)
 {
 	struct sk_buff *frag;
 
 	raw_dump_inline(__func__, " fragment header", frag_hdr, frag_hdrlen);
 
-	frag = lowpan_alloc_frag(skb, frag_hdrlen + len, wpan_hdr);
+	frag = lowpan_alloc_frag(skb, frag_hdrlen + len, daddr, saddr);
 	if (IS_ERR(frag))
-		return -PTR_ERR(frag);
+		return NET_XMIT_DROP;
 
 	memcpy(skb_put(frag, frag_hdrlen), frag_hdr, frag_hdrlen);
 	memcpy(skb_put(frag, len), skb_network_header(skb) + offset, len);
@@ -135,7 +132,8 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 
 static int
 lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
-		       const struct ieee802154_hdr *wpan_hdr)
+		     struct ieee802154_addr_foo *daddr,
+		     struct ieee802154_addr_foo *saddr)
 {
 	u16 dgram_size, dgram_offset;
 	__be16 frag_tag;
@@ -151,7 +149,8 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 	frag_hdr[1] = dgram_size & 0xff;
 	memcpy(frag_hdr + 2, &frag_tag, sizeof(frag_tag));
 
-	payload_cap = ieee802154_max_payload(wpan_hdr);
+	/* TODO sec fixme */
+	payload_cap = 127 - 2 - skb->mac_len;
 
 	frag_len = round_down(payload_cap - LOWPAN_FRAG1_HEAD_SIZE -
 			      skb_network_header_len(skb), 8);
@@ -159,9 +158,10 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 	skb_offset = skb_network_header_len(skb);
 	skb_unprocessed = skb->len - skb->mac_len - skb_offset;
 
-	rc = lowpan_xmit_fragment(skb, wpan_hdr, frag_hdr,
+	rc = lowpan_xmit_fragment(skb, frag_hdr,
 				  LOWPAN_FRAG1_HEAD_SIZE, 0,
-				  frag_len + skb_network_header_len(skb));
+				  frag_len + skb_network_header_len(skb),
+				  daddr, saddr);
 	if (rc) {
 		pr_debug("%s unable to send FRAG1 packet (tag: %d)",
 			 __func__, frag_tag);
@@ -180,9 +180,9 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 
 		frag_hdr[4] = dgram_offset >> 3;
 
-		rc = lowpan_xmit_fragment(skb, wpan_hdr, frag_hdr,
+		rc = lowpan_xmit_fragment(skb, frag_hdr,
 					  LOWPAN_FRAGN_HEAD_SIZE, skb_offset,
-					  frag_len);
+					  frag_len, daddr, saddr);
 		if (rc) {
 			pr_debug("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
 				 __func__, frag_tag, skb_offset);
@@ -198,15 +198,16 @@ err:
 	return rc;
 }
 
-static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
+static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
+			 struct ieee802154_addr_foo *da,
+			 struct ieee802154_addr_foo *sa)
 {
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
-	struct ieee802154_addr sa, da;
-	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 	struct lowpan_addr_info info;
 	void *daddr, *saddr;
 
+	/* TODO putting on stack needed? */
 	memcpy(&info, lowpan_skb_priv(skb), sizeof(info));
 
 	/* TODO complicated bug why we support extended_addr only */
@@ -215,44 +216,41 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 	
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
 
-	/* NOTE1: I'm still unsure about the fact that compression and WPAN
-	 * header are created here and not later in the xmit. So wait for
-	 * an opinion of net maintainers.
-	 */
-	/* NOTE2: to be absolutely correct, we must derive PANid information
-	 * from MAC subif of the 'ldev' and 'wdev' network devices, but
-	 * this isn't implemented in mainline yet, so currently we assign 0xff
-	 */
-	cb->type = IEEE802154_FC_TYPE_DATA;
-
 	/* prepare wpan address data */
-	sa.mode = IEEE802154_ADDR_LONG;
-	sa.pan_id = wpan_dev->pan_id;
-	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
-
-	/* intra-PAN communications */
-	da.pan_id = sa.pan_id;
-
-	/* if the destination address is the broadcast address, use the
-	 * corresponding short address
-	 */
-	if (lowpan_is_addr_broadcast(ldev, daddr)) {
-		da.mode = IEEE802154_ADDR_SHORT;
-		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
-		cb->ackreq = false;
-	} else {
-		da.mode = IEEE802154_ADDR_LONG;
-		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
-		cb->ackreq = true;
+	switch (info.daddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		da->u.extended = swab64(info.daddr.u.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		da->u.short_ = swab16(info.daddr.u.short_);
+		break;
+	default:
+		return -EINVAL;
 	}
+	da->mode = info.daddr.mode;
 
-	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev,
-			ETH_P_IPV6, (void *)&da, (void *)&sa, 0);
+	sa->pan_id = wpan_dev->pan_id;
+	/* intra-PAN communications */
+	da->pan_id = sa->pan_id;
+
+	switch (info.saddr.mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		sa->u.extended = swab64(info.saddr.u.extended);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		sa->u.short_ = swab16(info.saddr.u.short_);
+		break;
+	default:
+		return -EINVAL;
+	}
+	sa->mode = info.saddr.mode;
+
+	return ieee802154_create_h_data(skb, wpan_dev, da, sa, true);
 }
 
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
-	struct ieee802154_hdr wpan_hdr;
+	struct ieee802154_addr_foo daddr, saddr;
 	int max_single, ret;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
@@ -263,28 +261,18 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	ldev->stats.tx_bytes += skb->len;
 
 	pr_debug("package xmit\n");
-	ret = lowpan_header(skb, ldev);
+	ret = lowpan_header(skb, ldev, &daddr, &saddr);
 	if (ret < 0) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
 	}
 
-	if (ieee802154_hdr_peek(skb, &wpan_hdr) < 0) {
-		kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
-
-	max_single = ieee802154_max_payload(&wpan_hdr);
-
-	if (skb_tail_pointer(skb) - skb_network_header(skb) <= max_single) {
+	/* TODO security fixme */
+	if (skb->len <= 127 - 2) {
 		skb->dev = lowpan_dev_info(ldev)->wdev;
 		return dev_queue_xmit(skb);
 	} else {
-		netdev_tx_t rc;
-
 		pr_debug("frame is too big, fragmentation is needed\n");
-		rc = lowpan_xmit_fragmented(skb, ldev, &wpan_hdr);
-
-		return rc < 0 ? NET_XMIT_DROP : rc;
+		return lowpan_xmit_fragmented(skb, ldev, &daddr, &saddr);
 	}
 }

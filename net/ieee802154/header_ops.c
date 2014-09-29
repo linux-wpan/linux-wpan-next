@@ -16,8 +16,9 @@
 
 #include <net/mac802154.h>
 #include <net/ieee802154.h>
-#include <net/ieee802154_netdev.h>
+#include <net/cfg802154.h>
 
+#if 0
 static int
 ieee802154_hdr_push_addr(u8 *buf, const struct ieee802154_addr *addr,
 			 bool omit_pan)
@@ -323,3 +324,84 @@ int ieee802154_max_payload(const struct ieee802154_hdr *hdr)
 	return IEEE802154_MTU - hlen - IEEE802154_MFR_SIZE;
 }
 EXPORT_SYMBOL_GPL(ieee802154_max_payload);
+#endif
+
+int ieee802154_create_h_data(struct sk_buff *skb,
+			     struct wpan_dev *wpan_dev,
+			     const struct ieee802154_addr_foo *daddr,
+			     const struct ieee802154_addr_foo *saddr,
+			     const bool ack_req)
+{
+	unsigned char buf[MAC802154_FRAME_HARD_HEADER_LEN];
+	struct ieee802154_hdr_foo *hdr = (struct ieee802154_hdr_foo *)buf;
+	unsigned char *buf_ptr = buf + 3;
+	__le16 fc = cpu_to_le16(IEEE802154_FTYPE_DATA);
+
+	switch (daddr->mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
+		buf_ptr += IEEE802154_PAN_ID_LEN;
+
+		memcpy(buf_ptr, &daddr->u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
+		buf_ptr += IEEE802154_PAN_ID_LEN;
+
+		memcpy(buf_ptr, &daddr->u.short_, IEEE802154_SHORT_ADDR_LEN);
+		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
+		break;
+	default:
+		/* reserved and none should never happen */
+		return -EINVAL;
+	}
+	fc |= daddr->mode;
+
+	switch (saddr->mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		if (saddr->pan_id != daddr->pan_id) {
+			memcpy(buf_ptr, &saddr->pan_id, IEEE802154_PAN_ID_LEN);
+			buf_ptr += IEEE802154_PAN_ID_LEN;
+		} else {
+			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
+		}
+
+		memcpy(buf_ptr, &saddr->u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		if (saddr->pan_id != daddr->pan_id) {
+			memcpy(buf_ptr, &saddr->pan_id, IEEE802154_PAN_ID_LEN);
+			buf_ptr += IEEE802154_PAN_ID_LEN;
+		} else {
+			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
+		}
+
+		memcpy(buf_ptr, &saddr->u.short_, IEEE802154_SHORT_ADDR_LEN);
+		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+		break;
+	default:
+		/* reserved should never happen */
+		return -EINVAL;
+	}
+	fc |= saddr->mode;
+
+	if (ack_req)
+		fc |= cpu_to_le16(IEEE802154_FCTL_AR);
+
+	hdr->frame_control = fc;
+	hdr->sequence_number = wpan_dev->dsn++;
+	
+	memcpy(skb_push(skb, (u16)(buf_ptr - buf)), buf, (u16)(buf_ptr - buf));
+	
+	skb_reset_mac_header(skb);
+	skb->mac_len = (u16)(buf_ptr - buf);
+
+	/* TODO check if MTU exceed */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ieee802154_create_h_data);

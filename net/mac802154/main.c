@@ -23,7 +23,6 @@
 #include <net/netlink.h>
 #include <linux/nl802154.h>
 #include <net/mac802154.h>
-#include <net/ieee802154_netdev.h>
 #include <net/route.h>
 #include <net/cfg802154.h>
 
