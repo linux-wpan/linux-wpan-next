@@ -250,6 +250,9 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (!netif_running(ldev) && !netif_running(wdev))
 		goto drop;
 
+	if (skb->pkt_type == PACKET_OTHERHOST)
+		goto drop;
+
 	if (wdev->type != ARPHRD_IEEE802154)
 		goto drop;
 

@@ -188,7 +188,6 @@ static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
 	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
 
 	new->protocol = htons(ETH_P_IPV6);
-	new->pkt_type = PACKET_HOST;
 	new->dev = dev;
 
 	raw_dump_table(__func__, "raw skb data dump before receiving",
