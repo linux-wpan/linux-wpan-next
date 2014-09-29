@@ -30,7 +30,6 @@
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
-#include <net/ieee802154_netdev.h>
 
 #include <asm/ioctls.h>
 

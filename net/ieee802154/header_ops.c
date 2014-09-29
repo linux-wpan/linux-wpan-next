@@ -328,12 +328,12 @@ EXPORT_SYMBOL_GPL(ieee802154_max_payload);
 
 int ieee802154_create_h_data(struct sk_buff *skb,
 			     struct wpan_dev *wpan_dev,
-			     const struct ieee802154_addr_foo *daddr,
-			     const struct ieee802154_addr_foo *saddr,
+			     const struct ieee802154_addr *daddr,
+			     const struct ieee802154_addr *saddr,
 			     const bool ack_req)
 {
 	unsigned char buf[MAC802154_FRAME_HARD_HEADER_LEN];
-	struct ieee802154_hdr_foo *hdr = (struct ieee802154_hdr_foo *)buf;
+	struct ieee802154_hdr *hdr = (struct ieee802154_hdr *)buf;
 	unsigned char *buf_ptr = buf + 3;
 	__le16 fc = cpu_to_le16(IEEE802154_FTYPE_DATA);
 
@@ -342,14 +342,14 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
 		buf_ptr += IEEE802154_PAN_ID_LEN;
 
-		memcpy(buf_ptr, &daddr->u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		memcpy(buf_ptr, &daddr->extended_addr, IEEE802154_EXTENDED_ADDR_LEN);
 		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
 		buf_ptr += IEEE802154_PAN_ID_LEN;
 
-		memcpy(buf_ptr, &daddr->u.short_, IEEE802154_SHORT_ADDR_LEN);
+		memcpy(buf_ptr, &daddr->short_addr, IEEE802154_SHORT_ADDR_LEN);
 		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
 		break;
 	default:
@@ -367,7 +367,7 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
 		}
 
-		memcpy(buf_ptr, &saddr->u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		memcpy(buf_ptr, &saddr->extended_addr, IEEE802154_EXTENDED_ADDR_LEN);
 		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
@@ -378,7 +378,7 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
 		}
 
-		memcpy(buf_ptr, &saddr->u.short_, IEEE802154_SHORT_ADDR_LEN);
+		memcpy(buf_ptr, &saddr->short_addr, IEEE802154_SHORT_ADDR_LEN);
 		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):

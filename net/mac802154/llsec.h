@@ -23,7 +23,6 @@
 #include <linux/kref.h>
 #include <linux/spinlock.h>
 #include <net/af_ieee802154.h>
-#include <net/ieee802154_netdev.h>
 
 struct mac802154_llsec_key {
 	struct ieee802154_llsec_key key;

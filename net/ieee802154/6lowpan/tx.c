@@ -73,14 +73,14 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 
 int ieee802154_create_h_data(struct sk_buff *skb,
                              struct wpan_dev *wpan_dev,
-                             const struct ieee802154_addr_foo *saddr,
-                             const struct ieee802154_addr_foo *daddr,
+                             const struct ieee802154_addr *saddr,
+                             const struct ieee802154_addr *daddr,
 			     const bool ack_req);
 
 static struct sk_buff*
 lowpan_alloc_frag(struct sk_buff *skb, int size,
-		  const struct ieee802154_addr_foo *daddr,
-		  const struct ieee802154_addr_foo *saddr)
+		  const struct ieee802154_addr *daddr,
+		  const struct ieee802154_addr *saddr)
 {
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
@@ -111,8 +111,8 @@ static int
 lowpan_xmit_fragment(struct sk_buff *skb,
 		     u8 *frag_hdr, int frag_hdrlen,
 		     int offset, int len,
-		     struct ieee802154_addr_foo *daddr,
-		     struct ieee802154_addr_foo *saddr)
+		     struct ieee802154_addr *daddr,
+		     struct ieee802154_addr *saddr)
 {
 	struct sk_buff *frag;
 
@@ -132,8 +132,8 @@ lowpan_xmit_fragment(struct sk_buff *skb,
 
 static int
 lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
-		     struct ieee802154_addr_foo *daddr,
-		     struct ieee802154_addr_foo *saddr)
+		     struct ieee802154_addr *daddr,
+		     struct ieee802154_addr *saddr)
 {
 	u16 dgram_size, dgram_offset;
 	__be16 frag_tag;
@@ -199,8 +199,8 @@ err:
 }
 
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
-			 struct ieee802154_addr_foo *da,
-			 struct ieee802154_addr_foo *sa)
+			 struct ieee802154_addr *da,
+			 struct ieee802154_addr *sa)
 {
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
@@ -219,10 +219,10 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	/* prepare wpan address data */
 	switch (info.daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		da->u.extended = swab64(info.daddr.u.extended);
+		da->extended_addr = swab64(info.daddr.u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		da->u.short_ = swab16(info.daddr.u.short_);
+		da->short_addr = swab16(info.daddr.u.short_);
 		break;
 	default:
 		return -EINVAL;
@@ -235,10 +235,10 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 
 	switch (info.saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		sa->u.extended = swab64(info.saddr.u.extended);
+		sa->extended_addr = swab64(info.saddr.u.extended);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		sa->u.short_ = swab16(info.saddr.u.short_);
+		sa->short_addr = swab16(info.saddr.u.short_);
 		break;
 	default:
 		return -EINVAL;
@@ -250,7 +250,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
-	struct ieee802154_addr_foo daddr, saddr;
+	struct ieee802154_addr daddr, saddr;
 	int max_single, ret;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);

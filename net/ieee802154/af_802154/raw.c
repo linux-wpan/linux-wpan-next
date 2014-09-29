@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
-#include <net/ieee802154_netdev.h>
 
 #include "af_802154_i.h"
 

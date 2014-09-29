@@ -299,15 +299,16 @@ static int ieee802154_wpan_open(struct net_device *dev)
 static int
 ieee802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct ieee802154_hdr_foo *hdr;
-	struct ieee802154_addr_foo saddr;
+	struct ieee802154_hdr *hdr;
+	struct ieee802154_addr saddr;
 
-	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
+	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	saddr = ieee802154_hdr_saddr(hdr);
 
 	switch (saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		memcpy(haddr, &saddr.u.extended, IEEE802154_EXTENDED_ADDR_LEN);
+		memcpy(haddr, &saddr.extended_addr,
+		       IEEE802154_EXTENDED_ADDR_LEN);
 		return IEEE802154_EXTENDED_ADDR_LEN;
 	default:
 		return -EADDRNOTAVAIL;

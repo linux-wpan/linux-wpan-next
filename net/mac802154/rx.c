@@ -60,7 +60,7 @@ ieee802154_rx_h_beacon(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_beacon(fc))
@@ -75,13 +75,13 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	struct ieee802154_sub_if_data *sdata = rx->sdata;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct net_device *dev = sdata->dev;
-	struct ieee802154_hdr_foo *hdr;
-	struct ieee802154_addr_foo saddr, daddr;
+	struct ieee802154_hdr *hdr;
+	struct ieee802154_addr saddr, daddr;
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 	u16 hdr_len = 5;
 
-	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
+	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))
@@ -99,7 +99,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 	switch (daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		if (likely(daddr.u.extended == wpan_dev->extended_addr))
+		if (likely(daddr.extended_addr == wpan_dev->extended_addr))
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -107,9 +107,9 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		if (ieee802154_is_broadcast(daddr.u.short_))
+		if (ieee802154_is_broadcast(daddr.short_addr))
 			skb->pkt_type = PACKET_BROADCAST;
-		else if (daddr.u.short_ == wpan_dev->short_addr)
+		else if (daddr.short_addr == wpan_dev->short_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -171,7 +171,7 @@ ieee802154_rx_h_ack(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_ack(fc)) {
@@ -190,7 +190,7 @@ ieee802154_rx_h_cmd(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr *)skb->data)->frame_control;
 
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_cmd(fc))
@@ -228,7 +228,7 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 
-	fc = ((struct ieee802154_hdr_foo *)skb->data)->frame_control;
+	fc = ((struct ieee802154_hdr *)skb->data)->frame_control;
 
 	/* check on reserved frame type and version */
 	if (unlikely(ieee802154_is_reserved(fc) ||

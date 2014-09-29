@@ -169,19 +169,19 @@ rxh_next:
 }
 
 static inline void
-lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_foo *hdr,
+lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 			      struct lowpan_addr_info *info)
 {
-	struct ieee802154_addr_foo daddr, saddr;
+	struct ieee802154_addr daddr, saddr;
 
 	daddr = ieee802154_hdr_daddr(hdr);
 	info->daddr.mode = daddr.mode;
 	switch (info->daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		info->daddr.u.extended = swab64(daddr.u.extended);
+		info->daddr.u.extended = swab64(daddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		info->daddr.u.short_ = swab16(daddr.u.short_);
+		info->daddr.u.short_ = swab16(daddr.short_addr);
 		break;
 	default:
 		BUG();
@@ -191,10 +191,10 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_foo *hdr,
 	info->saddr.mode = saddr.mode;
 	switch (info->saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		info->saddr.u.extended = swab64(saddr.u.extended);
+		info->saddr.u.extended = swab64(saddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		info->saddr.u.short_ = swab16(saddr.u.short_);
+		info->saddr.u.short_ = swab16(saddr.short_addr);
 		break;
 	default:
 		BUG();
@@ -204,13 +204,13 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr_foo *hdr,
 static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 					  struct lowpan_addr_info *info)
 {
-	struct ieee802154_hdr_foo *hdr;
+	struct ieee802154_hdr *hdr;
 	__le16 fc;
 
 	if (skb->len < 2)
 		return RX_DROP_UNUSABLE;
 
-	hdr = (struct ieee802154_hdr_foo *)skb_mac_header(skb);
+	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))

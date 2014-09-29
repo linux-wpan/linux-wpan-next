@@ -21,7 +21,6 @@
 #include <crypto/algapi.h>
 
 #include "ieee802154_i.h"
-#include "llsec.h"
 
 static void llsec_key_put(struct mac802154_llsec_key *key);
 static bool llsec_key_id_equal(const struct ieee802154_llsec_key_id *a,
