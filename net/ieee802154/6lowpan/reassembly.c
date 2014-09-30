@@ -51,8 +51,8 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
 			     struct sk_buff *prev, struct net_device *dev);
 
 static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
-				     const union lowpan_addr_u *saddr,
-				     const union lowpan_addr_u *daddr)
+				     const struct lowpan_addr *saddr,
+				     const struct lowpan_addr *daddr)
 {
 	net_get_random_once(&lowpan_frags.rnd, sizeof(lowpan_frags.rnd));
 	return jhash_3words(ieee802154_addr_hash(saddr),
@@ -114,8 +114,8 @@ out:
 
 static inline struct lowpan_frag_queue *
 fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
-	const union lowpan_addr_u *saddr,
-	const union lowpan_addr_u *daddr)
+	const struct lowpan_addr *saddr,
+	const struct lowpan_addr *daddr)
 {
 	struct inet_frag_queue *q;
 	struct lowpan_create_arg arg;
@@ -371,7 +371,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type,
 	if (frag_info->d_size > ieee802154_lowpan->max_dsize)
 		goto err;
 
-	fq = fq_find(net, frag_info, &info->saddr.u, &info->daddr.u);
+	fq = fq_find(net, frag_info, &info->saddr, &info->daddr);
 	if (fq != NULL) {
 		int ret;
 

@@ -58,15 +58,15 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 
 	if (lowpan_is_addr_broadcast(ldev, daddr)) {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
-		info->daddr.u.short_ = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
+		info->daddr.short_addr = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
 	} else {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
-		memcpy(&info->daddr.u.extended, daddr,
+		memcpy(&info->daddr.extended_addr, daddr,
 		       IEEE802154_EXTENDED_ADDR_LEN); 
 	}
 	
 	info->saddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
-	memcpy(&info->saddr.u.extended, saddr, IEEE802154_EXTENDED_ADDR_LEN);
+	memcpy(&info->saddr.extended_addr, saddr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	return 0;
 }
@@ -211,18 +211,18 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	memcpy(&info, lowpan_skb_priv(skb), sizeof(info));
 
 	/* TODO complicated bug why we support extended_addr only */
-	daddr = &info.daddr.u.extended;
-	saddr = &info.saddr.u.extended;
+	daddr = &info.daddr.extended_addr;
+	saddr = &info.saddr.extended_addr;
 	
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
 
 	/* prepare wpan address data */
 	switch (info.daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		da->extended_addr = swab64(info.daddr.u.extended);
+		da->extended_addr = swab64(info.daddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		da->short_addr = swab16(info.daddr.u.short_);
+		da->short_addr = swab16(info.daddr.short_addr);
 		break;
 	default:
 		return -EINVAL;
@@ -235,10 +235,10 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 
 	switch (info.saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		sa->extended_addr = swab64(info.saddr.u.extended);
+		sa->extended_addr = swab64(info.saddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		sa->short_addr = swab16(info.saddr.u.short_);
+		sa->short_addr = swab16(info.saddr.short_addr);
 		break;
 	default:
 		return -EINVAL;

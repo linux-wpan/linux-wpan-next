@@ -19,18 +19,16 @@ struct lowpan_dev_info {
 	int			open_count;
 };
 
-union lowpan_addr_u {
-	/* IPv6 needs big endian here */
-	__be64 extended;
-	__be16 short_;
-};
-
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
 	/* non converted address mode bits here 
 	 * make this at first, improve memcmp on this struct */
 	__le16 mode;
-	union lowpan_addr_u u;
+	union {
+		/* IPv6 needs big endian here */
+		__be64 extended_addr;
+		__be16 short_addr;
+	};
 };
 
 struct lowpan_addr_info {

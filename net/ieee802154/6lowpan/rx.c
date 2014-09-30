@@ -86,11 +86,11 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	switch (info->daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		daddr_mode = IEEE802154_ADDR_LONG;
-		daddr = &info->daddr.u.extended;
+		daddr = &info->daddr.extended_addr;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		daddr_mode = IEEE802154_ADDR_SHORT;
-		daddr = &info->daddr.u.short_;
+		daddr = &info->daddr.short_addr;
 		break;
 	default:
 		/* dataframes should contain real addresses */
@@ -102,11 +102,11 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	switch (info->saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		saddr_mode = IEEE802154_ADDR_LONG;
-		saddr = &info->saddr.u.extended;
+		saddr = &info->saddr.extended_addr;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		saddr_mode = IEEE802154_ADDR_SHORT;
-		saddr = &info->saddr.u.short_;
+		saddr = &info->saddr.short_addr;
 		break;
 	default:
 		/* dataframes should contain real addresses */
@@ -178,10 +178,10 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 	info->daddr.mode = daddr.mode;
 	switch (info->daddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		info->daddr.u.extended = swab64(daddr.extended_addr);
+		info->daddr.extended_addr = swab64(daddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		info->daddr.u.short_ = swab16(daddr.short_addr);
+		info->daddr.short_addr = swab16(daddr.short_addr);
 		break;
 	default:
 		BUG();
@@ -191,10 +191,10 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 	info->saddr.mode = saddr.mode;
 	switch (info->saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		info->saddr.u.extended = swab64(saddr.extended_addr);
+		info->saddr.extended_addr = swab64(saddr.extended_addr);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		info->saddr.u.short_ = swab16(saddr.short_addr);
+		info->saddr.short_addr = swab16(saddr.short_addr);
 		break;
 	default:
 		BUG();

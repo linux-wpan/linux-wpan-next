@@ -462,37 +462,53 @@ static inline bool ieee802154_is_valid_frame_len(const u8 len)
 	return true;
 }
 
-#define ieee802154_is_valid_short_saddr(addr)			\
-	(addr = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
-
-
 static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 {
 	static const u8 zero[IEEE802154_EXTENDED_ADDR_LEN] = { };
-	static u8 full[IEEE802154_EXTENDED_ADDR_LEN];
-
-	memset(full, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
+	static const u8 full[IEEE802154_EXTENDED_ADDR_LEN] = { 0xff, 0xff,
+							       0xff, 0xff,
+							       0xff, 0xff,
+							       0xff, 0xff };
 
 	return memcmp(&addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
 	       memcmp(&addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
 }
 
-static inline void ieee802154_random_extended_addr(__le64 *addr)
+static inline __le64 ieee802154_random_extended_addr(void)
 {
-	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
+	__le64 addr;
+
+	get_random_bytes(&addr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	/* toggle some bit if we hit an invalid extended addr */
-	if (!ieee802154_is_valid_extended_addr(*addr))
-		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 1;
+	if (!ieee802154_is_valid_extended_addr(addr))
+		((u8 *)&addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 1;
+
+	return addr;
+}
+
+static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
+{
+	if (pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+		return true;
+
+	return false;
 }
 
 /**
  * should only call with destination address */
-#define ieee802154_is_broadcast(daddr_short_)				\
-	(daddr_short_ == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+static inline bool ieee802154_is_broadcast(const __le16 addr)
+{
+	if (addr == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+		return true;
 
-#define ieee802154_is_pan_broadcast(pan_id)			\
-	(pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+	return false;
+}
+
+static inline bool ieee802154_is_valid_short_saddr(const __le16 addr)
+{
+	return !ieee802154_is_broadcast(addr);
+}
 
 /**
  * Generic function to validate 802.15.4 source address.
