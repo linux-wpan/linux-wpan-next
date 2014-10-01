@@ -58,21 +58,12 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 
 	rtnl_lock();
 
-	if (!netif_running(skb->dev)) {
-		rtnl_unlock();
-		ieee802154_wake_queue(&local->hw);
-		kfree_skb(skb);
-		return;
-	}
+	if (!netif_running(skb->dev))
+		goto err_tx;
 
 	res = drv_xmit_sync(local, skb);
-	if (res) {
-		rtnl_unlock();
-		pr_debug("transmission failed\n");
-		ieee802154_wake_queue(&local->hw);
-		kfree_skb(skb);
-		return;
-	}
+	if (res)
+		goto err_tx;
 
 	rtnl_unlock();
 
@@ -81,6 +72,14 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 
 	skb->dev->stats.tx_packets++;
 	skb->dev->stats.tx_bytes += skb->len;
+
+	return;
+
+err_tx:
+	rtnl_unlock();
+	pr_debug("transmission failed\n");
+	ieee802154_wake_queue(&local->hw);
+	kfree_skb(skb);
 }
 
 static netdev_tx_t
