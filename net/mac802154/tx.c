@@ -56,13 +56,25 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
+	rtnl_lock();
+
+	if (!netif_running(skb->dev)) {
+		rtnl_unlock();
+		ieee802154_wake_queue(&local->hw);
+		kfree_skb(skb);
+		return;
+	}
+
 	res = drv_xmit_sync(local, skb);
 	if (res) {
+		rtnl_unlock();
 		pr_debug("transmission failed\n");
 		ieee802154_wake_queue(&local->hw);
 		kfree_skb(skb);
 		return;
 	}
+
+	rtnl_unlock();
 
 	/* Restart the netif queue on each sub_if_data object. */
 	ieee802154_xmit_complete(&local->hw, skb);
