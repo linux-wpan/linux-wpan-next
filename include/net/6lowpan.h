@@ -120,18 +120,9 @@
 	(!memcmp(dev->broadcast, a,		\
 		 dev->addr_len))
 
-#define LOWPAN_DISPATCH_IPV6	0x41 /* 01000001 = 65 */
-#define LOWPAN_DISPATCH_HC1	0x42 /* 01000010 = 66 */
-#define LOWPAN_DISPATCH_IPHC	0x60 /* 011xxxxx = ... */
-#define LOWPAN_DISPATCH_FRAG1	0xc0 /* 11000xxx */
-#define LOWPAN_DISPATCH_FRAGN	0xe0 /* 11100xxx */
-
-#define LOWPAN_DISPATCH_MASK	0xf8 /* 11111000 */
-
-#define LOWPAN_FRAG_TIMEOUT	(HZ * 60)	/* time-out 60 sec */
-
-#define LOWPAN_FRAG1_HEAD_SIZE	0x4
-#define LOWPAN_FRAGN_HEAD_SIZE	0x5
+#define LOWPAN_DISPATCH_IPV6		0x41
+#define LOWPAN_DISPATCH_IPHC_MASK	0xe0
+#define LOWPAN_DISPATCH_IPHC		0x60
 
 /*
  * Values of fields within the IPHC encoding first byte
@@ -146,7 +137,6 @@
 #define LOWPAN_IPHC_TTL_64	0x02
 #define LOWPAN_IPHC_TTL_255	0x03
 #define LOWPAN_IPHC_TTL_I	0x00
-
 
 /* Values of fields within the IPHC encoding second byte */
 #define LOWPAN_IPHC_CID		0x80
@@ -223,6 +213,18 @@ static inline void raw_dump_inline(const char *caller, char *msg,
 				   unsigned char *buf, int len) { }
 #endif
 
+static inline bool lowpan_is_iphc(const u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_IPHC_MASK) == LOWPAN_DISPATCH_IPHC;
+
+}
+
+static inline bool lowpan_is_ipv6(const u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_IPV6;
+
+}
+
 static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 {
 	if (unlikely(!pskb_may_pull(skb, 1)))
@@ -240,7 +242,9 @@ static inline bool lowpan_fetch_skb(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, len)))
 		return true;
 
-	skb_copy_from_linear_data(skb, data, len);
+	if (data)
+		skb_copy_from_linear_data(skb, data, len);
+
 	skb_pull(skb, len);
 
 	return false;

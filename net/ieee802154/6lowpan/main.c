@@ -145,8 +145,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	wdev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!wdev)
 		return -ENODEV;
-	if (wdev->type != ARPHRD_IEEE802154 ||
-	    wdev->ieee802154_ptr->iftype == NL802154_IFTYPE_MONITOR) {
+	if (wdev->type != ARPHRD_IEEE802154) {
 		dev_put(wdev);
 		return -EINVAL;
 	}

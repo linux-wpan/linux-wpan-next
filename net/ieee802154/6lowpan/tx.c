@@ -55,7 +55,6 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	raw_dump_inline(__func__, "daddr", (unsigned char *)daddr, 8);
 
 	info = lowpan_skb_priv(skb);
-
 	if (lowpan_is_addr_broadcast(ldev, daddr)) {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
 		info->daddr.short_addr = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
@@ -136,14 +135,16 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 		     struct ieee802154_addr *saddr)
 {
 	u16 dgram_size, dgram_offset;
-	__be16 frag_tag;
+	u16 frag_tag;
 	u8 frag_hdr[5];
 	int frag_cap, frag_len, payload_cap, rc;
 	int skb_unprocessed, skb_offset;
 
 	dgram_size = lowpan_uncompress_size(skb, &dgram_offset) -
 		     skb->mac_len;
-	frag_tag = lowpan_dev_info(ldev)->fragment_tag++;
+	frag_tag = ntohs(lowpan_dev_info(ldev)->fragment_tag);
+	frag_tag++;
+	lowpan_dev_info(ldev)->fragment_tag = htons(frag_tag);
 
 	frag_hdr[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x07);
 	frag_hdr[1] = dgram_size & 0xff;
@@ -191,7 +192,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 	} while (skb_unprocessed > frag_cap);
 
 	consume_skb(skb);
-	return NET_XMIT_SUCCESS;
+	return NETDEV_TX_OK;
 
 err:
 	kfree_skb(skb);
@@ -229,10 +230,6 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	}
 	da->mode = info.daddr.mode;
 
-	sa->pan_id = wpan_dev->pan_id;
-	/* intra-PAN communications */
-	da->pan_id = sa->pan_id;
-
 	switch (info.saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		sa->extended_addr = swab64(info.saddr.extended_addr);
@@ -245,17 +242,25 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	}
 	sa->mode = info.saddr.mode;
 
+	/* intra-PAN communications */
+	sa->pan_id = wpan_dev->pan_id;
+	da->pan_id = sa->pan_id;
+
 	return ieee802154_create_h_data(skb, wpan_dev, da, sa, true);
 }
 
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct ieee802154_addr daddr, saddr;
-	int max_single, ret;
+	struct sk_buff *nskb;
+	int ret;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (!skb)
-		return NET_XMIT_DROP;
+	nskb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+	skb = nskb;
 
 	ldev->stats.tx_packets++;
 	ldev->stats.tx_bytes += skb->len;
@@ -264,7 +269,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	ret = lowpan_header(skb, ldev, &daddr, &saddr);
 	if (ret < 0) {
 		kfree_skb(skb);
-		return NET_XMIT_DROP;
+		return NETDEV_TX_OK;
 	}
 
 	/* TODO security fixme */

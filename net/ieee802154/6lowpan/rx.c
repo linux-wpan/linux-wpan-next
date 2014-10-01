@@ -27,6 +27,9 @@ static int
 lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 {
 	switch (res) {
+	case RX_CONTINUE:
+		/* packet was not queued should never occur */
+		WARN(1, "mac802154: packet wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -49,12 +52,12 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	int ret;
+	const u8 dispatch = *skb_network_header(skb);
 
-	if (((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAG1) &&
-	    ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAGN))
+	if (!lowpan_is_frag(dispatch))
 		return RX_CONTINUE;
 
-	ret = lowpan_frag_rcv(skb, skb->data[0] & 0xe0, info);
+	ret = lowpan_frag_rcv(skb, lowpan_get_frag_type(dispatch), info);
 	if (ret == 1)
 		/* reassmbled fragment contains also
 		 * a DISPATCH, check on this.
@@ -70,15 +73,15 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	void *daddr, *saddr;
 	int ret;
 
-	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_IPHC)
+	if (!lowpan_is_iphc(*skb_network_header(skb)))
 		return RX_CONTINUE;
 
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 
-	if (lowpan_fetch_skb_u8(skb, &iphc0))
+	if (lowpan_fetch_skb(skb, &iphc0, sizeof(iphc0)))
 		goto drop;
 
-	if (lowpan_fetch_skb_u8(skb, &iphc1))
+	if (lowpan_fetch_skb(skb, &iphc1, sizeof(iphc0)))
 		goto drop;
 
 	/* TODO remove this handling do __le16 handling in lowpan_process_data */
@@ -130,14 +133,14 @@ static int lowpan_rx_h_ipv6(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	int ret;
 
-	if (skb->data[0] != LOWPAN_DISPATCH_IPV6)
+	if (!lowpan_is_ipv6(*skb_network_header(skb)))
 		return RX_CONTINUE;
 
-	skb->protocol = htons(ETH_P_IPV6);
-
 	/* Pull off the 1-byte of 6lowpan header. */
-	skb_pull(skb, 1);
+	if (lowpan_fetch_skb(skb, NULL, 1))
+		return RX_DROP_UNUSABLE;
 
+	skb->protocol = htons(ETH_P_IPV6);
 	ret = lowpan_give_skb_to_devices(skb, skb->dev);
 	if (ret < 0)
 		return RX_DROP_UNUSABLE;
@@ -209,6 +212,8 @@ static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 
 	if (skb->len < 2)
 		return RX_DROP_UNUSABLE;
+
+	/* TODO check on reserved dispatch */
 
 	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	fc = hdr->frame_control;

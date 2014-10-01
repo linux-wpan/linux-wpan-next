@@ -12,12 +12,14 @@ typedef unsigned __bitwise__ lowpan_rx_result;
 /* don't use 2u for monitor, it's the same like 80211 and 802154 */
 #define RX_QUEUED               ((__force lowpan_rx_result) 3u)
 
-/* private device info */
-struct lowpan_dev_info {
-	struct net_device	*wdev; /* real WPAN device ptr */
-	__be16			fragment_tag;
-	int			open_count;
-};
+#define LOWPAN_DISPATCH_FRAG_MASK	0xf8
+#define LOWPAN_DISPATCH_FRAG1		0xc0
+#define LOWPAN_DISPATCH_FRAGN		0xe0
+
+#define LOWPAN_FRAG1_HEAD_SIZE		4
+#define LOWPAN_FRAGN_HEAD_SIZE		5
+
+#define LOWPAN_DISPATCH_HC1		0x42
 
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
@@ -36,10 +38,30 @@ struct lowpan_addr_info {
 	struct lowpan_addr saddr;
 };
 
+/* private device info */
+struct lowpan_dev_info {
+	struct net_device	*wdev; /* real WPAN device ptr */
+	__be16			fragment_tag;
+	int			open_count;
+};
+
 static inline struct
 lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 {
 	return netdev_priv(dev);
+}
+
+static inline u8 lowpan_get_frag_type(const u8 dispatch)
+{
+	return dispatch & LOWPAN_DISPATCH_FRAG_MASK;
+}
+
+static inline bool lowpan_is_frag(const u8 dispatch)
+{
+	const u8 tmp = lowpan_get_frag_type(dispatch);
+
+	return tmp == LOWPAN_DISPATCH_FRAG1 || tmp == LOWPAN_DISPATCH_FRAGN;
+
 }
 
 int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,

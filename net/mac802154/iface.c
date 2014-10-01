@@ -301,13 +301,19 @@ ieee802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	struct ieee802154_hdr *hdr;
 	struct ieee802154_addr saddr;
+	__be64 __be64_extended_addr;
 
 	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	saddr = ieee802154_hdr_saddr(hdr);
 
 	switch (saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		memcpy(haddr, &saddr.extended_addr,
+		/* ndisc use this function and knows extended address
+		 * in big endian only.
+		 */
+		__be64_extended_addr = swab64(saddr.extended_addr);
+
+		memcpy(haddr, &__be64_extended_addr,
 		       IEEE802154_EXTENDED_ADDR_LEN);
 		return IEEE802154_EXTENDED_ADDR_LEN;
 	default:
