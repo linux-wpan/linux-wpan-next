@@ -29,7 +29,7 @@ lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 	switch (res) {
 	case RX_CONTINUE:
 		/* packet was not queued should never occur */
-		WARN(1, "mac802154: packet wasn't queued or dropped");
+		WARN(1, "lowpan: packet wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(skb);
 		return NET_RX_DROP;
