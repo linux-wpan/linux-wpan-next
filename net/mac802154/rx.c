@@ -37,7 +37,7 @@ static void ieee802154_rx_handlers_result(struct ieee802154_rx_data *rx,
 {
 	switch (res) {
 	case RX_CONTINUE:
-		/* packet was not queued should never occur */
+		/* frame was not queued should never occur */
 		WARN(1, "mac802154: frame wasn't queued or dropped");
 	case RX_DROP_UNUSABLE:
 		kfree_skb(rx->skb);
@@ -128,7 +128,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		hdr_len += IEEE802154_SHORT_ADDR_LEN;
 		break;
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		/* 802.15.4-2011 comment:
 		 * If only source addressing fields are included in a data
 		 * or MAC command frame, the frame shall be accepted only

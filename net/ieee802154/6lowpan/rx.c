@@ -67,6 +67,27 @@ static int lowpan_rx_h_frag(struct sk_buff *skb, struct lowpan_addr_info *info)
 	return RX_QUEUED;
 }
 
+static void *lowpan_addr_to_generic(struct lowpan_addr *addr, u8 *mode)
+{
+	/* TODO remove this handling do __le16 handling in lowpan_process_data */
+	/* TODO we shouldn't convert mac values to cpu understandable things */
+	switch (addr->mode) {
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+		*mode = IEEE802154_ADDR_LONG;
+		return &addr->extended_addr;
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+		*mode = IEEE802154_ADDR_SHORT;
+		return &addr->short_addr;
+	default:
+		/* 6lowpan dataframes should contain real addresses */
+		BUG();
+	}
+
+	return NULL;
+}
+
 static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
 	u8 iphc0, iphc1, daddr_mode, saddr_mode;
@@ -84,38 +105,8 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	if (lowpan_fetch_skb(skb, &iphc1, sizeof(iphc0)))
 		goto drop;
 
-	/* TODO remove this handling do __le16 handling in lowpan_process_data */
-	/* TODO we shouldn't convert mac values to cpu understandable things */
-	switch (info->daddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		daddr_mode = IEEE802154_ADDR_LONG;
-		daddr = &info->daddr.extended_addr;
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		daddr_mode = IEEE802154_ADDR_SHORT;
-		daddr = &info->daddr.short_addr;
-		break;
-	default:
-		/* dataframes should contain real addresses */
-		BUG();
-	}
-
-	/* TODO remove this handling do __le16 handling in lowpan_process_data */
-	/* TODO we shouldn't convert mac values to cpu understandable things */
-	switch (info->saddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		saddr_mode = IEEE802154_ADDR_LONG;
-		saddr = &info->saddr.extended_addr;
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		saddr_mode = IEEE802154_ADDR_SHORT;
-		saddr = &info->saddr.short_addr;
-		break;
-	default:
-		/* dataframes should contain real addresses */
-		BUG();
-	}
-
+	daddr = lowpan_addr_to_generic(&info->daddr, &daddr_mode);
+	saddr = lowpan_addr_to_generic(&info->saddr, &saddr_mode);
 
 	ret = lowpan_process_data(skb, skb->dev, saddr, saddr_mode,
 				  IEEE802154_ADDR_LEN, daddr, daddr_mode,
@@ -171,37 +162,41 @@ rxh_next:
 #undef CALL_RXH
 }
 
-static inline void
+static inline void wpan_addr_to_lowpan_addr(struct ieee802154_addr *waddr,
+					    struct lowpan_addr *laddr)
+{
+	switch (waddr->mode) {
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
+		laddr->extended_addr = swab64(waddr->extended_addr);
+		break;
+	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
+	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
+		laddr->short_addr = swab16(waddr->short_addr);
+		break;
+	default:
+		BUG();
+	}
+
+	laddr->mode = waddr->mode;
+}
+
+static inline int
 lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 			      struct lowpan_addr_info *info)
 {
 	struct ieee802154_addr daddr, saddr;
 
 	daddr = ieee802154_hdr_daddr(hdr);
-	info->daddr.mode = daddr.mode;
-	switch (info->daddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		info->daddr.extended_addr = swab64(daddr.extended_addr);
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		info->daddr.short_addr = swab16(daddr.short_addr);
-		break;
-	default:
-		BUG();
-	}
+	wpan_addr_to_lowpan_addr(&daddr, &info->daddr);
 
 	saddr = ieee802154_hdr_saddr(hdr);
-	info->saddr.mode = saddr.mode;
-	switch (info->saddr.mode) {
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		info->saddr.extended_addr = swab64(saddr.extended_addr);
-		break;
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		info->saddr.short_addr = swab16(saddr.short_addr);
-		break;
-	default:
-		BUG();
-	}
+	wpan_addr_to_lowpan_addr(&saddr, &info->saddr);
+
+	if (daddr.pan_id != saddr.pan_id)
+		return -EINVAL;
+
+	return 0;
 }
 
 static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
@@ -221,7 +216,12 @@ static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
 	if (!ieee802154_is_data(fc))
 		return RX_DROP_UNUSABLE;
 
-	lowpan_get_addr_info_from_hdr(hdr, info);
+	if (ieee802154_is_daddr_none(fc) ||
+	    ieee802154_is_saddr_none(fc))
+		return RX_DROP_UNUSABLE;
+
+	if (lowpan_get_addr_info_from_hdr(hdr, info) < 0)
+		return RX_DROP_UNUSABLE;
 
 	return RX_CONTINUE;
 }
@@ -250,6 +250,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		      struct packet_type *pt, struct net_device *orig_wdev)
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
+	struct sk_buff *nskb;
 
 	/* ldev should be assign to valid pointer here, see main.c */
 	if (!netif_running(ldev) && !netif_running(wdev))
@@ -261,9 +262,10 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (wdev->type != ARPHRD_IEEE802154)
 		goto drop;
 
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
+	nskb = skb_unshare(skb, GFP_ATOMIC);
+	if (!nskb)
 		goto drop;
+	skb = nskb;
 
 	skb->dev = ldev;
 	return ieee802154_invoke_rx_handlers(skb);

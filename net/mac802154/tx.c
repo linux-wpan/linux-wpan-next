@@ -56,6 +56,7 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
+	/* avoid a ifdown while transmit */
 	rtnl_lock();
 
 	if (!netif_running(skb->dev))

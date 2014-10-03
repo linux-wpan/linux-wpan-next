@@ -94,7 +94,7 @@ ieee802154_set_tx_power(struct wpan_phy *wpan_phy, s8 dbm)
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_TXPOWER))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (current_tx_power == dbm)
 		return 0;
@@ -118,7 +118,7 @@ ieee802154_set_cca_mode(struct wpan_phy *wpan_phy, const u8 cca_mode,
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (current_cca_mode == cca_mode &&
 	    current_cca_mode3_and == cca_mode3_and)
@@ -141,7 +141,7 @@ ieee802154_set_cca_ed_level(struct wpan_phy *wpan_phy, const s32 ed_level)
 	ASSERT_RTNL();
 
 	if (!(local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	return drv_set_cca_ed_level(local, ed_level);
 }

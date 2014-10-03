@@ -64,9 +64,24 @@ static inline bool lowpan_is_frag(const u8 dispatch)
 
 }
 
+static inline void lowpan_tag_increment(struct lowpan_dev_info *info)
+{
+	u16 tag = ntohs(info->fragment_tag);
+	tag++;
+	info->fragment_tag = htons(tag);
+}
+
 int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,
 			 unsigned short type, const void *_daddr,
 			 const void *_saddr, unsigned int len);
+int ieee802154_max_payload(const struct ieee802154_addr *daddr,
+			   const struct ieee802154_addr *saddr,
+			   const bool intra_pan);
+int ieee802154_create_h_data(struct sk_buff *skb,
+                             struct wpan_dev *wpan_dev,
+                             const struct ieee802154_addr *saddr,
+                             const struct ieee802154_addr *daddr,
+                             const bool ack_req);
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev);
 void lowpan_init_rx(void);
 void lowpan_cleanup_rx(void);

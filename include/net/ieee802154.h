@@ -125,14 +125,17 @@
 #define IEEE802154_FCTL_VERS                    0x3000
 #define IEEE802154_FCTL_SADDR                   0xc000
 
+#define IEEE802154_FCTL_ADDR			(IEEE802154_FCTL_DADDR | \
+						 IEEE802154_FCTL_SADDR)
+
 #define IEEE802154_FCTL_VERS_RESERVED		0x2000
 
-#define IEEE802154_FCTL_DADDR_NONE              0x0000
+#define IEEE802154_FCTL_ADDR_NONE		0x0000
+
 #define IEEE802154_FCTL_DADDR_RESERVED          0x0400
 #define IEEE802154_FCTL_DADDR_SHORT             0x0800
 #define IEEE802154_FCTL_DADDR_EXTENDED          0x0c00
 
-#define IEEE802154_FCTL_SADDR_NONE              0x0000
 #define IEEE802154_FCTL_SADDR_RESERVED          0x4000
 #define IEEE802154_FCTL_SADDR_SHORT             0x8000
 #define IEEE802154_FCTL_SADDR_EXTENDED          0xc000
@@ -255,7 +258,7 @@ static inline int ieee802154_is_vers_reserved(__le16 fc)
 static inline int ieee802154_is_daddr_none(__le16 fc)
 {
         return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
-                cpu_to_le16(IEEE802154_FCTL_DADDR_NONE);
+                cpu_to_le16(IEEE802154_FCTL_ADDR_NONE);
 }
 
 /**
@@ -319,7 +322,7 @@ static inline __le16 ieee802154_saddr_mode(__le16 fc)
 static inline int ieee802154_is_saddr_none(__le16 fc)
 {
         return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
-                cpu_to_le16(IEEE802154_FCTL_SADDR_NONE);
+                cpu_to_le16(IEEE802154_FCTL_ADDR_NONE);
 }
 
 /**
@@ -388,7 +391,7 @@ ieee802154_hdr_daddr(struct ieee802154_hdr *hdr)
 
 		memcpy(&addr.short_addr, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
 	default:
 		/* reserved should never happen */
@@ -418,7 +421,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 		payload += IEEE802154_PAN_ID_LEN +
 			   IEEE802154_SHORT_ADDR_LEN;
 		break;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
 	default:
 		/* reserved should never happen */
@@ -444,7 +447,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 
 		memcpy(&addr.short_addr, payload, IEEE802154_SHORT_ADDR_LEN);
 		break;
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
 	default:
 		/* reserved should never happen */
@@ -523,7 +526,7 @@ static inline bool ieee802154_is_valid_saddr(struct ieee802154_addr *addr)
 		return ieee802154_is_valid_extended_addr(addr->extended_addr);
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		return ieee802154_is_valid_short_saddr(addr->short_addr);
-	case cpu_to_le16(IEEE802154_FCTL_SADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		/* can be none on coordinators */
 		return true;
 	default:
@@ -543,7 +546,7 @@ static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr *addr)
 		return ieee802154_is_valid_extended_addr(addr->extended_addr);
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		return true;
-	case cpu_to_le16(IEEE802154_FCTL_DADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		/* should always available on frames with address modes */
 		return false;
 	default:
