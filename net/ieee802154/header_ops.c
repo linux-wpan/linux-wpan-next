@@ -152,7 +152,7 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	skb->mac_len = (u16)(buf_ptr - buf);
 
-	if (skb->len > IEEE802154_MTU)
+	if (skb->len > IEEE802154_MTU - 2)
 		return -EMSGSIZE;
 
 	return 0;

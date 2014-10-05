@@ -41,7 +41,7 @@ struct lowpan_addr_info {
 /* private device info */
 struct lowpan_dev_info {
 	struct net_device	*wdev; /* real WPAN device ptr */
-	__be16			fragment_tag;
+	u16			fragment_tag;
 	int			open_count;
 };
 
@@ -59,16 +59,7 @@ static inline u8 lowpan_get_frag_type(const u8 dispatch)
 static inline bool lowpan_is_frag(const u8 dispatch)
 {
 	const u8 tmp = lowpan_get_frag_type(dispatch);
-
 	return tmp == LOWPAN_DISPATCH_FRAG1 || tmp == LOWPAN_DISPATCH_FRAGN;
-
-}
-
-static inline void lowpan_tag_increment(struct lowpan_dev_info *info)
-{
-	u16 tag = ntohs(info->fragment_tag);
-	tag++;
-	info->fragment_tag = htons(tag);
 }
 
 int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,

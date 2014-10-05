@@ -500,17 +500,17 @@ static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
 
 /**
  * should only call with destination address */
-static inline bool ieee802154_is_broadcast(const __le16 addr)
+static inline bool ieee802154_is_short_broadcast(const __le16 short_addr)
 {
-	if (addr == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+	if (short_addr == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
 		return true;
 
 	return false;
 }
 
-static inline bool ieee802154_is_valid_short_saddr(const __le16 addr)
+static inline bool ieee802154_is_valid_short_saddr(const __le16 short_saddr)
 {
-	return !ieee802154_is_broadcast(addr);
+	return !ieee802154_is_short_broadcast(short_saddr);
 }
 
 /**

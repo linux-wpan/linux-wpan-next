@@ -70,6 +70,20 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	return 0;
 }
 
+struct lowpan_xmit_cb {
+	struct lowpan_dev_info info;
+	/* max value should be 1280 */
+	u16 dgram_size;
+	u16 dgram_offset;
+};
+
+static inline struct lowpan_xmit_cb *lowpan_xmit_cb(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(skb->cb) < (sizeof(struct lowpan_xmit_cb)));
+
+	return (struct lowpan_xmit_cb *)(skb->cb);
+}
+
 static struct sk_buff*
 lowpan_alloc_frag(struct sk_buff *skb, int size,
 		  const struct ieee802154_addr *daddr,
@@ -132,14 +146,16 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 	u8 frag_hdr[5];
 	int frag_cap, frag_len, payload_cap, rc;
 	int skb_unprocessed, skb_offset;
+	__be16 frag_tag;
 
-	dgram_size = lowpan_uncompress_size(skb, &dgram_offset);
-	lowpan_tag_increment(lowpan_dev_info(ldev));
+	dgram_size = lowpan_xmit_cb(skb)->dgram_size;
+	dgram_offset = lowpan_xmit_cb(skb)->dgram_offset;
+	frag_tag = htons(lowpan_dev_info(ldev)->fragment_tag);
 
 	frag_hdr[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x07);
 	frag_hdr[1] = dgram_size & 0xff;
-	memcpy(frag_hdr + 2, &lowpan_dev_info(ldev)->fragment_tag,
-	       sizeof(lowpan_dev_info(ldev)->fragment_tag));
+	memcpy(frag_hdr + 2, &frag_tag, sizeof(frag_tag));
+	lowpan_dev_info(ldev)->fragment_tag++;
 
 	payload_cap = ieee802154_max_payload(daddr, saddr, true);
 
@@ -155,7 +171,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 				  daddr, saddr);
 	if (rc) {
 		pr_debug("%s unable to send FRAG1 packet (tag: %d)",
-			 __func__, ntohs(lowpan_dev_info(ldev)->fragment_tag));
+			 __func__, frag_tag);
 		goto err;
 	}
 
@@ -175,9 +191,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 					  frag_len, daddr, saddr);
 		if (rc) {
 			pr_debug("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
-				 __func__,
-				 ntohs(lowpan_dev_info(ldev)->fragment_tag),
-				 skb_offset);
+				 __func__, frag_tag, skb_offset);
 			goto err;
 		}
 	} while (skb_unprocessed > frag_cap);
@@ -211,30 +225,19 @@ static void lowpan_addr_to_wpan_addr(struct lowpan_addr *laddr,
 }
 
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
-			 struct ieee802154_addr *da,
-			 struct ieee802154_addr *sa)
+			 struct lowpan_addr_info *info)
 {
-	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
-	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
-	struct lowpan_addr_info info;
 	void *daddr, *saddr;
 
-	/* TODO putting on stack needed? */
-	memcpy(&info, lowpan_skb_priv(skb), sizeof(info));
-
 	/* TODO complicated bug why we support extended_addr only */
-	daddr = &info.daddr.extended_addr;
-	saddr = &info.saddr.extended_addr;
+	daddr = &info->daddr.extended_addr;
+	saddr = &info->saddr.extended_addr;
 	
+	lowpan_xmit_cb(skb)->dgram_size = skb->len;
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
-
-	/* prepare wpan address data */
-	lowpan_addr_to_wpan_addr(&info.daddr, da);
-	sa->pan_id = wpan_dev->pan_id;
-
-	lowpan_addr_to_wpan_addr(&info.saddr, sa);
-	/* intra-PAN communications */
-	da->pan_id = sa->pan_id;
+	/* saved bytes after compression + lowpan header size */
+	lowpan_xmit_cb(skb)->dgram_offset = lowpan_xmit_cb(skb)->dgram_size -
+					    skb->len + skb_network_header_len(skb);
 
 	return 0;
 }
@@ -243,44 +246,70 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
 	struct wpan_dev *wpan_dev = wdev->ieee802154_ptr;
+	struct lowpan_addr_info info = *lowpan_skb_priv(skb);
 	struct ieee802154_addr daddr, saddr;
-	struct sk_buff *nskb;
 	int ret, max_single;
-
-	nskb = skb_unshare(skb, GFP_ATOMIC);
-	if (!skb) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-	skb = nskb;
 
 	ldev->stats.tx_packets++;
 	ldev->stats.tx_bytes += skb->len;
 
 	pr_debug("package xmit\n");
-	ret = lowpan_header(skb, ldev, &daddr, &saddr);
-	if (ret < 0) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
+
+	/* prepare wpan address data */
+	lowpan_addr_to_wpan_addr(&info.daddr, &daddr);
+	lowpan_addr_to_wpan_addr(&info.saddr, &saddr);
+	/* intra-PAN communications */
+	saddr.pan_id = wpan_dev->pan_id;
+	daddr.pan_id = saddr.pan_id;
 
 	max_single = ieee802154_max_payload(&daddr, &saddr, true);
-	if (ret < 0) {
+	if (max_single < 0) {
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}	       
 
-	if (skb->len <= max_single) {
+	/* check on current length with ipv6 dispatch */
+	/* TODO make this configureable via sysctl */
+	if (skb->len + 1 <= max_single) {
+		const u8 ipv6_dispatch = LOWPAN_DISPATCH_IPV6;
+
+		memcpy(skb_push(skb, sizeof(ipv6_dispatch)), &ipv6_dispatch,
+		       sizeof(ipv6_dispatch));
+
 		ret = ieee802154_create_h_data(skb, wpan_dev, &daddr, &saddr, true);
 		if (ret < 0) {
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
-	
-		skb->dev = lowpan_dev_info(ldev)->wdev;
+
+		skb->dev = wdev;
 		return dev_queue_xmit(skb);
 	} else {
-		pr_debug("frame is too big, fragmentation is needed\n");
-		return lowpan_xmit_fragmented(skb, ldev, &daddr, &saddr);
+		struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
+		if (!nskb) {
+			kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+		skb = nskb;
+
+		ret = lowpan_header(skb, ldev, &info);
+		if (ret < 0) {
+			kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+
+		if (skb->len <= max_single) {
+			ret = ieee802154_create_h_data(skb, wpan_dev, &daddr, &saddr, true);
+			if (ret < 0) {
+				kfree_skb(skb);
+				return NETDEV_TX_OK;
+			}
+
+			skb->dev = wdev;
+			return dev_queue_xmit(skb);
+		} else {
+			pr_debug("frame is too big, fragmentation is needed\n");
+			return lowpan_xmit_fragmented(skb, ldev, &daddr, &saddr);
+		}
 	}
 }

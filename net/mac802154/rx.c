@@ -107,7 +107,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		if (ieee802154_is_broadcast(daddr.short_addr))
+		if (ieee802154_is_short_broadcast(daddr.short_addr))
 			skb->pkt_type = PACKET_BROADCAST;
 		else if (daddr.short_addr == wpan_dev->short_addr)
 			skb->pkt_type = PACKET_HOST;
@@ -150,8 +150,8 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	if (!ieee802154_is_intra_pan(fc))
 		hdr_len += IEEE802154_PAN_ID_LEN;
 
-	if (daddr.pan_id != wpan_dev->pan_id &&
-	    !ieee802154_is_pan_broadcast(daddr.pan_id))
+	if (!ieee802154_is_pan_broadcast(daddr.pan_id) &&
+	    daddr.pan_id != wpan_dev->pan_id)
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	skb->dev = dev;
@@ -176,7 +176,7 @@ ieee802154_rx_h_ack(struct ieee802154_rx_data *rx)
 	/* Maybe useful for raw sockets? -> monitor vif type only */
 	if (ieee802154_is_ack(fc)) {
 		if (!(rx->local->hw.flags & IEEE802154_HW_AACK))
-			WARN_ONCE(1, "ACK frame received. Handling via PHY MAC sublayer only\n");
+			WARN_ONCE(1, "ACK frame received. Handling via PHY MAC sublayer only.\n");
 
 		return RX_DROP_UNUSABLE;
 	}

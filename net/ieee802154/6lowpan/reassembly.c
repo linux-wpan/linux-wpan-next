@@ -200,6 +200,7 @@ found:
 	else
 		fq->q.fragments = skb;
 
+	/* TODO figure out why this is here? */
 	dev = skb->dev;
 	if (dev)
 		skb->dev = NULL;
@@ -207,6 +208,7 @@ found:
 	fq->q.stamp = skb->tstamp;
 	if (frag_type == LOWPAN_DISPATCH_FRAG1) {
 		/* Calculate uncomp. 6lowpan header to estimate full size */
+		/* TODO remove this stupid hanlding, do it on the fly */
 		fq->q.meat += lowpan_uncompress_size(skb, NULL);
 		fq->q.flags |= INET_FRAG_FIRST_IN;
 	} else {

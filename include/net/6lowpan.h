@@ -225,6 +225,59 @@ static inline bool lowpan_is_ipv6(const u8 dispatch)
 
 }
 
+static inline bool lowpan_is_nalp(const u8 dispatch)
+{
+	return !(dispatch & 0xc0);
+
+}
+
+static inline bool lowpan_is_mesh(const u8 dispatch)
+{
+	return (dispatch & 0xc0) == 0x80;
+
+}
+
+static inline bool lowpan_is_hc1(const u8 dispatch)
+{
+	return dispatch == 0x42;
+
+}
+
+static inline bool lowpan_is_esc(const u8 dispatch)
+{
+	return dispatch == 0x7f;
+
+}
+
+static inline bool lowpan_is_reserved(const u8 dispatch)
+{
+	const u8 dispatch_major = dispatch & 0xc0;
+	const u8 dispatch_minor = dispatch & 0x3f;
+
+	switch (dispatch_major) {
+	case 0x60:
+		switch (dispatch_minor) {
+		case 3 ... 15:
+			return true;
+		case 17 ... 62:
+			return true;
+		default:
+			return false;
+		}
+	case 0xc0:
+		switch (dispatch_minor) {
+		case 8 ... 31:
+			return true;
+		case 40 ... 63:
+			return true;
+		default:
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
 static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 {
 	if (unlikely(!pskb_may_pull(skb, 1)))

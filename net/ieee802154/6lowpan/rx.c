@@ -139,6 +139,38 @@ static int lowpan_rx_h_ipv6(struct sk_buff *skb, struct lowpan_addr_info *info)
 	return RX_QUEUED;
 }
 
+static int lowpan_rx_h_nalp(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	if (!lowpan_is_nalp(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	return RX_DROP_UNUSABLE;
+}
+
+static int lowpan_rx_h_mesh(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	if (!lowpan_is_mesh(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	return RX_DROP_UNUSABLE;
+}
+
+static int lowpan_rx_h_esc(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	if (!lowpan_is_esc(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	return RX_DROP_UNUSABLE;
+}
+
+static int lowpan_rx_h_hc1(struct sk_buff *skb, struct lowpan_addr_info *info)
+{
+	if (!lowpan_is_hc1(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	return RX_DROP_UNUSABLE;
+}
+
 static int
 lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
 {
@@ -151,11 +183,13 @@ lowpan_rx_handlers(struct sk_buff *skb, struct lowpan_addr_info *info)
 			goto rxh_next;	\
 	} while (0);
 
-	/* first reassmble all frags */
-	CALL_RXH(lowpan_rx_h_frag);
 	/* likely at first */
+	CALL_RXH(lowpan_rx_h_nalp);
 	CALL_RXH(lowpan_rx_h_iphc);
 	CALL_RXH(lowpan_rx_h_ipv6);
+	CALL_RXH(lowpan_rx_h_hc1);
+	CALL_RXH(lowpan_rx_h_mesh);
+	CALL_RXH(lowpan_rx_h_esc);
 
 rxh_next:
 	return lowpan_rx_handlers_result(skb, ret);
@@ -181,6 +215,42 @@ static inline void wpan_addr_to_lowpan_addr(struct ieee802154_addr *waddr,
 	laddr->mode = waddr->mode;
 }
 
+static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
+					  struct lowpan_addr_info *info)
+{
+	if (skb->len < 2)
+		return RX_DROP_UNUSABLE;
+
+	/* check on reserved and nalp dispatch value */
+	if (lowpan_is_reserved(*skb_mac_header(skb)))
+		return RX_DROP_UNUSABLE;
+
+	return RX_CONTINUE;
+}
+
+int lowpan_invoke_rx_handlers(struct sk_buff *skb,
+				     struct lowpan_addr_info *info)
+{
+	int res;
+
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(skb, info);	\
+		if (res != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0)
+
+	/* frags's contains dispatch again */
+	/* TODO remove this stupid handling here */
+	CALL_RXH(lowpan_rx_h_frag);
+	CALL_RXH(lowpan_rx_h_check);
+
+	return lowpan_rx_handlers(skb, info);
+
+rxh_next:
+	return lowpan_rx_handlers_result(skb, res);
+}
+
 static inline int
 lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 			      struct lowpan_addr_info *info)
@@ -199,57 +269,35 @@ lowpan_get_addr_info_from_hdr(struct ieee802154_hdr *hdr,
 	return 0;
 }
 
-static lowpan_rx_result lowpan_rx_h_check(struct sk_buff *skb,
-					  struct lowpan_addr_info *info)
+static int lowpan_ieee802154_rx_h_check(struct sk_buff *skb,
+					struct lowpan_addr_info *info)
 {
 	struct ieee802154_hdr *hdr;
 	__le16 fc;
-
-	if (skb->len < 2)
-		return RX_DROP_UNUSABLE;
-
-	/* TODO check on reserved dispatch */
+	int ret;
 
 	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	fc = hdr->frame_control;
 
 	if (!ieee802154_is_data(fc))
-		return RX_DROP_UNUSABLE;
+		return -EINVAL;
 
 	if (ieee802154_is_daddr_none(fc) ||
 	    ieee802154_is_saddr_none(fc))
-		return RX_DROP_UNUSABLE;
+		return -EINVAL;
 
-	if (lowpan_get_addr_info_from_hdr(hdr, info) < 0)
-		return RX_DROP_UNUSABLE;
+	ret = lowpan_get_addr_info_from_hdr(hdr, info);
+	if (ret < 0)
+		return ret;
 
-	return RX_CONTINUE;
-}
-
-static int ieee802154_invoke_rx_handlers(struct sk_buff *skb)
-{
-	struct lowpan_addr_info info = { };
-	int res;
-
-#define CALL_RXH(rxh)			\
-	do {				\
-		res = rxh(skb, &info);	\
-		if (res != RX_CONTINUE)	\
-			goto rxh_next;	\
-	} while (0)
-
-	CALL_RXH(lowpan_rx_h_check);
-
-	return lowpan_rx_handlers(skb, &info);
-
-rxh_next:
-	return lowpan_rx_handlers_result(skb, res);
+	return 0;
 }
 
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		      struct packet_type *pt, struct net_device *orig_wdev)
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
+	struct lowpan_addr_info info = { };
 	struct sk_buff *nskb;
 
 	/* ldev should be assign to valid pointer here, see main.c */
@@ -262,13 +310,17 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (wdev->type != ARPHRD_IEEE802154)
 		goto drop;
 
+	if (lowpan_ieee802154_rx_h_check(skb, &info) < 0)
+		goto drop;
+
+	/* TODO move this handling, when we touch data */
 	nskb = skb_unshare(skb, GFP_ATOMIC);
 	if (!nskb)
 		goto drop;
 	skb = nskb;
 
 	skb->dev = ldev;
-	return ieee802154_invoke_rx_handlers(skb);
+	return lowpan_invoke_rx_handlers(skb, &info);
 drop:
 	return NET_RX_DROP;
 }
