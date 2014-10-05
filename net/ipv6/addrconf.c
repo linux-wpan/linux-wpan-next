@@ -69,7 +69,7 @@
 #include <net/sock.h>
 #include <net/snmp.h>
 
-#include <net/af_ieee802154.h>
+#include <net/ieee802154.h>
 #include <net/firewire.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
@@ -1779,9 +1779,9 @@ static int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 
 static int addrconf_ifid_eui64(u8 *eui, struct net_device *dev)
 {
-	if (dev->addr_len != IEEE802154_ADDR_LEN)
+	if (dev->addr_len != IEEE802154_ADDR_EXTENDED_LEN)
 		return -1;
-	memcpy(eui, dev->dev_addr, 8);
+	memcpy(eui, dev->dev_addr, IEEE802154_ADDR_EXTENDED_LEN);
 	eui[0] ^= 2;
 	return 0;
 }

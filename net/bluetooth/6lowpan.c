@@ -241,8 +241,8 @@ static int process_data(struct sk_buff *skb, struct net_device *netdev,
 		goto drop;
 
 	return lowpan_process_data(skb, netdev,
-				   saddr, IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
-				   daddr, IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
+				   saddr, IEEE802154_ADDR_EXTENDED, EUI64_ADDR_LEN,
+				   daddr, IEEE802154_ADDR_EXTENDED, EUI64_ADDR_LEN,
 				   iphc0, iphc1, give_skb_to_upper);
 
 drop:

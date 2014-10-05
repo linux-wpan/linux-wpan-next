@@ -91,7 +91,7 @@ static int uncompress_addr(struct sk_buff *skb,
 	case LOWPAN_IPHC_ADDR_03:
 		fail = false;
 		switch (addr_type) {
-		case IEEE802154_ADDR_LONG:
+		case IEEE802154_ADDR_EXTENDED:
 			/* fe:80::XXXX:XXXX:XXXX:XXXX
 			 *        \_________________/
 			 *              eui64
@@ -614,13 +614,6 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	 */
 	iphc0 = LOWPAN_DISPATCH_IPHC;
 	iphc1 = 0;
-
-	/* TODO: context lookup */
-
-	raw_dump_inline(__func__, "saddr",
-			(unsigned char *)_saddr, IEEE802154_ADDR_LEN);
-	raw_dump_inline(__func__, "daddr",
-			(unsigned char *)_daddr, IEEE802154_ADDR_LEN);
 
 	raw_dump_table(__func__, "sending raw skb network uncompressed packet",
 		       skb->data, skb->len);

@@ -26,21 +26,18 @@
 
 #include <linux/socket.h> /* for sa_family_t */
 
-enum {
-	IEEE802154_ADDR_NONE = 0x0,
-	/* RESERVED = 0x01, */
-	IEEE802154_ADDR_SHORT = 0x2, /* 16-bit address + PANid */
-	IEEE802154_ADDR_LONG = 0x3, /* 64-bit address + PANid */
+enum ieee802154_addr_mode {
+	IEEE802154_ADDR_NONE		= 0,
+	/* IEEE802154_ADDR_RESERVED	= 1, */
+	IEEE802154_ADDR_SHORT		= 2,
+	IEEE802154_ADDR_EXTENDED	= 3,
 };
 
-/* address length, octets */
-#define IEEE802154_ADDR_LEN	8
-
 struct ieee802154_addr_sa {
-	int addr_type;
 	u16 pan_id;
+	enum ieee802154_addr_mode mode;
 	union {
-		u8 hwaddr[IEEE802154_ADDR_LEN];
+		u64 extended_addr;
 		u16 short_addr;
 	};
 };

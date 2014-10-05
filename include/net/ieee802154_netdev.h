@@ -197,6 +197,8 @@ static inline void ieee802154_addr_from_sa(struct ieee802154_addr *a,
 	case IEEE802154_ADDR_LONG:
 		a->extended_addr = ieee802154_devaddr_from_raw(sa->hwaddr);
 		break;
+	default:
+		break;
 	}
 }
 

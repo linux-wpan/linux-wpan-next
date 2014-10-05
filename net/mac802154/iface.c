@@ -23,7 +23,6 @@
 
 #include <net/rtnetlink.h>
 #include <linux/nl802154.h>
-#include <net/af_ieee802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154.h>
 #include <net/cfg802154.h>
@@ -158,7 +157,7 @@ ieee802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGIFADDR:
 		sa->family = AF_IEEE802154;
-		sa->addr.addr_type = IEEE802154_ADDR_SHORT;
+		sa->addr.mode = IEEE802154_ADDR_SHORT;
 		sa->addr.pan_id = le16_to_cpu(wpan_dev->pan_id);
 		sa->addr.short_addr = le16_to_cpu(wpan_dev->short_addr);
 		break;
@@ -169,7 +168,7 @@ ieee802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		dev_warn(&dev->dev,
 			 "Using ioctl SIOCSIFADDR isn't recommened!\n");
 		if (sa->family != AF_IEEE802154 ||
-		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
+		    sa->addr.mode != IEEE802154_ADDR_SHORT ||
 		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||
 		    sa->addr.short_addr == IEEE802154_ADDR_BROADCAST ||
 		    sa->addr.short_addr == IEEE802154_ADDR_UNDEF)
@@ -314,8 +313,8 @@ ieee802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 		__be64_extended_addr = swab64(saddr.extended_addr);
 
 		memcpy(haddr, &__be64_extended_addr,
-		       IEEE802154_EXTENDED_ADDR_LEN);
-		return IEEE802154_EXTENDED_ADDR_LEN;
+		       IEEE802154_ADDR_EXTENDED_LEN);
+		return IEEE802154_ADDR_EXTENDED_LEN;
 	default:
 		return -EADDRNOTAVAIL;
 	}
@@ -346,8 +345,8 @@ static void ieee802154_wpan_free(struct net_device *dev)
 
 static void ieee802154_if_setup(struct net_device *dev)
 {
-	dev->addr_len		= IEEE802154_ADDR_LEN;
-	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
+	dev->addr_len		= IEEE802154_ADDR_EXTENDED_LEN;
+	memset(dev->broadcast, 0xff, IEEE802154_ADDR_EXTENDED_LEN);
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
 	dev->header_ops		= &ieee802154_header_ops;
@@ -422,16 +421,16 @@ int ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		goto err;
 
 	netdev_addr = swab64(local->hw.phy->perm_extended_addr);
-	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_EXTENDED_ADDR_LEN);
+	memcpy(ndev->perm_addr, &netdev_addr, IEEE802154_ADDR_EXTENDED_LEN);
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
-		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
+		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_ADDR_EXTENDED_LEN);
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		ndev->type = ARPHRD_IEEE802154_MONITOR;
 		/* monitor should set this to zero */
-		memset(ndev->dev_addr, 0, IEEE802154_EXTENDED_ADDR_LEN);
+		memset(ndev->dev_addr, 0, IEEE802154_ADDR_EXTENDED_LEN);
 		break;
 	case NL802154_IFTYPE_COORD:
 		ret = -EOPNOTSUPP;

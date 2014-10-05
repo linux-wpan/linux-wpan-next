@@ -74,7 +74,7 @@ static void *lowpan_addr_to_generic(struct lowpan_addr *addr, u8 *mode)
 	switch (addr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		*mode = IEEE802154_ADDR_LONG;
+		*mode = IEEE802154_ADDR_EXTENDED;
 		return &addr->extended_addr;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
@@ -109,9 +109,9 @@ static int lowpan_rx_h_iphc(struct sk_buff *skb, struct lowpan_addr_info *info)
 	saddr = lowpan_addr_to_generic(&info->saddr, &saddr_mode);
 
 	ret = lowpan_process_data(skb, skb->dev, saddr, saddr_mode,
-				  IEEE802154_ADDR_LEN, daddr, daddr_mode,
-				  IEEE802154_ADDR_LEN, iphc0, iphc1,
-				  lowpan_give_skb_to_devices);
+				  IEEE802154_ADDR_EXTENDED_LEN, daddr,
+				  daddr_mode, IEEE802154_ADDR_EXTENDED_LEN,
+				  iphc0, iphc1, lowpan_give_skb_to_devices);
 	if (ret < 0)
 		return RX_DROP_UNUSABLE;
 

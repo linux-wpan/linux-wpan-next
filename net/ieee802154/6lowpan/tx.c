@@ -57,15 +57,15 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	info = lowpan_skb_priv(skb);
 	if (lowpan_is_addr_broadcast(ldev, daddr)) {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
-		info->daddr.short_addr = cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST);
+		info->daddr.short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST);
 	} else {
 		info->daddr.mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
 		memcpy(&info->daddr.extended_addr, daddr,
-		       IEEE802154_EXTENDED_ADDR_LEN); 
+		       IEEE802154_ADDR_EXTENDED_LEN); 
 	}
 	
 	info->saddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
-	memcpy(&info->saddr.extended_addr, saddr, IEEE802154_EXTENDED_ADDR_LEN);
+	memcpy(&info->saddr.extended_addr, saddr, IEEE802154_ADDR_EXTENDED_LEN);
 
 	return 0;
 }

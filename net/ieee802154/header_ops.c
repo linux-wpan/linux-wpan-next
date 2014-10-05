@@ -24,22 +24,22 @@ static int ieee802154_addr_len(const __le16 mode, const bool intra_pan)
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		return 0;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		return IEEE802154_SHORT_ADDR_LEN +
+		return IEEE802154_ADDR_SHORT_LEN +
 		       IEEE802154_PAN_ID_LEN;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		return IEEE802154_EXTENDED_ADDR_LEN +
+		return IEEE802154_ADDR_EXTENDED_LEN +
 		       IEEE802154_PAN_ID_LEN;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		if (intra_pan)
-			return IEEE802154_SHORT_ADDR_LEN;
+			return IEEE802154_ADDR_SHORT_LEN;
 
-		return IEEE802154_SHORT_ADDR_LEN +
+		return IEEE802154_ADDR_SHORT_LEN +
 		       IEEE802154_PAN_ID_LEN;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
 		if (intra_pan)
-			return IEEE802154_EXTENDED_ADDR_LEN;
+			return IEEE802154_ADDR_EXTENDED_LEN;
 
-		return IEEE802154_EXTENDED_ADDR_LEN +
+		return IEEE802154_ADDR_EXTENDED_LEN +
 		       IEEE802154_PAN_ID_LEN;
 	default:
 		/* reserved should never happen */
@@ -93,15 +93,15 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
 		buf_ptr += IEEE802154_PAN_ID_LEN;
 
-		memcpy(buf_ptr, &daddr->extended_addr, IEEE802154_EXTENDED_ADDR_LEN);
-		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
+		memcpy(buf_ptr, &daddr->extended_addr, IEEE802154_ADDR_EXTENDED_LEN);
+		buf_ptr += IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		memcpy(buf_ptr, &daddr->pan_id, IEEE802154_PAN_ID_LEN);
 		buf_ptr += IEEE802154_PAN_ID_LEN;
 
-		memcpy(buf_ptr, &daddr->short_addr, IEEE802154_SHORT_ADDR_LEN);
-		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
+		memcpy(buf_ptr, &daddr->short_addr, IEEE802154_ADDR_SHORT_LEN);
+		buf_ptr += IEEE802154_ADDR_SHORT_LEN;
 		break;
 	default:
 		/* reserved and none should never happen */
@@ -118,8 +118,8 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
 		}
 
-		memcpy(buf_ptr, &saddr->extended_addr, IEEE802154_EXTENDED_ADDR_LEN);
-		buf_ptr += IEEE802154_EXTENDED_ADDR_LEN;
+		memcpy(buf_ptr, &saddr->extended_addr, IEEE802154_ADDR_EXTENDED_LEN);
+		buf_ptr += IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		if (saddr->pan_id != daddr->pan_id) {
@@ -129,8 +129,8 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 			fc |= cpu_to_le16(IEEE802154_FCTL_INTRA);
 		}
 
-		memcpy(buf_ptr, &saddr->short_addr, IEEE802154_SHORT_ADDR_LEN);
-		buf_ptr += IEEE802154_SHORT_ADDR_LEN;
+		memcpy(buf_ptr, &saddr->short_addr, IEEE802154_ADDR_SHORT_LEN);
+		buf_ptr += IEEE802154_ADDR_SHORT_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		/* TODO special handling if wpan_dev is coord */

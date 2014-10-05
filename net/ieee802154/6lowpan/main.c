@@ -123,7 +123,7 @@ static void lowpan_setup(struct net_device *ldev)
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 {
 	if (tb[IFLA_ADDRESS]) {
-		if (nla_len(tb[IFLA_ADDRESS]) != IEEE802154_ADDR_LEN)
+		if (nla_len(tb[IFLA_ADDRESS]) != IEEE802154_ADDR_EXTENDED_LEN)
 			return -EINVAL;
 	}
 	return 0;

@@ -33,10 +33,10 @@
 #define IEEE802154_MIN_FRAME_SIZE		5
 
 #define IEEE802154_PAN_ID_BROADCAST		0xffff
-#define IEEE802154_SHORT_ADDR_BROADCAST		0xffff
+#define IEEE802154_ADDR_SHORT_BROADCAST		0xffff
 
-#define IEEE802154_EXTENDED_ADDR_LEN		8
-#define IEEE802154_SHORT_ADDR_LEN		2
+#define IEEE802154_ADDR_EXTENDED_LEN		8
+#define IEEE802154_ADDR_SHORT_LEN		2
 #define IEEE802154_PAN_ID_LEN			2
 
 #define IEEE802154_MAX_PAGE		31
@@ -295,9 +295,9 @@ static inline size_t ieee802154_daddr_len(__le16 fc)
 {
 	switch (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		return IEEE802154_EXTENDED_ADDR_LEN;
+		return IEEE802154_ADDR_EXTENDED_LEN;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		return IEEE802154_SHORT_ADDR_LEN;
+		return IEEE802154_ADDR_SHORT_LEN;
 	default:
 		/* useful to check none here? should already check by _is_none 
 		 * functions.
@@ -359,9 +359,9 @@ static inline size_t ieee802154_saddr_len(__le16 fc)
 {
 	switch (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		return IEEE802154_EXTENDED_ADDR_LEN;
+		return IEEE802154_ADDR_EXTENDED_LEN;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		return IEEE802154_SHORT_ADDR_LEN;
+		return IEEE802154_ADDR_SHORT_LEN;
 	default:
 		/* reserved and none should never happen */
 		BUG();
@@ -383,13 +383,13 @@ ieee802154_hdr_daddr(struct ieee802154_hdr *hdr)
 		payload += IEEE802154_PAN_ID_LEN;
 
 		memcpy(&addr.extended_addr, payload,
-		       IEEE802154_EXTENDED_ADDR_LEN);
+		       IEEE802154_ADDR_EXTENDED_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
 		payload += IEEE802154_PAN_ID_LEN;
 
-		memcpy(&addr.short_addr, payload, IEEE802154_SHORT_ADDR_LEN);
+		memcpy(&addr.short_addr, payload, IEEE802154_ADDR_SHORT_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
@@ -414,12 +414,12 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
 		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
 		payload += IEEE802154_PAN_ID_LEN +
-			   IEEE802154_EXTENDED_ADDR_LEN;
+			   IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
 		payload += IEEE802154_PAN_ID_LEN +
-			   IEEE802154_SHORT_ADDR_LEN;
+			   IEEE802154_ADDR_SHORT_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
@@ -437,7 +437,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 		}
 
 		memcpy(&addr.extended_addr, payload,
-		       IEEE802154_EXTENDED_ADDR_LEN);
+		       IEEE802154_ADDR_EXTENDED_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 		if (!ieee802154_is_intra_pan(hdr->frame_control)) {
@@ -445,7 +445,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 			payload += IEEE802154_PAN_ID_LEN;
 		}
 
-		memcpy(&addr.short_addr, payload, IEEE802154_SHORT_ADDR_LEN);
+		memcpy(&addr.short_addr, payload, IEEE802154_ADDR_SHORT_LEN);
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		break;
@@ -467,25 +467,25 @@ static inline bool ieee802154_is_valid_frame_len(const u8 len)
 
 static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 {
-	static const u8 zero[IEEE802154_EXTENDED_ADDR_LEN] = { };
-	static const u8 full[IEEE802154_EXTENDED_ADDR_LEN] = { 0xff, 0xff,
+	static const u8 zero[IEEE802154_ADDR_EXTENDED_LEN] = { };
+	static const u8 full[IEEE802154_ADDR_EXTENDED_LEN] = { 0xff, 0xff,
 							       0xff, 0xff,
 							       0xff, 0xff,
 							       0xff, 0xff };
 
-	return memcmp(&addr, full, IEEE802154_EXTENDED_ADDR_LEN) ||
-	       memcmp(&addr, zero, IEEE802154_EXTENDED_ADDR_LEN);
+	return memcmp(&addr, full, IEEE802154_ADDR_EXTENDED_LEN) ||
+	       memcmp(&addr, zero, IEEE802154_ADDR_EXTENDED_LEN);
 }
 
 static inline __le64 ieee802154_random_extended_addr(void)
 {
 	__le64 addr;
 
-	get_random_bytes(&addr, IEEE802154_EXTENDED_ADDR_LEN);
+	get_random_bytes(&addr, IEEE802154_ADDR_EXTENDED_LEN);
 
 	/* toggle some bit if we hit an invalid extended addr */
 	if (!ieee802154_is_valid_extended_addr(addr))
-		((u8 *)&addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 1;
+		((u8 *)&addr)[IEEE802154_ADDR_EXTENDED_LEN - 1] ^= 1;
 
 	return addr;
 }
@@ -502,7 +502,7 @@ static inline bool ieee802154_is_pan_broadcast(const __le16 pan_id)
  * should only call with destination address */
 static inline bool ieee802154_is_short_broadcast(const __le16 short_addr)
 {
-	if (short_addr == cpu_to_le16(IEEE802154_SHORT_ADDR_BROADCAST))
+	if (short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST))
 		return true;
 
 	return false;

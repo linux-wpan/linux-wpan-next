@@ -501,7 +501,7 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 
 	short_addr = nla_get_u16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
-	if (short_addr == IEEE802154_SHORT_ADDR_BROADCAST)
+	if (short_addr == IEEE802154_ADDR_SHORT_BROADCAST)
 		return -EINVAL;
 
 	return rdev_set_short_addr(rdev, wpan_dev, short_addr);

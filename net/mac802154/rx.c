@@ -104,7 +104,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
-		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
+		hdr_len += IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
 		if (ieee802154_is_short_broadcast(daddr.short_addr))
@@ -114,7 +114,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 
-		hdr_len += IEEE802154_SHORT_ADDR_LEN;
+		hdr_len += IEEE802154_ADDR_SHORT_LEN;
 		break;
 	default:
 		/* reserved and none should never happen */
@@ -123,10 +123,10 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 
 	switch (saddr.mode) {
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		hdr_len += IEEE802154_EXTENDED_ADDR_LEN;
+		hdr_len += IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
-		hdr_len += IEEE802154_SHORT_ADDR_LEN;
+		hdr_len += IEEE802154_ADDR_SHORT_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
 		/* 802.15.4-2011 comment:
