@@ -703,6 +703,8 @@ at86rf230_tx_complete(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 	struct sk_buff *skb = lp->tx_skb;
 
+	enable_irq(lp->spi->irq);
+
 	if (lp->tx_max_frame_retries > 0) {
 		ieee802154_xmit_complete(lp->hw, skb);
 		return;
@@ -865,7 +867,6 @@ at86rf230_irq_trx_end(struct at86rf230_local *lp)
 	if (lp->is_tx) {
 		lp->is_tx = 0;
 		spin_unlock(&lp->lock);
-		enable_irq(lp->spi->irq);
 
 		if (lp->tx_aret)
 			return at86rf230_async_state_change(lp, &lp->irq,
