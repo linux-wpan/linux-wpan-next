@@ -759,11 +759,6 @@ at86rf230_tx_trac_check(void *context)
 	const u8 trac = (buf[1] & 0xe0) >> 5;
 	int rc;
 
-	if (lp->tx_max_frame_retries == 0) {
-		at86rf230_tx_on(context);
-		return;
-	}
-
 	/* If trac status is different than zero we need to do a state change
 	 * to STATE_FORCE_TRX_OFF then STATE_TX_ON to recover the transceiver
 	 * state to TX_ON.
