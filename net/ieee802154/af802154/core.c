@@ -42,6 +42,9 @@
 
 #include "af802154_i.h"
 
+extern struct proto ieee802154_raw_prot;
+extern struct proto ieee802154_dgram_prot;
+
 /* Utility function for families */
 struct net_device*
 ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
@@ -54,8 +57,7 @@ ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
 	rtnl_lock();
 	for_each_netdev(net, tmp) {
 		if (tmp->type != ARPHRD_IEEE802154 ||
-		    tmp->type != ARPHRD_IEEE802154_MONITOR ||
-		    netif_running(tmp) || !tmp->ieee802154_ptr)
+		    !tmp->ieee802154_ptr)
 			continue;
 
 		switch (addr->mode) {
@@ -337,7 +339,6 @@ static int __init af_ieee802154_init(void)
 {
 	int rc = -EINVAL;
 
-	return rc;
 	rc = proto_register(&ieee802154_raw_prot, 1);
 	if (rc)
 		goto out;
@@ -352,6 +353,7 @@ static int __init af_ieee802154_init(void)
 		goto err_sock;
 	dev_add_pack(&ieee802154_packet_type);
 
+
 	rc = 0;
 	goto out;
 
@@ -364,7 +366,6 @@ out:
 }
 static void __exit af_ieee802154_remove(void)
 {
-	return;
 	dev_remove_pack(&ieee802154_packet_type);
 	sock_unregister(PF_IEEE802154);
 	proto_unregister(&ieee802154_dgram_prot);

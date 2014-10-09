@@ -24,7 +24,8 @@
 #ifndef _AF_IEEE802154_H
 #define _AF_IEEE802154_H
 
-#include <linux/socket.h> /* for sa_family_t */
+#include <linux/types.h>
+#include <linux/socket.h>
 
 enum ieee802154_addr_mode {
 	IEEE802154_ADDR_NONE		= 0,
@@ -34,11 +35,11 @@ enum ieee802154_addr_mode {
 };
 
 struct ieee802154_addr_sa {
-	u16 pan_id;
 	enum ieee802154_addr_mode mode;
+	__u16 pan_id;
 	union {
-		u64 extended_addr;
-		u16 short_addr;
+		__u64 extended_addr;
+		__u16 short_addr;
 	};
 };
 
@@ -64,4 +65,4 @@ struct sockaddr_ieee802154 {
 
 #define WPAN_SECURITY_LEVEL_DEFAULT	(-1)
 
-#endif
+#endif /* _AF_IEEE802154_H */

@@ -56,26 +56,6 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
-static void ieee802154_addr_from_sa(struct ieee802154_addr *addr,
-				    const struct ieee802154_addr_sa *sa)
-{
-	switch (sa->mode) {
-	case IEEE802154_ADDR_SHORT:
-		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT);
-		addr->pan_id = cpu_to_le16(sa->pan_id);
-		addr->short_addr = cpu_to_le16(sa->short_addr);
-		break;
-	case IEEE802154_ADDR_EXTENDED:
-		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
-		addr->pan_id = cpu_to_le16(sa->pan_id);
-		addr->extended_addr = cpu_to_le64(sa->extended_addr);
-		break;
-	case IEEE802154_ADDR_NONE:
-		addr->mode = cpu_to_le16(IEEE802154_FCTL_ADDR_NONE);
-		break;
-	}
-}
-
 static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 {
 	struct ieee802154_addr addr;
@@ -92,8 +72,7 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 
 	lock_sock(sk);
 
-	ieee802154_addr_from_sa(&addr, &uaddr->addr);
-
+	ieee802154_addr_from_sa(&addr, &uaddr->addr, true);
 	dev = ieee802154_get_dev(sock_net(sk), &addr);
 	if (!dev) {
 		err = -ENODEV;
