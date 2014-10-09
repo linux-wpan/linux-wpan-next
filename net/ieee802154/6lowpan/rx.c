@@ -298,7 +298,6 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 	struct lowpan_addr_info info = { };
-	struct sk_buff *nskb;
 
 	/* ldev should be assign to valid pointer here, see main.c */
 	if (!netif_running(ldev) && !netif_running(wdev))
@@ -313,11 +312,9 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (lowpan_ieee802154_rx_h_check(skb, &info) < 0)
 		goto drop;
 
-	/* TODO move this handling, when we touch data */
-	nskb = skb_unshare(skb, GFP_ATOMIC);
-	if (!nskb)
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		goto drop;
-	skb = nskb;
 
 	skb->dev = ldev;
 	return lowpan_invoke_rx_handlers(skb, &info);

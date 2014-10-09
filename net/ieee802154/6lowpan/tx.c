@@ -285,12 +285,9 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 		skb->dev = wdev;
 		return dev_queue_xmit(skb);
 	} else {
-		struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
-		if (!nskb) {
-			kfree_skb(skb);
+		skb = skb_unshare(skb, GFP_ATOMIC);
+		if (!skb)
 			return NETDEV_TX_OK;
-		}
-		skb = nskb;
 
 		ret = lowpan_header(skb, ldev, &info);
 		if (ret < 0) {
