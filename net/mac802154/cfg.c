@@ -164,7 +164,7 @@ static int ieee802154_set_short_addr(struct wpan_phy *wpan_phy,
 
 	ASSERT_RTNL();
 
-	wpan_dev->pan_id = __le16_short_addr;
+	wpan_dev->short_addr = __le16_short_addr;
 	return 0;
 }
 
