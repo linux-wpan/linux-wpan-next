@@ -293,15 +293,12 @@ static int lowpan_ieee802154_rx_h_check(struct sk_buff *skb,
 	return 0;
 }
 
+/* ldev should be running, see open_count main.c */
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		      struct packet_type *pt, struct net_device *orig_wdev)
 {
 	struct net_device *ldev = wdev->ieee802154_ptr->lowpan_dev;
 	struct lowpan_addr_info info = { };
-
-	/* ldev should be assign to valid pointer here, see main.c */
-	if (!netif_running(ldev) && !netif_running(wdev))
-		goto drop;
 
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;

@@ -23,7 +23,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/crc-ccitt.h>
 #include <linux/nl802154.h>
@@ -327,10 +326,10 @@ ieee802154_rx_monitor(struct ieee802154_local *local, struct sk_buff *skb)
 		if (skb2) {
 			skb2->dev = sdata->dev;
 			netif_receive_skb(skb2);
-		}
 
-		sdata->dev->stats.rx_packets++;
-		sdata->dev->stats.rx_bytes += skb->len;
+			sdata->dev->stats.rx_packets++;
+			sdata->dev->stats.rx_bytes += skb->len;
+		}
 	}
 }
 

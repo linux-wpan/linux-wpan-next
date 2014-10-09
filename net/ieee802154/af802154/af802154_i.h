@@ -26,24 +26,37 @@
 
 #include <net/ieee802154.h>
 
-static inline void ieee802154_addr_from_sa(struct ieee802154_addr *addr,
-					   const struct ieee802154_addr_sa *sa,
-					   const bool src)
+static inline void ieee802154_daddr_from_sa(struct ieee802154_addr *addr,
+					    const struct ieee802154_addr_sa *sa)
 {
 	switch (sa->mode) {
 	case IEEE802154_ADDR_SHORT:
-		if (src)
-			addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT);
-		else
-			addr->mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT);
 		addr->pan_id = cpu_to_le16(sa->pan_id);
 		addr->short_addr = cpu_to_le16(sa->short_addr);
 		break;
 	case IEEE802154_ADDR_EXTENDED:
-		if (src)
-			addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
-		else
-			addr->mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED);
+		addr->pan_id = cpu_to_le16(sa->pan_id);
+		addr->extended_addr = cpu_to_le64(sa->extended_addr);
+		break;
+	case IEEE802154_ADDR_NONE:
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_ADDR_NONE);
+		break;
+	}
+}
+
+static inline void ieee802154_saddr_from_sa(struct ieee802154_addr *addr,
+					    const struct ieee802154_addr_sa *sa)
+{
+	switch (sa->mode) {
+	case IEEE802154_ADDR_SHORT:
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT);
+		addr->pan_id = cpu_to_le16(sa->pan_id);
+		addr->short_addr = cpu_to_le16(sa->short_addr);
+		break;
+	case IEEE802154_ADDR_EXTENDED:
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
 		addr->pan_id = cpu_to_le16(sa->pan_id);
 		addr->extended_addr = cpu_to_le64(sa->extended_addr);
 		break;

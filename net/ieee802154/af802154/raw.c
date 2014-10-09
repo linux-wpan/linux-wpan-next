@@ -72,7 +72,7 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 
 	lock_sock(sk);
 
-	ieee802154_addr_from_sa(&addr, &uaddr->addr, true);
+	ieee802154_saddr_from_sa(&addr, &uaddr->addr);
 	dev = ieee802154_get_dev(sock_net(sk), &addr);
 	if (!dev) {
 		err = -ENODEV;

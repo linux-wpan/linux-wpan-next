@@ -412,12 +412,16 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 	/* pan_id only available on non none address mode */
 	switch (ieee802154_daddr_mode(hdr->frame_control)) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
-		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		if (ieee802154_is_intra_pan(hdr->frame_control))
+			memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+
 		payload += IEEE802154_PAN_ID_LEN +
 			   IEEE802154_ADDR_EXTENDED_LEN;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
-		memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+		if (ieee802154_is_intra_pan(hdr->frame_control))
+			memcpy(&addr.pan_id, payload, IEEE802154_PAN_ID_LEN);
+
 		payload += IEEE802154_PAN_ID_LEN +
 			   IEEE802154_ADDR_SHORT_LEN;
 		break;

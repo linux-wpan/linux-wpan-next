@@ -106,7 +106,7 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 	if (addr->family != AF_IEEE802154)
 		goto out;
 
-	ieee802154_addr_from_sa(&haddr, &addr->addr, true);
+	ieee802154_saddr_from_sa(&haddr, &addr->addr);
 	dev = ieee802154_get_dev(sock_net(sk), &haddr);
 	if (!dev) {
 		err = -ENODEV;
@@ -186,7 +186,7 @@ static int dgram_connect(struct sock *sk, struct sockaddr *uaddr,
 		goto out;
 	}
 
-	ieee802154_addr_from_sa(&ro->dst_addr, &addr->addr, false);
+	ieee802154_daddr_from_sa(&ro->dst_addr, &addr->addr);
 	ro->connected = 1;
 
 out:
@@ -268,7 +268,7 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 		DECLARE_SOCKADDR(struct sockaddr_ieee802154*,
 				 daddr, msg->msg_name);
 
-		ieee802154_addr_from_sa(&dst_addr, &daddr->addr, false);
+		ieee802154_daddr_from_sa(&dst_addr, &daddr->addr);
 	} else {
 		dst_addr = ro->dst_addr;
 	}
