@@ -20,6 +20,7 @@
 #include <net/ieee802154.h>
 #include <crypto/algapi.h>
 
+#include "llsec.h"
 #include "ieee802154_i.h"
 
 static void llsec_key_put(struct mac802154_llsec_key *key);
