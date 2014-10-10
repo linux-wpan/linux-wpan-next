@@ -821,7 +821,7 @@ at86rf230_rx_read_frame_complete(void *context)
 		len = IEEE802154_MTU;
 	}
 
-	at86rf230_rx(lp, buf + 2, len - 2, buf[2 + len]);
+	at86rf230_rx(lp, buf + 2, len, buf[2 + len]);
 }
 
 static int
@@ -1456,10 +1456,10 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	}
 
 	lp->hw->extra_tx_headroom = 0;
-	lp->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
-			IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
-			IEEE802154_HW_AFILT | IEEE802154_HW_CCA_ED_LEVEL |
-			IEEE802154_HW_PROMISCUOUS;
+	lp->hw->flags = IEEE802154_HW_AACK | IEEE802154_HW_TXPOWER |
+			IEEE802154_HW_ARET | IEEE802154_HW_AFILT |
+			IEEE802154_HW_CCA_ED_LEVEL | IEEE802154_HW_PROMISCUOUS |
+			IEEE802154_HW_FILT_CKSUM | IEEE802154_HW_TX_OMIT_CKSUM;
 
 	switch (part) {
 	case 2:
@@ -1666,7 +1666,6 @@ static struct spi_driver at86rf230_driver = {
 	.probe      = at86rf230_probe,
 	.remove     = at86rf230_remove,
 };
-
 module_spi_driver(at86rf230_driver);
 
 MODULE_DESCRIPTION("AT86RF230 Transceiver Driver");

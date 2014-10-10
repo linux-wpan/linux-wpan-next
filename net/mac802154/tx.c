@@ -130,12 +130,9 @@ netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
 
-	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
-		u16 crc = crc_ccitt(0, skb->data, skb->len);
-		u8 *data = skb_put(skb, 2);
-
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
+	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
+		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));
+		memcpy(skb_put(skb, sizeof(crc)), &crc, sizeof(crc));
 	}
 
 	if (skb_cow_head(skb, local->hw.extra_tx_headroom)) {

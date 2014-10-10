@@ -157,7 +157,11 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
 
+	/* remove mac header */
 	skb_pull(skb, hdr_len);
+	/* remove crc */
+	if (!(rx->local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM))
+		skb_trim(skb, skb->len - 2);
 
 	ieee802154_deliver_skb(rx);
 
@@ -225,7 +229,18 @@ static ieee802154_rx_result
 ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 {
 	struct sk_buff *skb = rx->skb;
-	__le16 fc;
+	__le16 fc, crc;
+
+	/* check if transceiver doesn't valid checksum, we validate
+	 * the checksum here.
+	 */
+	if (!(rx->local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM) &&
+	    !(rx->local->hw.flags & IEEE802154_HW_FILT_CKSUM)) {
+		memcpy(&crc, skb_tail_pointer(skb) - sizeof(crc), sizeof(crc));
+		if (!crc_ccitt(le16_to_cpu(crc), skb->data,
+			       skb->len - sizeof(crc)))
+			return RX_DROP_UNUSABLE;
+	}
 
 	fc = ((struct ieee802154_hdr *)skb->data)->frame_control;
 
@@ -322,6 +337,7 @@ ieee802154_rx_monitor(struct ieee802154_local *local, struct sk_buff *skb)
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
+		/* skb_copy here because we manipulate crc afterwards */
 		skb2 = skb_clone(skb, GFP_ATOMIC);
 		if (skb2) {
 			skb2->dev = sdata->dev;
@@ -339,19 +355,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	/* TODO this don't work for FCS with monitor vifs
-	 * also some drivers don't deliver with crc and drop
-	 * it on driver layer, something is wrong here. */
-	if (!(hw->flags & IEEE802154_HW_OMIT_CKSUM)) {
-		u16 crc;
-
-		crc = crc_ccitt(0, skb->data, skb->len);
-		if (crc)
-			goto drop;
-		/* remove the crc from frame */
-		skb_trim(skb, skb->len - 2);
-	}
-
 	rcu_read_lock();
 
 	ieee802154_rx_monitor(local, skb);
@@ -360,11 +363,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	rcu_read_unlock();
 
 	consume_skb(skb);
-
-	return;
-
-drop:
-	kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
 
