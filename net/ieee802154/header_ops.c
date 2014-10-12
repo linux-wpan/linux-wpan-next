@@ -73,7 +73,7 @@ int ieee802154_max_payload(const struct ieee802154_addr *daddr,
 
 	/* TODO security fixme */
 
-	return IEEE802154_MTU - hlen - IEEE802154_MFR_SIZE;
+	return IEEE802154_MTU - hlen - IEEE802154_FCS_LEN;
 }
 EXPORT_SYMBOL_GPL(ieee802154_max_payload);
 

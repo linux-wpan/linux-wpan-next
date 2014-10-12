@@ -160,8 +160,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	/* remove mac header */
 	skb_pull(skb, hdr_len);
 	/* remove crc */
-	if (!(rx->local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM))
-		skb_trim(skb, skb->len - 2);
+	skb_trim(skb, skb->len - IEEE802154_FCS_LEN);
 
 	ieee802154_deliver_skb(rx);
 
@@ -234,8 +233,7 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	/* check if transceiver doesn't valid checksum, we validate
 	 * the checksum here.
 	 */
-	if (!(rx->local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM) &&
-	    !(rx->local->hw.flags & IEEE802154_HW_FILT_CKSUM)) {
+	if (!(rx->local->hw.flags & IEEE802154_HW_FILT_CKSUM)) {
 		memcpy(&crc, skb_tail_pointer(skb) - sizeof(crc), sizeof(crc));
 		if (!crc_ccitt(le16_to_cpu(crc), skb->data,
 			       skb->len - sizeof(crc)))
@@ -337,7 +335,6 @@ ieee802154_rx_monitor(struct ieee802154_local *local, struct sk_buff *skb)
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
-		/* skb_copy here because we manipulate crc afterwards */
 		skb2 = skb_clone(skb, GFP_ATOMIC);
 		if (skb2) {
 			skb2->dev = sdata->dev;
@@ -356,6 +353,15 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	WARN_ON_ONCE(softirq_count() == 0);
 
 	rcu_read_lock();
+
+	/* Add crc checksum, required by monitor. We calculate some, here.
+	 * TODO: this is an ugly handling because we need transmitted crc
+	 * here.
+	 */
+	if (hw->flags & IEEE802154_HW_RX_OMIT_CKSUM) {
+		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));
+		memcpy(skb_put(skb, sizeof(crc)), &crc, sizeof(crc));
+	}
 
 	ieee802154_rx_monitor(local, skb);
 	__ieee802154_rx_handle_packet(hw, skb);

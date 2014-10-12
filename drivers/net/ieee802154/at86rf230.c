@@ -1455,7 +1455,6 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	lp->hw->extra_tx_headroom = 0;
 	lp->hw->flags = IEEE802154_HW_AACK | IEEE802154_HW_TXPOWER |
 			IEEE802154_HW_ARET | IEEE802154_HW_AFILT |
 			IEEE802154_HW_CCA_ED_LEVEL | IEEE802154_HW_PROMISCUOUS |

@@ -89,6 +89,11 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	struct ieee802154_xmit_cb *cb = ieee802154_xmit_cb(skb);
 	int ret;
 
+	if (skb_cow_head(skb, local->hw.extra_tx_headroom)) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
 	skb->skb_iif = skb->dev->ifindex;
 
 	/* Stop the netif queue on each sub_if_data object. */
@@ -133,11 +138,6 @@ netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
 		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));
 		memcpy(skb_put(skb, sizeof(crc)), &crc, sizeof(crc));
-	}
-
-	if (skb_cow_head(skb, local->hw.extra_tx_headroom)) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
 	}
 
 	return ieee802154_tx(local, skb);

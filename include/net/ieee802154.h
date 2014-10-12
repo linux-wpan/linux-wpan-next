@@ -30,7 +30,8 @@
 #include <linux/random.h>
 
 #define IEEE802154_MTU				127
-#define IEEE802154_MIN_FRAME_SIZE		5
+#define IEEE802154_MIN_FRAME_LEN		5
+#define IEEE802154_FCS_LEN			2
 
 #define IEEE802154_PAN_ID_BROADCAST		0xffff
 #define IEEE802154_ADDR_SHORT_BROADCAST		0xffff
@@ -100,9 +101,6 @@
 #define IEEE802154_SCF_SECLEVEL_ENC_MIC32	5
 #define IEEE802154_SCF_SECLEVEL_ENC_MIC64	6
 #define IEEE802154_SCF_SECLEVEL_ENC_MIC128	7
-
-/* MAC footer size */
-#define IEEE802154_MFR_SIZE	2 /* 2 octets */
 
 /* MAC's Command Frames Identifiers */
 #define IEEE802154_CMD_ASSOCIATION_REQ		0x01
@@ -463,7 +461,7 @@ ieee802154_hdr_saddr(struct ieee802154_hdr *hdr)
 
 static inline bool ieee802154_is_valid_frame_len(const u8 len)
 {
-	if (len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_SIZE)
+	if (len > IEEE802154_MTU || len < IEEE802154_MIN_FRAME_LEN)
 		return false;
 
 	return true;
