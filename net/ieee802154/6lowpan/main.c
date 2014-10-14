@@ -59,27 +59,6 @@
 #include "6lowpan_i.h"
 #include "reassembly.h"
 
-static int lowpan_set_address(struct net_device *ldev, void *p)
-{
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
-	struct sockaddr *sa = p;
-	int ret;
-
-	ASSERT_RTNL();
-
-	if (netif_running(ldev))
-		return -EBUSY;
-
-	ret = wdev->netdev_ops->ndo_set_mac_address(wdev, p);
-	if (ret < 0)
-		return ret;
-
-	/* address validation should already done by wpan dev call */
-	memcpy(ldev->dev_addr, sa->sa_data, ldev->addr_len);
-
-	return ret;
-}
-
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -106,7 +85,6 @@ static int lowpan_dev_init(struct net_device *ldev)
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
-	.ndo_set_mac_address	= lowpan_set_address,
 };
 
 static void lowpan_setup(struct net_device *ldev)
@@ -155,12 +133,9 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 		return -EBUSY;
 	}
 
-	dev_hold(ldev);
 	wdev->ieee802154_ptr->lowpan_dev = ldev;
 	lowpan_dev_info(ldev)->wdev = wdev;
-	/* private data of lowpan dev set the wdev, init rx handling here */
-	if (!lowpan_dev_info(ldev)->open_count)
-		lowpan_init_rx();
+	lowpan_init_rx();
 
 	/* Set the lowpan harware address to the wpan hardware address. */
 	ldev->addr_len = wdev->addr_len;
@@ -174,8 +149,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 		wdev->ieee802154_ptr->lowpan_dev = NULL;
 		dev_put(ldev);
 		dev_put(wdev);
-	} else {
-		lowpan_dev_info(ldev)->open_count++;
 	}
 
 	return ret;
@@ -190,11 +163,8 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 
 	unregister_netdevice_queue(ldev, head);
 	wdev->ieee802154_ptr->lowpan_dev = NULL;
-	dev_put(ldev);
+	lowpan_cleanup_rx();
 	dev_put(wdev);
-	lowpan_dev_info(ldev)->open_count--;
-	if (!lowpan_dev_info(ldev)->open_count)
-		lowpan_cleanup_rx();
 }
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {

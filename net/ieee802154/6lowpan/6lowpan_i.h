@@ -42,7 +42,6 @@ struct lowpan_addr_info {
 struct lowpan_dev_info {
 	struct net_device	*wdev; /* real WPAN device ptr */
 	u16			fragment_tag;
-	int			open_count;
 };
 
 static inline struct

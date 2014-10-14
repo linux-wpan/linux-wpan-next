@@ -187,23 +187,32 @@ ieee802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int ieee802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct net_device *ldev = dev->ieee802154_ptr->lowpan_dev;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	__le64 __le64_extended_addr;
 	struct sockaddr *addr = p;
 
 	ASSERT_RTNL();
 
-	if (wpan_dev_is_monitor(wpan_dev))
-		return -EINVAL;
-
+	/* check if running and if lowpan exist */
 	if (ieee802154_sdata_running(sdata))
 		return -EBUSY;
+
+	if (wpan_dev_is_monitor(wpan_dev))
+		return -EINVAL;
 
 	/* big endian to little */
 	__le64_extended_addr = swab64(*((__be64 *)addr->sa_data));
 
 	if (!ieee802154_is_valid_extended_addr(__le64_extended_addr))
 		return -EINVAL;
+
+	if (ldev) {
+		if (netif_running(ldev))
+			return -EBUSY;
+
+		memcpy(ldev->dev_addr, addr->sa_data, dev->addr_len);
+	}	
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	wpan_dev->extended_addr = __le64_extended_addr;
