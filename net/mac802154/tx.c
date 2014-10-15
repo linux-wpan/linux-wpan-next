@@ -54,7 +54,7 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 		container_of(work, struct ieee802154_xmit_cb, work);
 	struct ieee802154_local *local = cb->local;
 	struct sk_buff *skb = cb->skb;
-	int res;
+	int ret;
 
 	/* avoid a ifdown while transmit */
 	rtnl_lock();
@@ -62,8 +62,8 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 	if (!netif_running(skb->dev))
 		goto err_tx;
 
-	res = drv_xmit_sync(local, skb);
-	if (res)
+	ret = drv_xmit_sync(local, skb);
+	if (ret)
 		goto err_tx;
 
 	rtnl_unlock();
@@ -134,6 +134,14 @@ netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
+	int ret;
+
+	ret = mac802154_llsec_encrypt(&sdata->sec, skb);
+	if (ret) {
+		pr_warn("encryption failed: %d\n", ret);
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
 		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));

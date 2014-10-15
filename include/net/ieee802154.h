@@ -127,6 +127,8 @@
 						 IEEE802154_FCTL_SADDR)
 
 #define IEEE802154_FCTL_VERS_RESERVED		0x2000
+/* 802.15.4-2003 frame compatible */
+#define IEEE802154_FCTL_VERS_ZERO		0x0000
 
 #define IEEE802154_FCTL_ADDR_NONE		0x0000
 
@@ -229,7 +231,7 @@ struct ieee802154_llsec_key_id {
 };
 
 struct ieee802154_llsec_key {
-	u8 frame_types;
+	__le16 ftype;
 	u32 cmd_frame_ids;
 	u8 key[IEEE802154_LLSEC_KEY_SIZE];
 };
@@ -299,6 +301,16 @@ struct ieee802154_llsec_table {
 	struct list_head security_levels;
 };
 
+static inline int ieee802154_is_sec(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_SEC));
+}
+
+static inline int ieee802154_ftype(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_FTYPE);
+}
+
 /**
  * ieee802154_is_beacon - check if type is IEEE802154_FTYPE_BEACON
  * @fc: frame control bytes in little-endian byteorder
@@ -365,6 +377,12 @@ static inline int ieee802154_is_intra_pan(__le16 fc)
 static inline __le16 ieee802154_daddr_mode(__le16 fc)
 {
         return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
+}
+
+static inline int ieee802154_is_vers_zero(__le16 fc)
+{
+        return (fc & cpu_to_le16(IEEE802154_FCTL_VERS)) &
+                cpu_to_le16(IEEE802154_FCTL_VERS_ZERO);
 }
 
 /**

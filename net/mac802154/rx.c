@@ -79,6 +79,7 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	__le16 fc;
 	u16 hdr_len = 5;
+	int ret;
 
 	hdr = (struct ieee802154_hdr *)skb_mac_header(skb);
 	fc = hdr->frame_control;
@@ -154,6 +155,13 @@ ieee802154_rx_h_data(struct ieee802154_rx_data *rx)
 		skb->pkt_type = PACKET_OTHERHOST;
 
 	skb->dev = dev;
+	
+	ret = mac802154_llsec_decrypt(&sdata->sec, skb);
+	if (ret) {
+		pr_debug("decryption failed: %d\n", ret);
+		return RX_DROP_UNUSABLE;
+	}
+
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
 

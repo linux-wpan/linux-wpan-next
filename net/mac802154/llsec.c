@@ -223,8 +223,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 	struct mac802154_llsec_key *mkey = NULL;
 	struct ieee802154_llsec_key_entry *pos, *new;
 
-	if (!(key->frame_types & (1 << IEEE802154_FC_TYPE_MAC_CMD)) &&
-	    key->cmd_frame_ids)
+	if (!(ieee802154_is_cmd(key->ftype)) && key->cmd_frame_ids)
 		return -EINVAL;
 
 	list_for_each_entry(pos, &sec->table.keys, list) {
@@ -241,7 +240,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 		 * different allowed frame types/command frame ids, as this is
 		 * not possible in the 802.15.4 PIB.
 		 */
-		if (pos->key->frame_types != key->frame_types ||
+		if (pos->key->ftype != key->ftype ||
 		    pos->key->cmd_frame_ids != key->cmd_frame_ids)
 			return -EEXIST;
 
@@ -576,8 +575,8 @@ llsec_lookup_key(struct mac802154_llsec *sec,
 	list_for_each_entry_rcu(key_entry, &sec->table.keys, list) {
 		const struct ieee802154_llsec_key_id *id = &key_entry->id;
 
-//		if (!(key_entry->key->frame_types & BIT(hdr->fc.type)))
-//			continue;
+		if (key_entry->key->ftype != ieee802154_ftype(hdr->frame_control))
+			continue;
 
 		if (id->mode != key_id_mode)
 			continue;
@@ -713,27 +712,27 @@ static int llsec_do_encrypt(struct sk_buff *skb,
 		return llsec_do_encrypt_auth(skb, sec, hdr, key);
 }
 
-#if 0
 int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 {
-	struct ieee802154_hdr hdr;
-	int rc, authlen, hlen;
 	struct mac802154_llsec_key *key;
+	struct ieee802154_addr daddr;
+	struct ieee802154_hdr *hdr;
+	int rc, authlen;
 	u32 frame_ctr;
 
-	hlen = ieee802154_hdr_pull(skb, &hdr);
+	hdr = (struct ieee802154_hdr *)(skb_mac_header(skb));
 
-	if (hlen < 0 || hdr.fc.type != IEEE802154_FC_TYPE_DATA)
+	if (skb->mac_len < 0 || !ieee802154_is_data(hdr->frame_control))
 		return -EINVAL;
 
-	if (!hdr.fc.security_enabled || hdr.sec.level == 0) {
-		skb_push(skb, hlen);
+	if (!ieee802154_is_sec(hdr->frame_control) || sechdr_dummy()->level == 0) {
+//		skb_push(skb, hlen);
 		return 0;
 	}
 
 	authlen = ieee802154_sechdr_authtag_len(sechdr_dummy());
 
-	if (skb->len + hlen + authlen + IEEE802154_FCS_LEN > IEEE802154_MTU)
+	if (skb->len + skb->mac_len + authlen + IEEE802154_FCS_LEN > IEEE802154_MTU)
 		return -EMSGSIZE;
 
 	rcu_read_lock();
@@ -745,7 +744,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 		goto fail_read;
 	}
 
-	key = llsec_lookup_key(sec, &hdr, &hdr.dest, NULL);
+	key = llsec_lookup_key(sec, hdr, &daddr, NULL);
 	if (!key) {
 		rc = -ENOKEY;
 		goto fail_read;
@@ -756,7 +755,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	write_lock_bh(&sec->lock);
 
 	frame_ctr = be32_to_cpu(sec->params.frame_counter);
-	hdr.sec.frame_counter = cpu_to_le32(frame_ctr);
+	sechdr_dummy()->frame_counter = cpu_to_le32(frame_ctr);
 	if (frame_ctr == 0xFFFFFFFF) {
 		write_unlock_bh(&sec->lock);
 		llsec_key_put(key);
@@ -770,10 +769,10 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	rcu_read_unlock();
 
-	skb->mac_len = ieee802154_hdr_push(skb, &hdr);
-	skb_reset_mac_header(skb);
+//	skb->mac_len = ieee802154_hdr_push(skb, &hdr);
+//	skb_reset_mac_header(skb);
 
-	rc = llsec_do_encrypt(skb, sec, &hdr, key);
+	rc = llsec_do_encrypt(skb, sec, hdr, key);
 	llsec_key_put(key);
 
 	return rc;
@@ -784,7 +783,6 @@ fail:
 	rcu_read_unlock();
 	return rc;
 }
-#endif
 
 static struct mac802154_llsec_device*
 llsec_lookup_dev(struct mac802154_llsec *sec,
@@ -822,7 +820,7 @@ llsec_lookup_dev(struct mac802154_llsec *sec,
 
 static int
 llsec_lookup_seclevel(const struct mac802154_llsec *sec,
-		      u8 frame_type, u8 cmd_frame_id,
+		      __le16 frame_type, u8 cmd_frame_id,
 		      struct ieee802154_llsec_seclevel *rlevel)
 {
 	struct ieee802154_llsec_seclevel *level;
@@ -991,10 +989,10 @@ llsec_update_devkey_info(struct mac802154_llsec_device *dev,
 	return 0;
 }
 
-#if 0
 int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 {
-	struct ieee802154_hdr hdr;
+	struct ieee802154_hdr *hdr;
+	struct ieee802154_addr saddr;
 	struct mac802154_llsec_key *key;
 	struct ieee802154_llsec_key_id key_id;
 	struct mac802154_llsec_device *dev;
@@ -1003,11 +1001,11 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	__le64 dev_addr;
 	u32 frame_ctr;
 
-	if (ieee802154_hdr_peek(skb, &hdr) < 0)
-		return -EINVAL;
-	if (!hdr.fc.security_enabled)
+	hdr = (struct ieee802154_hdr *)(skb_mac_header(skb));
+	
+	if (ieee802154_is_sec(hdr->frame_control))
 		return 0;
-	if (hdr.fc.version == 0)
+	if (ieee802154_is_vers_zero(hdr->frame_control))
 		return -EINVAL;
 
 	read_lock_bh(&sec->lock);
@@ -1019,31 +1017,32 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	key = llsec_lookup_key(sec, &hdr, &hdr.source, &key_id);
+	key = llsec_lookup_key(sec, hdr, &saddr, &key_id);
 	if (!key) {
 		err = -ENOKEY;
 		goto fail;
 	}
 
-	dev = llsec_lookup_dev(sec, &hdr.source);
+	dev = llsec_lookup_dev(sec, &saddr);
 	if (!dev) {
 		err = -EINVAL;
 		goto fail_dev;
 	}
 
-	if (llsec_lookup_seclevel(sec, hdr.fc.type, 0, &seclevel) < 0) {
+	if (llsec_lookup_seclevel(sec, ieee802154_ftype(hdr->frame_control),
+				  0, &seclevel) < 0) {
 		err = -EINVAL;
 		goto fail_dev;
 	}
 
-	if (!(seclevel.sec_levels & BIT(hdr.sec.level)) &&
-	    (hdr.sec.level == 0 && seclevel.device_override &&
+	if (!(seclevel.sec_levels & BIT(sechdr_dummy()->level)) &&
+	    (sechdr_dummy()->level == 0 && seclevel.device_override &&
 	     !dev->dev.seclevel_exempt)) {
 		err = -EINVAL;
 		goto fail_dev;
 	}
 
-	frame_ctr = le32_to_cpu(hdr.sec.frame_counter);
+	frame_ctr = le32_to_cpu(sechdr_dummy()->frame_counter);
 
 	if (frame_ctr == 0xffffffff) {
 		err = -EOVERFLOW;
@@ -1058,7 +1057,7 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	rcu_read_unlock();
 
-	err = llsec_do_decrypt(skb, sec, &hdr, key, dev_addr);
+	err = llsec_do_decrypt(skb, sec, hdr, key, dev_addr);
 	llsec_key_put(key);
 	return err;
 
@@ -1068,4 +1067,3 @@ fail:
 	rcu_read_unlock();
 	return err;
 }
-#endif

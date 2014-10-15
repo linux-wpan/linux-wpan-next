@@ -26,6 +26,8 @@
 #include <net/cfg802154.h>
 #include <linux/nl802154.h>
 
+#include "llsec.h"
+
 struct ieee802154_local;
 
 enum {
@@ -55,6 +57,8 @@ struct ieee802154_sub_if_data {
 
 	/* must be last, dynamically sized area in this! */
 	struct ieee802154_vif vif;
+
+	struct mac802154_llsec sec;
 };
 
 /* mac802154 device private data */
