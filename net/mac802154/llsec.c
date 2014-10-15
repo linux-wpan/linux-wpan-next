@@ -33,7 +33,7 @@ void mac802154_llsec_init(struct mac802154_llsec *sec)
 {
 	memset(sec, 0, sizeof(*sec));
 
-	memset(&sec->params.default_key_source, 0xFF, IEEE802154_ADDR_LEN);
+	memset(&sec->params.default_key_source, 0xFF, IEEE802154_ADDR_EXTENDED_LEN);
 
 	INIT_LIST_HEAD(&sec->table.security_levels);
 	INIT_LIST_HEAD(&sec->table.devices);
@@ -75,8 +75,7 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 	}
 }
 
-
-
+#if 0
 int mac802154_llsec_get_params(struct mac802154_llsec *sec,
 			       struct ieee802154_llsec_params *params)
 {
@@ -116,8 +115,7 @@ int mac802154_llsec_set_params(struct mac802154_llsec *sec,
 
 	return 0;
 }
-
-
+#endif
 
 static struct mac802154_llsec_key*
 llsec_key_alloc(const struct ieee802154_llsec_key *template)
@@ -365,7 +363,7 @@ int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
 	u32 skey = llsec_dev_hash_short(dev->short_addr, dev->pan_id);
 	u64 hwkey = llsec_dev_hash_long(dev->hwaddr);
 
-	BUILD_BUG_ON(sizeof(hwkey) != IEEE802154_ADDR_LEN);
+	BUILD_BUG_ON(sizeof(hwkey) != IEEE802154_ADDR_EXTENDED_LEN);
 
 	if ((llsec_dev_use_shortaddr(dev->short_addr) &&
 	     llsec_dev_find_short(sec, dev->short_addr, dev->pan_id)) ||
@@ -545,10 +543,10 @@ static int llsec_recover_addr(struct mac802154_llsec *sec,
 		return -EINVAL;
 	} else if (caddr == cpu_to_le16(IEEE802154_ADDR_UNDEF)) {
 		addr->extended_addr = sec->params.coord_hwaddr;
-		addr->mode = IEEE802154_ADDR_LONG;
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
 	} else {
 		addr->short_addr = sec->params.coord_shortaddr;
-		addr->mode = IEEE802154_ADDR_SHORT;
+		addr->mode = cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT);
 	}
 
 	return 0;
@@ -561,15 +559,15 @@ llsec_lookup_key(struct mac802154_llsec *sec,
 		 struct ieee802154_llsec_key_id *key_id)
 {
 	struct ieee802154_addr devaddr = *addr;
-	u8 key_id_mode = hdr->sec.key_id_mode;
+	u8 key_id_mode = sechdr_dummy()->key_id_mode;
 	struct ieee802154_llsec_key_entry *key_entry;
 	struct mac802154_llsec_key *key;
 
 	if (key_id_mode == IEEE802154_SCF_KEY_IMPLICIT &&
 	    devaddr.mode == IEEE802154_ADDR_NONE) {
-		if (hdr->fc.type == IEEE802154_FC_TYPE_BEACON) {
+		if (ieee802154_is_beacon(hdr->frame_control)) {
 			devaddr.extended_addr = sec->params.coord_hwaddr;
-			devaddr.mode = IEEE802154_ADDR_LONG;
+			devaddr.mode = cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED);
 		} else if (llsec_recover_addr(sec, &devaddr) < 0) {
 			return NULL;
 		}
@@ -578,8 +576,8 @@ llsec_lookup_key(struct mac802154_llsec *sec,
 	list_for_each_entry_rcu(key_entry, &sec->table.keys, list) {
 		const struct ieee802154_llsec_key_id *id = &key_entry->id;
 
-		if (!(key_entry->key->frame_types & BIT(hdr->fc.type)))
-			continue;
+//		if (!(key_entry->key->frame_types & BIT(hdr->fc.type)))
+//			continue;
 
 		if (id->mode != key_id_mode)
 			continue;
@@ -588,14 +586,14 @@ llsec_lookup_key(struct mac802154_llsec *sec,
 			if (ieee802154_addr_equal(&devaddr, &id->device_addr))
 				goto found;
 		} else {
-			if (id->id != hdr->sec.key_id)
+			if (id->id != sechdr_dummy()->key_id)
 				continue;
 
 			if ((key_id_mode == IEEE802154_SCF_KEY_INDEX) ||
 			    (key_id_mode == IEEE802154_SCF_KEY_SHORT_INDEX &&
-			     id->short_source == hdr->sec.short_src) ||
+			     id->short_source == sechdr_dummy()->short_src) ||
 			    (key_id_mode == IEEE802154_SCF_KEY_HW_INDEX &&
-			     id->extended_source == hdr->sec.extended_src))
+			     id->extended_source == sechdr_dummy()->extended_src))
 				goto found;
 		}
 	}
@@ -637,7 +635,7 @@ llsec_do_encrypt_unauth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 		.flags = 0,
 	};
 
-	llsec_geniv(iv, sec->params.hwaddr, &hdr->sec);
+	llsec_geniv(iv, sec->params.hwaddr, sechdr_dummy());
 	sg_init_one(&src, skb->data, skb->len);
 	return crypto_blkcipher_encrypt_iv(&req, &src, &src, skb->len);
 }
@@ -665,8 +663,8 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	struct scatterlist src, assoc[2], dst[2];
 	struct aead_request *req;
 
-	authlen = ieee802154_sechdr_authtag_len(&hdr->sec);
-	llsec_geniv(iv, sec->params.hwaddr, &hdr->sec);
+	authlen = ieee802154_sechdr_authtag_len(sechdr_dummy());
+	llsec_geniv(iv, sec->params.hwaddr, sechdr_dummy());
 
 	req = aead_request_alloc(llsec_tfm_by_len(key, authlen), GFP_ATOMIC);
 	if (!req)
@@ -679,7 +677,7 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	data = skb_mac_header(skb) + skb->mac_len;
 	datalen = skb_tail_pointer(skb) - data;
 
-	if (hdr->sec.level & IEEE802154_SCF_SECLEVEL_ENC) {
+	if (sechdr_dummy()->level & IEEE802154_SCF_SECLEVEL_ENC) {
 		sg_set_buf(&assoc[1], data, 0);
 	} else {
 		sg_set_buf(&assoc[1], data, datalen);
@@ -709,12 +707,13 @@ static int llsec_do_encrypt(struct sk_buff *skb,
 			    const struct ieee802154_hdr *hdr,
 			    struct mac802154_llsec_key *key)
 {
-	if (hdr->sec.level == IEEE802154_SCF_SECLEVEL_ENC)
+	if (sechdr_dummy()->level == IEEE802154_SCF_SECLEVEL_ENC)
 		return llsec_do_encrypt_unauth(skb, sec, hdr, key);
 	else
 		return llsec_do_encrypt_auth(skb, sec, hdr, key);
 }
 
+#if 0
 int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 {
 	struct ieee802154_hdr hdr;
@@ -732,9 +731,9 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 		return 0;
 	}
 
-	authlen = ieee802154_sechdr_authtag_len(&hdr.sec);
+	authlen = ieee802154_sechdr_authtag_len(sechdr_dummy());
 
-	if (skb->len + hlen + authlen + IEEE802154_MFR_SIZE > IEEE802154_MTU)
+	if (skb->len + hlen + authlen + IEEE802154_FCS_LEN > IEEE802154_MTU)
 		return -EMSGSIZE;
 
 	rcu_read_lock();
@@ -785,8 +784,7 @@ fail:
 	rcu_read_unlock();
 	return rc;
 }
-
-
+#endif
 
 static struct mac802154_llsec_device*
 llsec_lookup_dev(struct mac802154_llsec *sec,
@@ -856,7 +854,7 @@ llsec_do_decrypt_unauth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 		.flags = 0,
 	};
 
-	llsec_geniv(iv, dev_addr, &hdr->sec);
+	llsec_geniv(iv, dev_addr, sechdr_dummy());
 	data = skb_mac_header(skb) + skb->mac_len;
 	datalen = skb_tail_pointer(skb) - data;
 
@@ -876,8 +874,8 @@ llsec_do_decrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	struct scatterlist src, assoc[2];
 	struct aead_request *req;
 
-	authlen = ieee802154_sechdr_authtag_len(&hdr->sec);
-	llsec_geniv(iv, dev_addr, &hdr->sec);
+	authlen = ieee802154_sechdr_authtag_len(sechdr_dummy());
+	llsec_geniv(iv, dev_addr, sechdr_dummy());
 
 	req = aead_request_alloc(llsec_tfm_by_len(key, authlen), GFP_ATOMIC);
 	if (!req)
@@ -890,7 +888,7 @@ llsec_do_decrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	data = skb_mac_header(skb) + skb->mac_len;
 	datalen = skb_tail_pointer(skb) - data;
 
-	if (hdr->sec.level & IEEE802154_SCF_SECLEVEL_ENC) {
+	if (sechdr_dummy()->level & IEEE802154_SCF_SECLEVEL_ENC) {
 		sg_set_buf(&assoc[1], data, 0);
 	} else {
 		sg_set_buf(&assoc[1], data, datalen - authlen);
@@ -918,7 +916,7 @@ llsec_do_decrypt(struct sk_buff *skb, const struct mac802154_llsec *sec,
 		 const struct ieee802154_hdr *hdr,
 		 struct mac802154_llsec_key *key, __le64 dev_addr)
 {
-	if (hdr->sec.level == IEEE802154_SCF_SECLEVEL_ENC)
+	if (sechdr_dummy()->level == IEEE802154_SCF_SECLEVEL_ENC)
 		return llsec_do_decrypt_unauth(skb, sec, hdr, key, dev_addr);
 	else
 		return llsec_do_decrypt_auth(skb, sec, hdr, key, dev_addr);
@@ -993,6 +991,7 @@ llsec_update_devkey_info(struct mac802154_llsec_device *dev,
 	return 0;
 }
 
+#if 0
 int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 {
 	struct ieee802154_hdr hdr;
@@ -1069,3 +1068,4 @@ fail:
 	rcu_read_unlock();
 	return err;
 }
+#endif

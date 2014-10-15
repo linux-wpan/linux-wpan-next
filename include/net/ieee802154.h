@@ -161,6 +161,51 @@ struct ieee802154_hdr {
 	u8 payload[0];
 } __attribute__ ((packed));
 
+struct ieee802154_sechdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 level:3,
+	   key_id_mode:2,
+	   reserved:3;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8 reserved:3,
+	   key_id_mode:2,
+	   level:3;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+	u8 key_id;
+	__le32 frame_counter;
+	union {
+		__le32 short_src;
+		__le64 extended_src;
+	};
+};
+
+static inline struct ieee802154_sechdr *sechdr_dummy(void)
+{
+	return NULL;
+}
+
+static inline int
+ieee802154_sechdr_authtag_len(const struct ieee802154_sechdr *sec)
+{
+	switch (sec->level) {
+	case IEEE802154_SCF_SECLEVEL_MIC32:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC32:
+		return 4;
+	case IEEE802154_SCF_SECLEVEL_MIC64:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC64:
+		return 8;
+	case IEEE802154_SCF_SECLEVEL_MIC128:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC128:
+		return 16;
+	case IEEE802154_SCF_SECLEVEL_NONE:
+	case IEEE802154_SCF_SECLEVEL_ENC:
+	default:
+		return 0;
+	}
+}
+
 /* Clear channel assesment (CCA) modes */
 enum ieee802154_cca_modes {
 	IEEE802154_CCA_ENERGY		= 1,
@@ -169,6 +214,89 @@ enum ieee802154_cca_modes {
 	IEEE802154_CCA_ALOHA		= 4,
 	IEEE802154_CCA_UWB_SHR		= 5,
 	IEEE802154_CCA_UWB_MULTIPEXED	= 6,
+};
+
+#define IEEE802154_LLSEC_KEY_SIZE 16
+
+struct ieee802154_llsec_key_id {
+	u8 mode;
+	u8 id;
+	union {
+		struct ieee802154_addr device_addr;
+		__le32 short_source;
+		__le64 extended_source;
+	};
+};
+
+struct ieee802154_llsec_key {
+	u8 frame_types;
+	u32 cmd_frame_ids;
+	u8 key[IEEE802154_LLSEC_KEY_SIZE];
+};
+
+struct ieee802154_llsec_key_entry {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id id;
+	struct ieee802154_llsec_key *key;
+};
+
+struct ieee802154_llsec_device_key {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id key_id;
+	u32 frame_counter;
+};
+
+enum {
+	IEEE802154_LLSEC_DEVKEY_IGNORE,
+	IEEE802154_LLSEC_DEVKEY_RESTRICT,
+	IEEE802154_LLSEC_DEVKEY_RECORD,
+
+	__IEEE802154_LLSEC_DEVKEY_MAX,
+};
+
+struct ieee802154_llsec_device {
+	struct list_head list;
+
+	__le16 pan_id;
+	__le16 short_addr;
+	__le64 hwaddr;
+	u32 frame_counter;
+	bool seclevel_exempt;
+
+	u8 key_mode;
+	struct list_head keys;
+};
+
+struct ieee802154_llsec_seclevel {
+	struct list_head list;
+
+	u8 frame_type;
+	u8 cmd_frame_id;
+	bool device_override;
+	u32 sec_levels;
+};
+
+struct ieee802154_llsec_params {
+	bool enabled;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
+
+	__le64 default_key_source;
+
+	__le16 pan_id;
+	__le64 hwaddr;
+	__le64 coord_hwaddr;
+	__le16 coord_shortaddr;
+};
+
+struct ieee802154_llsec_table {
+	struct list_head keys;
+	struct list_head devices;
+	struct list_head security_levels;
 };
 
 /**
@@ -556,6 +684,12 @@ static inline bool ieee802154_is_valid_daddr(struct ieee802154_addr *addr)
 		BUG();
 		return false;
 	}
+}
+
+static inline bool ieee802154_addr_equal(const struct ieee802154_addr *a1,
+					 const struct ieee802154_addr *a2)
+{
+	return !memcmp(a1, a2, sizeof(*a1));
 }
 
 #endif
