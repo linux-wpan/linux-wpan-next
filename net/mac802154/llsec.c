@@ -41,6 +41,8 @@ void mac802154_llsec_init(struct mac802154_llsec *sec)
 	hash_init(sec->devices_short);
 	hash_init(sec->devices_hw);
 	rwlock_init(&sec->lock);
+
+	sec->params.enabled = true;
 }
 
 void mac802154_llsec_destroy(struct mac802154_llsec *sec)
@@ -725,10 +727,11 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	if (skb->mac_len < 0 || !ieee802154_is_data(hdr->frame_control))
 		return -EINVAL;
 
-	if (!ieee802154_is_sec(hdr->frame_control) || sechdr_dummy()->level == 0) {
-//		skb_push(skb, hlen);
+	if (!ieee802154_is_sec(hdr->frame_control) ||
+	    sechdr_dummy()->level == 0)
 		return 0;
-	}
+
+	return 0;
 
 	authlen = ieee802154_sechdr_authtag_len(sechdr_dummy());
 
@@ -737,13 +740,12 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	read_lock_bh(&sec->lock);
-
 	if (!sec->params.enabled) {
 		rc = -EINVAL;
 		goto fail_read;
 	}
 
+	daddr = ieee802154_hdr_daddr(hdr);
 	key = llsec_lookup_key(sec, hdr, &daddr, NULL);
 	if (!key) {
 		rc = -ENOKEY;
@@ -1001,19 +1003,18 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	__le64 dev_addr;
 	u32 frame_ctr;
 
+	return 0;
+
+	if (!sec->params.enabled)
+		return 0;
+
 	hdr = (struct ieee802154_hdr *)(skb_mac_header(skb));
-	
+
 	if (ieee802154_is_sec(hdr->frame_control))
 		return 0;
+
 	if (ieee802154_is_vers_zero(hdr->frame_control))
 		return -EINVAL;
-
-	read_lock_bh(&sec->lock);
-	if (!sec->params.enabled) {
-		read_unlock_bh(&sec->lock);
-		return -EINVAL;
-	}
-	read_unlock_bh(&sec->lock);
 
 	rcu_read_lock();
 

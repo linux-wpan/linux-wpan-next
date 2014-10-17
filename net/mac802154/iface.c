@@ -391,6 +391,8 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 	wpan_dev->frame_retries = -1;
 
+	mac802154_llsec_init(&sdata->sec);
+
 	switch (type) {
 	case NL802154_IFTYPE_COORD:
 	case NL802154_IFTYPE_NODE:

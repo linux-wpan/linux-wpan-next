@@ -134,6 +134,7 @@ netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
+#if 0
 	int ret;
 
 	ret = mac802154_llsec_encrypt(&sdata->sec, skb);
@@ -142,6 +143,7 @@ netdev_tx_t ieee802154_xmit(struct sk_buff *skb, struct net_device *dev)
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
+#endif
 
 	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
 		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));

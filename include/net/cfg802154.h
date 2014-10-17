@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/bug.h>
 #include <linux/nl802154.h>
+#include <net/ieee802154.h>
 
 struct wpan_phy;
 
@@ -139,6 +140,10 @@ struct wpan_dev {
 	bool lbt;
 
 	bool promiscuous_mode;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
 };
 
 #define wpan_dev_is_monitor(wpan_dev)	\

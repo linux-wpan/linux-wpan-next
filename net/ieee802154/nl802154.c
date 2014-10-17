@@ -216,6 +216,22 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_SUPPORTED_CHANNEL] = { .type = NLA_U32, },
 
 	[NL802154_ATTR_EXTENDED_ADDR] = { .type = NLA_U64 },
+
+	[NL802154_ATTR_LLSEC_ENABLED] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_SECLEVEL] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_MODE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT] = { .type = NLA_U32, },
+	[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED] = { .type = NLA_U64, },
+	[NL802154_ATTR_LLSEC_KEY_ID] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_FRAME_COUNTER] = { .type = NLA_U32 },
+	[NL802154_ATTR_LLSEC_KEY_BYTES] = { .len = 16, },
+	[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS] = { .len = 258 / 8 },
+	[NL802154_ATTR_LLSEC_FRAME_TYPE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_CMD_FRAME_ID] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_SECLEVELS] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_DEV_OVERRIDE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_DEV_KEY_MODE] = { .type = NLA_U8, },
 };
 
 /* message building helper */
@@ -590,6 +606,23 @@ static int nl802154_set_min_be(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+	bool mode;
+
+	if (!info->attrs[NL802154_ATTR_LBT_MODE])
+		return -EINVAL;
+
+	/* conflict here while other running iface settings */
+	if (netif_running(wpan_dev->netdev))
+		return -EBUSY;
+
+	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
+}
+
+static int nl802154_set_llsec_params(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct wpan_dev *wpan_dev = info->user_ptr[1];
@@ -1065,6 +1098,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_LBT_MODE,
 		.doit = nl802154_set_lbt_mode,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_LLSEC_SET_PARAMS,
+		.doit = nl802154_set_llsec_params,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |

@@ -129,6 +129,8 @@
 #define IEEE802154_FCTL_VERS_RESERVED		0x2000
 /* 802.15.4-2003 frame compatible */
 #define IEEE802154_FCTL_VERS_ZERO		0x0000
+/* 802.15.4-2006 or above frame compatible */
+#define IEEE802154_FCTL_VERS_ONE		0x1000
 
 #define IEEE802154_FCTL_ADDR_NONE		0x0000
 

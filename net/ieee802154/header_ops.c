@@ -48,6 +48,22 @@ static int ieee802154_addr_len(const __le16 mode, const bool intra_pan)
 	}
 }
 
+#if 0
+
+static int ieee802154_sechdr_lengths[4] = {
+	[IEEE802154_SCF_KEY_IMPLICIT] = 5,
+	[IEEE802154_SCF_KEY_INDEX] = 6,
+	[IEEE802154_SCF_KEY_SHORT_INDEX] = 10,
+	[IEEE802154_SCF_KEY_HW_INDEX] = 14,
+};
+
+
+static int ieee802154_hdr_sechdr_len(const u8 sc)
+{
+	return ieee802154_sechdr_lengths[IEEE802154_SCF_KEY_ID_MODE(sc)];
+}
+#endif
+
 static int ieee802154_hdr_minlen(const struct ieee802154_addr *daddr,
 				 const struct ieee802154_addr *saddr,
 				 const bool intra_pan)
@@ -87,6 +103,9 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 	struct ieee802154_hdr *hdr = (struct ieee802154_hdr *)buf;
 	unsigned char *buf_ptr = buf + 3;
 	__le16 fc = cpu_to_le16(IEEE802154_FTYPE_DATA);
+#if 0
+	struct ieee802154_sechdr hdr_sec;
+#endif
 
 	switch (daddr->mode) {
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_EXTENDED):
@@ -143,6 +162,20 @@ int ieee802154_create_h_data(struct sk_buff *skb,
 
 	if (ack_req)
 		fc |= cpu_to_le16(IEEE802154_FCTL_AR);
+
+#if 0
+	/* TODO check mac pib if sec enabled */
+	fc |= cpu_to_le16(IEEE802154_FCTL_SEC);
+	fc |= cpu_to_le16(IEEE802154_FCTL_VERS_ONE);
+
+	hdr_sec.level = wpan_dev->out_level;
+	hdr_sec.key_id_mode = wpan_dev->out_key.mode;
+	hdr_sec.key_id = wpan_dev->out_key.id;
+	hdr_sec.frame_counter = cpu_to_le32(wpan_dev->frame_counter);
+
+	memcpy(buf_ptr, &hdr_sec, 6);
+	buf_ptr += 6;
+#endif
 
 	hdr->frame_control = fc;
 	hdr->sequence_number = wpan_dev->dsn++;

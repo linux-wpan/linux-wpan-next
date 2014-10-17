@@ -260,15 +260,6 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 		     ieee802154_is_saddr_reserved(fc)))
 		return RX_DROP_UNUSABLE;
 
-#if 0
-	TODO should handled by all frame handlers
-	/* if it's not ack and saddr is zero, dest
-	 * should be non zero */
-	if (unlikely(!ieee802154_is_ack(fc) && ieee802154_is_saddr_none(fc) &&
-		     !ieee802154_is_daddr_none(fc)))
-		return RX_DROP_UNUSABLE;
-#endif
-
 	skb_reset_mac_header(rx->skb);
 
 	return RX_CONTINUE;
