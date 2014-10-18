@@ -358,7 +358,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_EXTENDED_LEN);
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
-	dev->header_ops		= &ieee802154_header_ops;
 	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 1000;
@@ -395,6 +394,7 @@ static int ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	case NL802154_IFTYPE_COORD:
 	case NL802154_IFTYPE_NODE:
 		sdata->dev->netdev_ops = &ieee802154_dataif_ops;
+		sdata->dev->header_ops = &ieee802154_header_ops;
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		wpan_dev->promiscuous_mode = true;
