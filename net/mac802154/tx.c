@@ -78,9 +78,9 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 
 err_tx:
 	rtnl_unlock();
-	pr_debug("transmission failed\n");
 	ieee802154_wake_queue(&local->hw);
 	kfree_skb(skb);
+	pr_debug("transmission failed\n");
 }
 
 static netdev_tx_t
