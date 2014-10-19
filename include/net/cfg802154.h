@@ -141,11 +141,20 @@ struct wpan_dev {
 	bool promiscuous_mode;
 };
 
-#define wpan_dev_is_monitor(wpan_dev)	\
-	(wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+static inline bool wpan_dev_is_monitor(const struct wpan_dev *wpan_dev)
+{
+	return wpan_dev->iftype == NL802154_IFTYPE_MONITOR;
+}
 
-#define wpan_dev_is_coord(wpan_dev)	\
-	(wpan_dev->iftype == NL802154_IFTYPE_COORD)
+static inline bool wpan_dev_is_coord(const struct wpan_dev *wpan_dev)
+{
+	return wpan_dev->iftype == NL802154_IFTYPE_COORD;
+}
+
+static inline bool wpan_dev_is_node(const struct wpan_dev *wpan_dev)
+{
+	return wpan_dev->iftype == NL802154_IFTYPE_NODE;
+}
 
 static inline struct net *wpan_phy_net(struct wpan_phy *phy)
 {
