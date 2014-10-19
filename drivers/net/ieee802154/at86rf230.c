@@ -1386,7 +1386,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	}
 
 	/* default channel/page */
-	lp->hw->phy->current_page = 0;
 	lp->hw->phy->current_channel = 11;
 	rc = at86rf230_channel(lp->hw, 0, 11);
 	if (rc)
@@ -1458,7 +1457,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	lp->hw->flags = IEEE802154_HW_AACK | IEEE802154_HW_TXPOWER |
 			IEEE802154_HW_ARET | IEEE802154_HW_AFILT |
 			IEEE802154_HW_CCA_ED_LEVEL | IEEE802154_HW_PROMISCUOUS |
-			IEEE802154_HW_FILT_CKSUM | IEEE802154_HW_TX_OMIT_CKSUM;
+			IEEE802154_HW_TX_OMIT_CKSUM;
 
 	switch (part) {
 	case 2:

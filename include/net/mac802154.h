@@ -110,7 +110,7 @@ struct ieee802154_hw {
 /* Indicates that transceiver will support promiscuous mode setting. */
 #define IEEE802154_HW_PROMISCUOUS	0x00000200
 /* Indicates that receiver will not filter frames with bad checksum. */
-#define IEEE802154_HW_FILT_CKSUM	0x00000400
+#define IEEE802154_HW_NO_FILT_CKSUM	0x00000400
 /* Indicates that receiver omits FCS. */
 #define	IEEE802154_HW_RX_OMIT_CKSUM	0x00000800
 

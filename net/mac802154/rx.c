@@ -233,7 +233,7 @@ ieee802154_rx_h_check(struct ieee802154_rx_data *rx)
 	/* check if transceiver doesn't valid checksum, we validate
 	 * the checksum here.
 	 */
-	if (!(rx->local->hw.flags & IEEE802154_HW_FILT_CKSUM)) {
+	if (rx->local->hw.flags & IEEE802154_HW_NO_FILT_CKSUM) {
 		memcpy(&crc, skb_tail_pointer(skb) - sizeof(crc), sizeof(crc));
 		if (!crc_ccitt(le16_to_cpu(crc), skb->data,
 			       skb->len - sizeof(crc)))

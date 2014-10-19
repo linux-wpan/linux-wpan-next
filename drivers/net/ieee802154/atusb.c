@@ -264,7 +264,7 @@ static void atusb_in_good(struct urb *urb)
 	lqi = skb->data[len + 1];
 	dev_dbg(&usb_dev->dev, "atusb_in: rx len %d lqi 0x%02x\n", len, lqi);
 	skb_pull(skb, 1);	/* remove PHR */
-	skb_trim(skb, len - 2);	/* remove CRC */
+	skb_trim(skb, len);
 	ieee802154_rx_irqsafe(atusb->hw, skb, lqi);
 	urb->context = NULL;	/* skb is gone */
 }
@@ -343,7 +343,6 @@ static int atusb_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		dev_dbg(&usb_dev->dev, "atusb_xmit busy\n");
 		return -EBUSY;
 	}
-	reinit_completion(&atusb->tx_complete);
 	ret = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
 			      ATUSB_TX, ATUSB_REQ_TO_DEV, 0, atusb->tx_ack_seq,
 			      skb->data, skb->len, 1000);
@@ -592,11 +591,9 @@ static int atusb_probe(struct usb_interface *interface,
 		goto fail;
 
 	hw->parent = &usb_dev->dev;
-	hw->extra_tx_headroom = 0;
-	hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AACK |
 		    IEEE802154_HW_AFILT;
 
-	hw->phy->current_page = 0;
 	hw->phy->current_channel = 11;	/* reset default */
 	hw->phy->channels_supported[0] = 0x7FFF800;
 
