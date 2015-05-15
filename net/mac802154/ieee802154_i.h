@@ -33,6 +33,15 @@ struct ieee802154_local {
 	struct ieee802154_hw hw;
 	const struct ieee802154_ops *ops;
 
+	/* xmit worker handler
+	 * TODO remove this. xmit_sync is debprecated
+	 */
+	struct ieee802154_xmit_cb {
+		struct sk_buff *skb;
+		struct work_struct work;
+		struct ieee802154_local *local;
+	} xmit_cb;
+
 	/* ieee802154 phy */
 	struct wpan_phy *phy;
 
