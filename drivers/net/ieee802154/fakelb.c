@@ -83,7 +83,6 @@ static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 	read_unlock_bh(&fakelb_ifup_phys_lock);
 
-	ieee802154_xmit_complete(hw, skb, false);
 	return 0;
 }
 
@@ -109,7 +108,7 @@ static void fakelb_hw_stop(struct ieee802154_hw *hw)
 
 static const struct ieee802154_ops fakelb_ops = {
 	.owner = THIS_MODULE,
-	.xmit_async = fakelb_hw_xmit,
+	.xmit_sync = fakelb_hw_xmit,
 	.ed = fakelb_hw_ed,
 	.set_channel = fakelb_hw_channel,
 	.start = fakelb_hw_start,
