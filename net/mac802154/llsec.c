@@ -648,7 +648,8 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 {
 	u8 iv[16];
 	unsigned char *data;
-	int authlen, assoclen, datalen, rc;
+	int authlen, datalen, rc;
+	int assoclen = 0;
 	struct scatterlist src, assoc[2], dst[2];
 	struct aead_request *req;
 
@@ -659,26 +660,25 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	if (!req)
 		return -ENOMEM;
 
-	sg_init_table(assoc, 2);
-	sg_set_buf(&assoc[0], skb_mac_header(skb), skb->mac_len);
-	assoclen = skb->mac_len;
-
 	data = skb_mac_header(skb) + skb->mac_len;
 	datalen = skb_tail_pointer(skb) - data;
 
 	if (hdr->sec.level & IEEE802154_SCF_SECLEVEL_ENC) {
-		sg_set_buf(&assoc[1], data, 0);
+		sg_init_table(assoc, 1);
+		sg_init_table(dst, 2);
+		sg_set_buf(&dst[0], data, datalen);
+		sg_set_buf(&dst[1], skb_put(skb, authlen), authlen);
+		sg_init_one(&src, data, datalen);
 	} else {
+		sg_init_table(assoc, 2);
 		sg_set_buf(&assoc[1], data, datalen);
 		assoclen += datalen;
 		datalen = 0;
+		sg_init_one(dst, skb_put(skb, authlen), authlen);
 	}
 
-	sg_init_one(&src, data, datalen);
-
-	sg_init_table(dst, 2);
-	sg_set_buf(&dst[0], data, datalen);
-	sg_set_buf(&dst[1], skb_put(skb, authlen), authlen);
+	sg_set_buf(&assoc[0], skb_mac_header(skb), skb->mac_len);
+	assoclen += skb->mac_len;
 
 	aead_request_set_callback(req, 0, NULL, NULL);
 	aead_request_set_assoc(req, assoc, assoclen);
