@@ -1219,6 +1219,15 @@ nl802154_dump_llsec_key(struct sk_buff *skb, struct netlink_callback *cb)
 	return 0;
 }
 
+static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+
+	return 0;
+}
+
 static int
 ieee802154_llsec_parse_key(struct genl_info *info,
 			   struct ieee802154_llsec_key *key)
@@ -1244,6 +1253,7 @@ ieee802154_llsec_parse_key(struct genl_info *info,
 
 		if (commands[0] || commands[1] || commands[2] || commands[3] ||
 		    commands[4] || commands[5] || commands[6] ||
+		    /* TODO use MAX attribute */
 		    commands[7] >= BIT(NL802154_CMD_FRAME_GTS_REQUEST + 1))
 			return -EINVAL;
 
@@ -1258,7 +1268,7 @@ ieee802154_llsec_parse_key(struct genl_info *info,
 	return 0;
 }
 
-static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
+static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
@@ -1276,15 +1286,6 @@ static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	return rdev_add_llsec_key(rdev, wpan_dev, &id, &key);
-}
-
-static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
-{
-	struct cfg802154_registered_device *rdev = info->user_ptr[0];
-	struct net_device *dev = info->user_ptr[1];
-	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-
-	return 0;
 }
 
 static int nl802154_del_llsec_key(struct sk_buff *skb, struct genl_info *info)
