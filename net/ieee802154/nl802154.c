@@ -1609,7 +1609,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	{
-		.cmd = NL802154_CMD_LLSEC_GETPARAMS,
+		.cmd = NL802154_CMD_GET_LLSEC_PARAMS,
 		.doit = nl802154_get_llsec_params,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1617,7 +1617,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_SETPARAMS,
+		.cmd = NL802154_CMD_SET_LLSEC_PARAMS,
 		.doit = nl802154_set_llsec_params,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1625,7 +1625,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_LIST_KEY,
+		.cmd = NL802154_CMD_GET_LLSEC_KEY,
 		.doit = nl802154_get_llsec_key,
 		.dumpit = nl802154_dump_llsec_key,
 		.policy = nl802154_policy,
@@ -1634,7 +1634,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_ADD_KEY,
+		.cmd = NL802154_CMD_ADD_LLSEC_KEY,
 		.doit = nl802154_add_llsec_key,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1642,7 +1642,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_DEL_KEY,
+		.cmd = NL802154_CMD_DEL_LLSEC_KEY,
 		.doit = nl802154_del_llsec_key,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1650,7 +1650,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_LIST_DEV,
+		.cmd = NL802154_CMD_GET_LLSEC_DEV,
 		.doit = nl802154_get_llsec_dev,
 		.dumpit = nl802154_dump_llsec_dev,
 		.policy = nl802154_policy,
@@ -1659,7 +1659,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_ADD_DEV,
+		.cmd = NL802154_CMD_ADD_LLSEC_DEV,
 		.doit = nl802154_add_llsec_dev,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1667,7 +1667,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_DEL_DEV,
+		.cmd = NL802154_CMD_DEL_LLSEC_DEV,
 		.doit = nl802154_del_llsec_dev,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1675,7 +1675,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_LIST_DEVKEY,
+		.cmd = NL802154_CMD_GET_LLSEC_DEVKEY,
 		.doit = nl802154_get_llsec_devkey,
 		.dumpit = nl802154_dump_llsec_devkey,
 		.policy = nl802154_policy,
@@ -1684,7 +1684,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_ADD_DEVKEY,
+		.cmd = NL802154_CMD_ADD_LLSEC_DEVKEY,
 		.doit = nl802154_add_llsec_devkey,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1692,7 +1692,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_DEL_DEVKEY,
+		.cmd = NL802154_CMD_DEL_LLSEC_DEVKEY,
 		.doit = nl802154_del_llsec_devkey,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1700,7 +1700,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_LIST_SECLEVEL,
+		.cmd = NL802154_CMD_GET_LLSEC_SECLEVEL,
 		.doit = nl802154_get_llsec_seclevel,
 		.dumpit = nl802154_dump_llsec_seclevel,
 		.policy = nl802154_policy,
@@ -1709,7 +1709,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_ADD_SECLEVEL,
+		.cmd = NL802154_CMD_ADD_LLSEC_SECLEVEL,
 		.doit = nl802154_add_llsec_seclevel,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1717,7 +1717,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_LLSEC_DEL_SECLEVEL,
+		.cmd = NL802154_CMD_DEL_LLSEC_SECLEVEL,
 		.doit = nl802154_del_llsec_seclevel,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
