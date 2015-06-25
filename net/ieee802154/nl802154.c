@@ -1150,6 +1150,7 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 	if (desc->mode != NL802154_SCF_KEY_IMPLICIT)
 		desc->id = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_ID]);
 
+	/* TODO cleanup multiple checks on NL802154_SCF_KEY_IMPLICIT? */
 	switch (desc->mode) {
 	case NL802154_SCF_KEY_SHORT_INDEX:
 	{
@@ -1162,6 +1163,46 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 		desc->extended_source = nla_get_u64(info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED]);
 		break;
 	}
+
+	return 0;
+}
+
+static int
+ieee802154_llsec_parse_key(struct genl_info *info,
+			   struct ieee802154_llsec_key *key)
+{
+	u8 frames;
+	u32 commands[256 / 32];
+
+	memset(key, 0, sizeof(*key));
+
+	if (!info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] ||
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES])
+		return -EINVAL;
+
+	frames = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES]);
+	if ((frames & BIT(NL802154_FRAME_CMD)) &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS])
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS]) {
+		nla_memcpy(commands,
+			   info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS],
+			   256 / 8);
+
+		if (commands[0] || commands[1] || commands[2] || commands[3] ||
+		    commands[4] || commands[5] || commands[6] ||
+		    /* TODO use MAX attribute */
+		    commands[7] >= BIT(NL802154_CMD_FRAME_GTS_REQUEST + 1))
+			return -EINVAL;
+
+		key->cmd_frame_ids = commands[7];
+	}
+
+	key->frame_types = frames;
+
+	nla_memcpy(key->key, info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES],
+		   NL802154_LLSEC_KEY_SIZE);
 
 	return 0;
 }
@@ -1228,46 +1269,6 @@ static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static int
-ieee802154_llsec_parse_key(struct genl_info *info,
-			   struct ieee802154_llsec_key *key)
-{
-	u8 frames;
-	u32 commands[256 / 32];
-
-	memset(key, 0, sizeof(*key));
-
-	if (!info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] ||
-	    !info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES])
-		return -EINVAL;
-
-	frames = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES]);
-	if ((frames & BIT(NL802154_FRAME_CMD)) &&
-	    !info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS])
-		return -EINVAL;
-
-	if (info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS]) {
-		nla_memcpy(commands,
-			   info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS],
-			   256 / 8);
-
-		if (commands[0] || commands[1] || commands[2] || commands[3] ||
-		    commands[4] || commands[5] || commands[6] ||
-		    /* TODO use MAX attribute */
-		    commands[7] >= BIT(NL802154_CMD_FRAME_GTS_REQUEST + 1))
-			return -EINVAL;
-
-		key->cmd_frame_ids = commands[7];
-	}
-
-	key->frame_types = frames;
-
-	nla_memcpy(key->key, info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES],
-		   NL802154_LLSEC_KEY_SIZE);
-
-	return 0;
-}
-
 static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
@@ -1276,10 +1277,12 @@ static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	struct ieee802154_llsec_key key;
 	struct ieee802154_llsec_key_id id;
 
+#if 0
 	/* TODO really needed ? */
 	if ((info->nlhdr->nlmsg_flags & (NLM_F_CREATE | NLM_F_EXCL)) !=
 	    (NLM_F_CREATE | NLM_F_EXCL))
 		return -EINVAL;
+#endif
 
 	if (ieee802154_llsec_parse_key(info, &key) ||
 	    ieee802154_llsec_parse_key_id(info, &id))

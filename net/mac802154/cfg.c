@@ -311,7 +311,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
-#ifndef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	.set_llsec_params = ieee802154_set_llsec_params,
 	.get_llsec_params = ieee802154_get_llsec_params,
 	.add_llsec_key = ieee802154_add_llsec_key,
