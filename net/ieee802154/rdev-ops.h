@@ -183,6 +183,16 @@ rdev_get_llsec_params(struct cfg802154_registered_device *rdev,
 {
 	return rdev->ops->get_llsec_params(&rdev->wpan_phy, wpan_dev, params);
 }
+
+static inline int
+rdev_set_llsec_params(struct cfg802154_registered_device *rdev,
+		      struct wpan_dev *wpan_dev,
+		      const struct ieee802154_llsec_params *params,
+		      u32 changed)
+{
+	return rdev->ops->set_llsec_params(&rdev->wpan_phy, wpan_dev, params,
+					   changed);
+}
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 #endif /* __CFG802154_RDEV_OPS */

@@ -1043,6 +1043,8 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+#include <net/ieee802154_netdev.h>
+
 static int
 ieee802154_llsec_fill_key_id(struct sk_buff *skb,
 			     const struct ieee802154_llsec_key_id *desc)
@@ -1105,13 +1107,109 @@ static int nl802154_get_llsec_params(struct sk_buff *skb, struct genl_info *info
 	return 0;
 }
 
+static int
+ieee802154_llsec_parse_key_id(struct genl_info *info,
+			      struct ieee802154_llsec_key_id *desc)
+{
+	memset(desc, 0, sizeof(*desc));
+
+	if (!info->attrs[NL802154_ATTR_LLSEC_KEY_MODE])
+		return -EINVAL;
+
+	desc->mode = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_MODE]);
+
+	if (desc->mode == NL802154_SCF_KEY_IMPLICIT) {
+		if (!info->attrs[NL802154_ATTR_PAN_ID] &&
+		    !(info->attrs[NL802154_ATTR_SHORT_ADDR] ||
+		      info->attrs[NL802154_ATTR_EXTENDED_ADDR]))
+			return -EINVAL;
+
+		desc->device_addr.pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
+
+		if (info->attrs[NL802154_ATTR_SHORT_ADDR]) {
+			desc->device_addr.mode = NL802154_DEV_ADDR_SHORT;
+			desc->device_addr.short_addr = nla_get_u16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
+		} else {
+			desc->device_addr.mode = NL802154_DEV_ADDR_EXTENDED;
+			desc->device_addr.extended_addr = nla_get_u64(info->attrs[NL802154_ATTR_EXTENDED_ADDR]);
+		}
+	}
+
+	if (desc->mode != NL802154_SCF_KEY_IMPLICIT &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_ID])
+		return -EINVAL;
+
+	if (desc->mode == NL802154_SCF_KEY_SHORT_INDEX &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT])
+		return -EINVAL;
+
+	if (desc->mode == NL802154_SCF_KEY_HW_INDEX &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED])
+		return -EINVAL;
+
+	if (desc->mode != NL802154_SCF_KEY_IMPLICIT)
+		desc->id = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_ID]);
+
+	switch (desc->mode) {
+	case NL802154_SCF_KEY_SHORT_INDEX:
+	{
+		u32 source = nla_get_u32(info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT]);
+
+		desc->short_source = cpu_to_le32(source);
+		break;
+	}
+	case NL802154_SCF_KEY_HW_INDEX:
+		desc->extended_source = nla_get_u64(info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED]);
+		break;
+	}
+
+	return 0;
+}
+
 static int nl802154_set_llsec_params(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct ieee802154_llsec_params params;
+	u32 changed = 0;
+	int ret;
 
-	return 0;
+	if (!info->attrs[NL802154_ATTR_LLSEC_ENABLED] &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_MODE] &&
+	    !info->attrs[NL802154_ATTR_LLSEC_SECLEVEL])
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_LLSEC_SECLEVEL] &&
+	    nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_SECLEVEL]) > 7)
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_LLSEC_ENABLED]) {
+		params.enabled = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_ENABLED]);
+		changed |= IEEE802154_LLSEC_PARAM_ENABLED;
+	}
+
+	if (info->attrs[NL802154_ATTR_LLSEC_KEY_MODE]) {
+		ret = ieee802154_llsec_parse_key_id(info, &params.out_key);
+		if (ret < 0)
+			return ret;
+
+		changed |= IEEE802154_LLSEC_PARAM_OUT_KEY;
+	}
+
+	if (info->attrs[NL802154_ATTR_LLSEC_SECLEVEL]) {
+		params.out_level = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_SECLEVEL]);
+		changed |= IEEE802154_LLSEC_PARAM_OUT_LEVEL;
+	}
+
+	if (info->attrs[NL802154_ATTR_LLSEC_FRAME_COUNTER]) {
+		u32 fc = nla_get_u32(info->attrs[NL802154_ATTR_LLSEC_FRAME_COUNTER]);
+
+		params.frame_counter = cpu_to_be32(fc);
+		changed |= IEEE802154_LLSEC_PARAM_FRAME_COUNTER;
+	}
+
+	return rdev_set_llsec_params(rdev, wpan_dev, &params, changed);
 }
 
 static int

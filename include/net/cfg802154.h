@@ -99,6 +99,10 @@ struct cfg802154_ops {
 	int	(*get_llsec_params)(struct wpan_phy *wpan_phy,
 				    struct wpan_dev *wpan_dev,
 				    struct ieee802154_llsec_params *params);
+	int	(*set_llsec_params)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev,
+				    const struct ieee802154_llsec_params *params,
+				    u32 changed);
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
