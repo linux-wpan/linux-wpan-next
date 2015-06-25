@@ -1293,8 +1293,12 @@ static int nl802154_del_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct ieee802154_llsec_key_id id;
 
-	return 0;
+	if (ieee802154_llsec_parse_key_id(info, &id))
+		return -EINVAL;
+
+	return rdev_del_llsec_key(rdev, wpan_dev, &id);
 }
 
 static int

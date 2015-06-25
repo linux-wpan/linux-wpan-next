@@ -115,6 +115,9 @@ struct cfg802154_ops {
 				 struct wpan_dev *wpan_dev,
 				 const struct ieee802154_llsec_key_id *id,
 				 const struct ieee802154_llsec_key *key);
+	int	(*del_llsec_key)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_key_id *id);
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 

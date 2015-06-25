@@ -202,6 +202,14 @@ rdev_add_llsec_key(struct cfg802154_registered_device *rdev,
 {
 	return rdev->ops->add_llsec_key(&rdev->wpan_phy, wpan_dev, id, key);
 }
+
+static inline int
+rdev_del_llsec_key(struct cfg802154_registered_device *rdev,
+		   struct wpan_dev *wpan_dev,
+		   const struct ieee802154_llsec_key_id *id)
+{
+	return rdev->ops->del_llsec_key(&rdev->wpan_phy, wpan_dev, id);
+}
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 #endif /* __CFG802154_RDEV_OPS */
