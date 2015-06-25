@@ -175,4 +175,14 @@ rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
 	return ret;
 }
 
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+static inline int
+rdev_get_llsec_params(struct cfg802154_registered_device *rdev,
+		      struct wpan_dev *wpan_dev,
+		      struct ieee802154_llsec_params *params)
+{
+	return rdev->ops->get_llsec_params(&rdev->wpan_phy, wpan_dev, params);
+}
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
+
 #endif /* __CFG802154_RDEV_OPS */

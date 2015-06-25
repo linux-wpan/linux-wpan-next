@@ -27,6 +27,40 @@
 struct wpan_phy;
 struct wpan_phy_cca;
 
+struct ieee802154_addr {
+	u8 mode;
+	__le16 pan_id;
+	union {
+		__le16 short_addr;
+		__le64 extended_addr;
+	};
+};
+
+struct ieee802154_llsec_key_id {
+	u8 mode;
+	u8 id;
+	union {
+		struct ieee802154_addr device_addr;
+		__le32 short_source;
+		__le64 extended_source;
+	};
+};
+
+struct ieee802154_llsec_params {
+	bool enabled;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
+
+	__le64 default_key_source;
+
+	__le16 pan_id;
+	__le64 hwaddr;
+	__le64 coord_hwaddr;
+	__le16 coord_shortaddr;
+};
+
 struct cfg802154_ops {
 	struct net_device * (*add_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 							   const char *name,
@@ -61,6 +95,11 @@ struct cfg802154_ops {
 					 s8 max_frame_retries);
 	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev, bool mode);
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	int	(*get_llsec_params)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev,
+				    struct ieee802154_llsec_params *params);
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
 static inline bool

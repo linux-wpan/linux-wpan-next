@@ -1043,11 +1043,64 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+static int
+ieee802154_llsec_fill_key_id(struct sk_buff *skb,
+			     const struct ieee802154_llsec_key_id *desc)
+{
+	if (nla_put_u8(skb,NL802154_ATTR_LLSEC_KEY_MODE, desc->mode))
+		return -ENOBUFS;
+
+	if (desc->mode == NL802154_SCF_KEY_IMPLICIT) {
+		if (nla_put_u16(skb, NL802154_ATTR_PAN_ID,
+				desc->device_addr.pan_id))
+			return -ENOBUFS;
+
+		if (desc->device_addr.mode == NL802154_DEV_ADDR_SHORT &&
+		    nla_put_u16(skb, NL802154_ATTR_SHORT_ADDR,
+				desc->device_addr.short_addr))
+			return -ENOBUFS;
+
+		if (desc->device_addr.mode == NL802154_DEV_ADDR_EXTENDED &&
+		    nla_put_u64(skb, NL802154_ATTR_EXTENDED_ADDR,
+				desc->device_addr.extended_addr))
+			return -ENOBUFS;
+	}
+
+	if (desc->mode != NL802154_SCF_KEY_IMPLICIT &&
+	    nla_put_u8(skb, NL802154_ATTR_LLSEC_KEY_ID, desc->id))
+		return -ENOBUFS;
+
+	if (desc->mode == NL802154_SCF_KEY_SHORT_INDEX &&
+	    nla_put_u32(skb, NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT,
+			le32_to_cpu(desc->short_source)))
+		return -ENOBUFS;
+
+	if (desc->mode == NL802154_SCF_KEY_HW_INDEX &&
+	    nla_put_u64(skb, NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED,
+			desc->extended_source))
+		return -ENOBUFS;
+
+	return 0;
+}
+
 static int nl802154_get_llsec_params(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct ieee802154_llsec_params params;
+	int ret;
+
+	ret = rdev_get_llsec_params(rdev, wpan_dev, &params);
+	if (ret < 0)
+		return ret;
+
+	if (nla_put_u8(skb, NL802154_ATTR_LLSEC_ENABLED, params.enabled) ||
+	    nla_put_u8(skb, NL802154_ATTR_LLSEC_SECLEVEL, params.out_level) ||
+	    nla_put_u32(skb, NL802154_ATTR_LLSEC_FRAME_COUNTER,
+			be32_to_cpu(params.frame_counter)) ||
+	    ieee802154_llsec_fill_key_id(skb, &params.out_key))
+		return -ENOBUFS;
 
 	return 0;
 }
