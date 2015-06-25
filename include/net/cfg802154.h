@@ -46,6 +46,14 @@ struct ieee802154_llsec_key_id {
 	};
 };
 
+#define IEEE802154_LLSEC_KEY_SIZE 16
+
+struct ieee802154_llsec_key {
+	u8 frame_types;
+	u32 cmd_frame_ids;
+	u8 key[IEEE802154_LLSEC_KEY_SIZE];
+};
+
 struct ieee802154_llsec_params {
 	bool enabled;
 
@@ -103,6 +111,10 @@ struct cfg802154_ops {
 				    struct wpan_dev *wpan_dev,
 				    const struct ieee802154_llsec_params *params,
 				    u32 changed);
+	int	(*add_llsec_key)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_key_id *id,
+				 const struct ieee802154_llsec_key *key);
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 

@@ -1215,6 +1215,46 @@ static int nl802154_set_llsec_params(struct sk_buff *skb, struct genl_info *info
 static int
 nl802154_dump_llsec_key(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	/* TODO */
+	return 0;
+}
+
+static int
+ieee802154_llsec_parse_key(struct genl_info *info,
+			   struct ieee802154_llsec_key *key)
+{
+	u8 frames;
+	u32 commands[256 / 32];
+
+	memset(key, 0, sizeof(*key));
+
+	if (!info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] ||
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES])
+		return -EINVAL;
+
+	frames = nla_get_u8(info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES]);
+	if ((frames & BIT(NL802154_FRAME_CMD)) &&
+	    !info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS])
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS]) {
+		nla_memcpy(commands,
+			   info->attrs[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS],
+			   256 / 8);
+
+		if (commands[0] || commands[1] || commands[2] || commands[3] ||
+		    commands[4] || commands[5] || commands[6] ||
+		    commands[7] >= BIT(NL802154_CMD_FRAME_GTS_REQUEST + 1))
+			return -EINVAL;
+
+		key->cmd_frame_ids = commands[7];
+	}
+
+	key->frame_types = frames;
+
+	nla_memcpy(key->key, info->attrs[NL802154_ATTR_LLSEC_KEY_BYTES],
+		   NL802154_LLSEC_KEY_SIZE);
+
 	return 0;
 }
 
@@ -1223,8 +1263,19 @@ static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct ieee802154_llsec_key key;
+	struct ieee802154_llsec_key_id id;
 
-	return 0;
+	/* TODO really needed ? */
+	if ((info->nlhdr->nlmsg_flags & (NLM_F_CREATE | NLM_F_EXCL)) !=
+	    (NLM_F_CREATE | NLM_F_EXCL))
+		return -EINVAL;
+
+	if (ieee802154_llsec_parse_key(info, &key) ||
+	    ieee802154_llsec_parse_key_id(info, &id))
+		return -EINVAL;
+
+	return rdev_add_llsec_key(rdev, wpan_dev, &id, &key);
 }
 
 static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)

@@ -234,14 +234,6 @@ static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 	return mac_cb(skb);
 }
 
-#define IEEE802154_LLSEC_KEY_SIZE 16
-
-struct ieee802154_llsec_key {
-	u8 frame_types;
-	u32 cmd_frame_ids;
-	u8 key[IEEE802154_LLSEC_KEY_SIZE];
-};
-
 struct ieee802154_llsec_key_entry {
 	struct list_head list;
 
