@@ -229,6 +229,73 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	return 0;
 }
 
+
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+static int
+ieee802154_set_llsec_params(struct wpan_phy *wpan_phy,
+			    struct wpan_dev *wpan_dev,
+			    const struct ieee802154_llsec_params *params,
+			    int changed)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int res;
+
+	mutex_lock(&sdata->sec_mtx);
+	res = mac802154_llsec_set_params(&sdata->sec, params, changed);
+	mutex_unlock(&sdata->sec_mtx);
+
+	return res;
+}
+
+static int
+ieee802154_get_llsec_params(struct wpan_phy *wpan_phy,
+			    struct wpan_dev *wpan_dev,
+			    struct ieee802154_llsec_params *params)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int res;
+
+	mutex_lock(&sdata->sec_mtx);
+	res = mac802154_llsec_get_params(&sdata->sec, params);
+	mutex_unlock(&sdata->sec_mtx);
+
+	return res;
+}
+
+static int
+ieee802154_add_llsec_key(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			 const struct ieee802154_llsec_key_id *id,
+			 const struct ieee802154_llsec_key *key)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int res;
+
+	mutex_lock(&sdata->sec_mtx);
+	res = mac802154_llsec_key_add(&sdata->sec, id, key);
+	mutex_unlock(&sdata->sec_mtx);
+
+	return res;
+}
+
+static int
+ieee802154_del_llsec_key(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			 const struct ieee802154_llsec_key_id *id)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int res;
+
+	mutex_lock(&sdata->sec_mtx);
+	res = mac802154_llsec_key_del(&sdata->sec, id);
+	mutex_unlock(&sdata->sec_mtx);
+
+	return res;
+}
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
@@ -244,4 +311,10 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
+#ifndef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	.set_llsec_params = ieee802154_set_llsec_params,
+	.get_llsec_params = ieee802154_get_llsec_params,
+	.add_llsec_key = ieee802154_add_llsec_key,
+	.del_llsec_key = ieee802154_del_llsec_key,
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
