@@ -1254,6 +1254,49 @@ static int nl802154_set_llsec_params(struct sk_buff *skb, struct genl_info *info
 }
 
 static int
+nl802154_send_llsec_key(struct sk_buff *msg, u32 portid, u32 seq, int flags,
+			struct cfg802154_registered_device *rdev,
+			struct wpan_dev *wpan_dev,
+			const struct ieee802154_llsec_key_entry *key)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	u32 commands[256 / 32];
+	void *hdr;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags,
+			      NL802154_CMD_NEW_LLSEC_KEY);
+	if (!hdr)
+		return -1;
+
+	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
+		goto nla_put_failure;
+
+	if (ieee802154_llsec_fill_key_id(msg, &key->id) ||
+	    nla_put_u8(msg, NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES,
+		       key->key->frame_types))
+		goto nla_put_failure;
+
+	if (key->key->frame_types & BIT(NL802154_FRAME_CMD)) {
+		memset(commands, 0, sizeof(commands));
+		commands[7] = key->key->cmd_frame_ids;
+		if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS,
+			    sizeof(commands), commands))
+			goto nla_put_failure;
+	}
+
+	if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_BYTES,
+		    NL802154_LLSEC_KEY_SIZE, key->key->key))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -ENOBUFS;
+}
+
+static int
 nl802154_dump_llsec_key(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	/* TODO */
@@ -1265,8 +1308,20 @@ static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct ieee802154_llsec_key_entry key;
+	struct sk_buff *msg;
 
-	return 0;
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	if (nl802154_send_llsec_key(msg, info->snd_portid, info->snd_seq, 0,
+				    rdev, wpan_dev, &key) < 0) {
+		nlmsg_free(msg);
+		return -ENOBUFS;
+	}
+
+	return genlmsg_reply(msg, info);
 }
 
 static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
@@ -1637,7 +1692,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_ADD_LLSEC_KEY,
+		.cmd = NL802154_CMD_NEW_LLSEC_KEY,
 		.doit = nl802154_add_llsec_key,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1662,7 +1717,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_ADD_LLSEC_DEV,
+		.cmd = NL802154_CMD_NEW_LLSEC_DEV,
 		.doit = nl802154_add_llsec_dev,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1687,7 +1742,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_ADD_LLSEC_DEVKEY,
+		.cmd = NL802154_CMD_NEW_LLSEC_DEVKEY,
 		.doit = nl802154_add_llsec_devkey,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
@@ -1712,7 +1767,7 @@ static const struct genl_ops nl802154_ops[] = {
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL802154_CMD_ADD_LLSEC_SECLEVEL,
+		.cmd = NL802154_CMD_NEW_LLSEC_SECLEVEL,
 		.doit = nl802154_add_llsec_seclevel,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
