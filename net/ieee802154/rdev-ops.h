@@ -176,6 +176,28 @@ rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+/* TODO this is already a nl802154, so move into ieee802154 */
+static inline void
+rdev_get_llsec_table(struct cfg802154_registered_device *rdev,
+		     struct wpan_dev *wpan_dev,
+		     struct ieee802154_llsec_table **table)
+{
+	rdev->ops->get_llsec_table(&rdev->wpan_phy, wpan_dev, table);
+}
+static inline void
+rdev_lock_llsec_table(struct cfg802154_registered_device *rdev,
+		     struct wpan_dev *wpan_dev)
+{
+	rdev->ops->lock_llsec_table(&rdev->wpan_phy, wpan_dev);
+}
+static inline void
+rdev_unlock_llsec_table(struct cfg802154_registered_device *rdev,
+		     struct wpan_dev *wpan_dev)
+{
+	rdev->ops->unlock_llsec_table(&rdev->wpan_phy, wpan_dev);
+}
+/* TODO I am not a friend of this the above one */
+
 static inline int
 rdev_get_llsec_params(struct cfg802154_registered_device *rdev,
 		      struct wpan_dev *wpan_dev,
@@ -210,6 +232,7 @@ rdev_del_llsec_key(struct cfg802154_registered_device *rdev,
 {
 	return rdev->ops->del_llsec_key(&rdev->wpan_phy, wpan_dev, id);
 }
+
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 #endif /* __CFG802154_RDEV_OPS */

@@ -278,12 +278,6 @@ struct ieee802154_llsec_seclevel {
 	u32 sec_levels;
 };
 
-struct ieee802154_llsec_table {
-	struct list_head keys;
-	struct list_head devices;
-	struct list_head security_levels;
-};
-
 #define IEEE802154_MAC_SCAN_ED		0
 #define IEEE802154_MAC_SCAN_ACTIVE	1
 #define IEEE802154_MAC_SCAN_PASSIVE	2

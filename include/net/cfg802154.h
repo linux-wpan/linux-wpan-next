@@ -69,6 +69,12 @@ struct ieee802154_llsec_params {
 	__le16 coord_shortaddr;
 };
 
+struct ieee802154_llsec_table {
+	struct list_head keys;
+	struct list_head devices;
+	struct list_head security_levels;
+};
+
 struct cfg802154_ops {
 	struct net_device * (*add_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 							   const char *name,
@@ -104,6 +110,14 @@ struct cfg802154_ops {
 	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev, bool mode);
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	void	(*get_llsec_table)(struct wpan_phy *wpan_phy,
+				   struct wpan_dev *wpan_dev,
+				   struct ieee802154_llsec_table **table);
+	void	(*lock_llsec_table)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev);
+	void	(*unlock_llsec_table)(struct wpan_phy *wpan_phy,
+				      struct wpan_dev *wpan_dev);
+	/* above one TODO */
 	int	(*get_llsec_params)(struct wpan_phy *wpan_phy,
 				    struct wpan_dev *wpan_dev,
 				    struct ieee802154_llsec_params *params);

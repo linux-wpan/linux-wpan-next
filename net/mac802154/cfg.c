@@ -231,6 +231,37 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+static void
+ieee802154_get_llsec_table(struct wpan_phy *wpan_phy,
+			   struct wpan_dev *wpan_dev,
+			   struct ieee802154_llsec_table **table)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	*table = &sdata->sec.table;
+}
+
+static void
+ieee802154_lock_llsec_table(struct wpan_phy *wpan_phy,
+			    struct wpan_dev *wpan_dev)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->sec_mtx);
+}
+
+static void
+ieee802154_unlock_llsec_table(struct wpan_phy *wpan_phy,
+			    struct wpan_dev *wpan_dev)
+{
+	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_unlock(&sdata->sec_mtx);
+}
+
 static int
 ieee802154_set_llsec_params(struct wpan_phy *wpan_phy,
 			    struct wpan_dev *wpan_dev,
@@ -312,6 +343,10 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	.get_llsec_table = ieee802154_get_llsec_table,
+	.lock_llsec_table = ieee802154_lock_llsec_table,
+	.unlock_llsec_table = ieee802154_unlock_llsec_table,
+	/* TODO above */
 	.set_llsec_params = ieee802154_set_llsec_params,
 	.get_llsec_params = ieee802154_get_llsec_params,
 	.add_llsec_key = ieee802154_add_llsec_key,

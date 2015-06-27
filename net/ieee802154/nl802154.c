@@ -230,7 +230,95 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_WPAN_PHY_CAPS] = { .type = NLA_NESTED },
 
 	[NL802154_ATTR_SUPPORTED_COMMANDS] = { .type = NLA_NESTED },
+
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	[NL802154_ATTR_LLSEC_ENABLED] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_SECLEVEL] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_MODE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT] = { .type = NLA_U32, },
+	[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED] = { .type = NLA_U64, },
+	[NL802154_ATTR_LLSEC_KEY_ID] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_FRAME_COUNTER] = { .type = NLA_U32 },
+	[NL802154_ATTR_LLSEC_KEY_BYTES] = { .len = 16, },
+	[NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS] = { .len = 258 / 8 },
+	[NL802154_ATTR_LLSEC_FRAME_TYPE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_CMD_FRAME_ID] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_SECLEVELS] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_DEV_OVERRIDE] = { .type = NLA_U8, },
+	[NL802154_ATTR_LLSEC_DEV_KEY_MODE] = { .type = NLA_U8, },
+
+	[NL802154_ATTR_LLSEC_KEY_TABLE] = { .type = NLA_NESTED },
+	[NL802154_ATTR_LLSEC_KEY] = { .type = NLA_NESTED },
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
+
+#if 0
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+static int
+nl802154_prepare_wpan_dev_dump(struct sk_buff *skb,
+			       struct netlink_callback *cb,
+			       struct cfg802154_registered_device **rdev,
+			       struct wpan_dev **wpan_dev)
+{
+	int err;
+
+	rtnl_lock();
+
+	if (!cb->args[0]) {
+		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
+				  nl802154_fam.attrbuf, nl802154_fam.maxattr,
+				  nl802154_policy);
+		if (err)
+			goto out_unlock;
+
+		*wpan_dev = __cfg802154_wpan_dev_from_attrs(sock_net(skb->sk),
+							    nl802154_fam.attrbuf);
+		if (IS_ERR(*wpan_dev)) {
+			err = PTR_ERR(*wpan_dev);
+			goto out_unlock;
+		}
+		*rdev = wpan_phy_to_rdev((*wpan_dev)->wpan_phy);
+		/* 0 is the first index - add 1 to parse only once */
+		cb->args[0] = (*rdev)->wpan_phy_idx + 1;
+		cb->args[1] = (*wpan_dev)->identifier;
+	} else {
+		/* subtract the 1 again here */
+		struct wpan_phy *wpan_phy = wpan_phy_idx_to_wpan_phy(cb->args[0] - 1);
+		struct wpan_dev *tmp;
+
+		if (!wpan_phy) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
+		*rdev = wpan_phy_to_rdev(wpan_phy);
+		*wpan_dev = NULL;
+
+		list_for_each_entry(tmp, &(*rdev)->wpan_dev_list, list) {
+			if (tmp->identifier == cb->args[1]) {
+				*wpan_dev = tmp;
+				break;
+			}
+		}
+
+		if (!*wpan_dev) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
+	}
+
+	return 0;
+ out_unlock:
+	rtnl_unlock();
+	return err;
+}
+
+static void nl802154_finish_wpan_dev_dump(struct cfg802154_registered_device *rdev)
+{
+	rtnl_unlock();
+}
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
+#endif
 
 /* message building helper */
 static inline void *nl802154hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -1068,16 +1156,18 @@ ieee802154_llsec_fill_key_id(struct sk_buff *skb,
 			return -ENOBUFS;
 	}
 
+	/* TODO key_id to key_idx ? Check naming */
 	if (desc->mode != NL802154_SCF_KEY_IMPLICIT &&
 	    nla_put_u8(skb, NL802154_ATTR_LLSEC_KEY_ID, desc->id))
 		return -ENOBUFS;
 
+	/* TODO use mac byte order? */
 	if (desc->mode == NL802154_SCF_KEY_SHORT_INDEX &&
 	    nla_put_u32(skb, NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT,
 			le32_to_cpu(desc->short_source)))
 		return -ENOBUFS;
 
-	if (desc->mode == NL802154_SCF_KEY_HW_INDEX &&
+	if (desc->mode == NL802154_SCF_KEY_EXTENDED_INDEX &&
 	    nla_put_u64(skb, NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED,
 			desc->extended_source))
 		return -ENOBUFS;
@@ -1143,7 +1233,7 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 	    !info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_SHORT])
 		return -EINVAL;
 
-	if (desc->mode == NL802154_SCF_KEY_HW_INDEX &&
+	if (desc->mode == NL802154_SCF_KEY_EXTENDED_INDEX &&
 	    !info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED])
 		return -EINVAL;
 
@@ -1159,7 +1249,7 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 		desc->short_source = cpu_to_le32(source);
 		break;
 	}
-	case NL802154_SCF_KEY_HW_INDEX:
+	case NL802154_SCF_KEY_EXTENDED_INDEX:
 		desc->extended_source = nla_get_u64(info->attrs[NL802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED]);
 		break;
 	}
@@ -1256,10 +1346,12 @@ static int nl802154_set_llsec_params(struct sk_buff *skb, struct genl_info *info
 static int
 nl802154_send_llsec_key(struct sk_buff *msg, u32 portid, u32 seq, int flags,
 			struct cfg802154_registered_device *rdev,
-			struct wpan_dev *wpan_dev,
-			const struct ieee802154_llsec_key_entry *key)
+			struct wpan_dev *wpan_dev)
 {
 	struct net_device *dev = wpan_dev->netdev;
+	struct ieee802154_llsec_key_entry *key;
+	struct ieee802154_llsec_table *table;
+	struct nlattr *nl_key_table, *nl_key;
 	u32 commands[256 / 32];
 	void *hdr;
 
@@ -1268,47 +1360,116 @@ nl802154_send_llsec_key(struct sk_buff *msg, u32 portid, u32 seq, int flags,
 	if (!hdr)
 		return -1;
 
+	rdev_lock_llsec_table(rdev, wpan_dev);
+	rdev_get_llsec_table(rdev, wpan_dev, &table);
+
+	if (dev &&
+	    (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex) ||
+	     nla_put_string(msg, NL802154_ATTR_IFNAME, dev->name)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL802154_ATTR_WPAN_PHY, rdev->wpan_phy_idx) ||
+	    nla_put_u32(msg, NL802154_ATTR_IFTYPE, wpan_dev->iftype) ||
+	    nla_put_u64(msg, NL802154_ATTR_WPAN_DEV, wpan_dev_id(wpan_dev)) ||
+	    nla_put_u32(msg, NL802154_ATTR_GENERATION,
+			rdev->devlist_generation ^
+			(cfg802154_rdev_list_generation << 2)))
+		goto nla_put_failure;
+
 	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	if (ieee802154_llsec_fill_key_id(msg, &key->id) ||
-	    nla_put_u8(msg, NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES,
-		       key->key->frame_types))
+	nl_key_table = nla_nest_start(msg, NL802154_ATTR_LLSEC_KEY_TABLE);
+	if (!nl_key_table)
 		goto nla_put_failure;
 
-	if (key->key->frame_types & BIT(NL802154_FRAME_CMD)) {
-		memset(commands, 0, sizeof(commands));
-		commands[7] = key->key->cmd_frame_ids;
-		if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS,
-			    sizeof(commands), commands))
+	list_for_each_entry(key, &table->keys, list) {
+		nl_key = nla_nest_start(msg, NL802154_ATTR_LLSEC_KEY);
+		if (!nl_key)
 			goto nla_put_failure;
+
+		if (ieee802154_llsec_fill_key_id(msg, &key->id) ||
+		    nla_put_u8(msg, NL802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES,
+			       key->key->frame_types))
+			goto nla_put_failure;
+
+		if (key->key->frame_types & BIT(NL802154_FRAME_CMD)) {
+			memset(commands, 0, sizeof(commands));
+			commands[7] = key->key->cmd_frame_ids;
+			if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_USAGE_COMMANDS,
+				    sizeof(commands), commands))
+				goto nla_put_failure;
+		}
+
+		if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_BYTES,
+			    NL802154_LLSEC_KEY_SIZE, key->key->key))
+			goto nla_put_failure;
+
+		nla_nest_end(msg, nl_key);
 	}
 
-	if (nla_put(msg, NL802154_ATTR_LLSEC_KEY_BYTES,
-		    NL802154_LLSEC_KEY_SIZE, key->key->key))
-		goto nla_put_failure;
+	nla_nest_end(msg, nl_key_table);
 
+	rdev_unlock_llsec_table(rdev, wpan_dev);
 	genlmsg_end(msg, hdr);
 	return 0;
 
 nla_put_failure:
+	rdev_unlock_llsec_table(rdev, wpan_dev);
 	genlmsg_cancel(msg, hdr);
 	return -ENOBUFS;
 }
 
+/* TODO look for example dump station? */
 static int
 nl802154_dump_llsec_key(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	/* TODO */
-	return 0;
+	int wp_idx = 0;
+	int if_idx = 0;
+	int wp_start = cb->args[0];
+	int if_start = cb->args[1];
+	struct cfg802154_registered_device *rdev;
+	struct wpan_dev *wpan_dev;
+
+	rtnl_lock();
+	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
+		/* TODO netns compare */
+		if (wp_idx < wp_start) {
+			wp_idx++;
+			continue;
+		}
+		if_idx = 0;
+
+		list_for_each_entry(wpan_dev, &rdev->wpan_dev_list, list) {
+			if (if_idx < if_start) {
+				if_idx++;
+				continue;
+			}
+			if (nl802154_send_llsec_key(skb, NETLINK_CB(cb->skb).portid,
+						    cb->nlh->nlmsg_seq, NLM_F_MULTI,
+						    rdev, wpan_dev) < 0) {
+				goto out;
+			}
+			if_idx++;
+		}
+
+		wp_idx++;
+	}
+out:
+	rtnl_unlock();
+
+	cb->args[0] = wp_idx;
+	cb->args[1] = if_idx;
+
+	return skb->len;
 }
 
+/* TODO get key by id? Look at dump station */
 static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	struct ieee802154_llsec_key_entry key;
 	struct sk_buff *msg;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1316,7 +1477,7 @@ static int nl802154_get_llsec_key(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 
 	if (nl802154_send_llsec_key(msg, info->snd_portid, info->snd_seq, 0,
-				    rdev, wpan_dev, &key) < 0) {
+				    rdev, wpan_dev) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;
 	}
@@ -1331,13 +1492,6 @@ static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
 	struct ieee802154_llsec_key key;
 	struct ieee802154_llsec_key_id id;
-
-#if 0
-	/* TODO really needed ? */
-	if ((info->nlhdr->nlmsg_flags & (NLM_F_CREATE | NLM_F_EXCL)) !=
-	    (NLM_F_CREATE | NLM_F_EXCL))
-		return -EINVAL;
-#endif
 
 	if (ieee802154_llsec_parse_key(info, &key) ||
 	    ieee802154_llsec_parse_key_id(info, &id))
