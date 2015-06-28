@@ -1216,6 +1216,10 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 
 		desc->device_addr.pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
 
+		/* TODO add explicit mode setting? Will bug on NONE. CHECK had some
+		 * nullpointer dereference when setting no NL802154_ATTR_SHORT_ADDR, something
+		 * is weird with the else branch. Remove else here.
+		 */
 		if (info->attrs[NL802154_ATTR_SHORT_ADDR]) {
 			desc->device_addr.mode = NL802154_DEV_ADDR_SHORT;
 			desc->device_addr.short_addr = nla_get_u16(info->attrs[NL802154_ATTR_SHORT_ADDR]);

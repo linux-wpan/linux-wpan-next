@@ -124,7 +124,7 @@ struct cfg802154_ops {
 	int	(*set_llsec_params)(struct wpan_phy *wpan_phy,
 				    struct wpan_dev *wpan_dev,
 				    const struct ieee802154_llsec_params *params,
-				    u32 changed);
+				    int changed);
 	int	(*add_llsec_key)(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev,
 				 const struct ieee802154_llsec_key_id *id,
