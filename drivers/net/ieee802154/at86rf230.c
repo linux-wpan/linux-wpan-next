@@ -99,7 +99,6 @@ struct at86rf230_local {
 
 	bool tx_aret;
 	unsigned long cal_timeout;
-	s8 max_frame_retries;
 	bool is_tx;
 	bool is_tx_from_off;
 	u8 tx_retry;
@@ -902,9 +901,13 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct at86rf230_local *lp = hw->priv;
 	struct at86rf230_state_change *ctx = &lp->tx;
+	__le16 fc;
 
 	lp->tx_skb = skb;
 	lp->tx_retry = 0;
+
+	fc = ieee802154_get_fc_from_skb(skb);
+	lp->tx_aret = ieee802154_is_ackreq(fc);
 
 	/* After 5 minutes in PLL and the same frequency we run again the
 	 * calibration loops which is recommended by at86rf2xx datasheets.
@@ -1268,9 +1271,6 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 {
 	struct at86rf230_local *lp = hw->priv;
 	int rc = 0;
-
-	lp->tx_aret = retries >= 0;
-	lp->max_frame_retries = retries;
 
 	if (retries >= 0)
 		rc = at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, retries);
