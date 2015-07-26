@@ -25,6 +25,8 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
+#include <linux/skbuff.h>
+#include <linux/unaligned/memmove.h>
 #include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
@@ -204,6 +206,33 @@ enum {
 	 */
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
+
+/* frame control handling */
+#define IEEE802154_FCTL_ACKREQ	0x0020
+
+/**
+ * ieee802154_is_ackreq - check if acknowledgment request bit is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_ackreq(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_ACKREQ);
+}
+
+/**
+ * ieee802154_get_fc_from_skb - get the frame control field from an skb
+ * @skb: skb where the frame control field will be get from
+ */
+static inline __le16 ieee802154_get_fc_from_skb(const struct sk_buff *skb)
+{
+	/* return some invalid fc on failure */
+	if (unlikely(skb->mac_len < 2)) {
+		WARN_ON(1);
+		return cpu_to_le16(0);
+	}
+
+	return (__force __le16)__get_unaligned_memmove16(skb_mac_header(skb));
+}
 
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
