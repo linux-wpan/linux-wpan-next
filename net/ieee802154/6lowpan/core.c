@@ -153,6 +153,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
+	lowpan_priv(dev)->lltype = LOWPAN_LLTYPE_IEEE802154;
+
 	ret = register_netdevice(dev);
 	if (ret >= 0) {
 		if (!lowpan_open_count)
@@ -193,7 +195,8 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {
 	.kind		= "lowpan",
-	.priv_size	= sizeof(struct lowpan_dev_info),
+	.priv_size	= sizeof(struct lowpan_priv) +
+			  sizeof(struct lowpan_dev_info),
 	.setup		= lowpan_setup,
 	.newlink	= lowpan_newlink,
 	.dellink	= lowpan_dellink,

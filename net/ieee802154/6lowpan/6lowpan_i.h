@@ -5,6 +5,7 @@
 
 #include <net/ieee802154_netdev.h>
 #include <net/inet_frag.h>
+#include <net/6lowpan.h>
 
 struct lowpan_create_arg {
 	u16 tag;
@@ -52,7 +53,7 @@ struct lowpan_dev_info {
 static inline struct
 lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 {
-	return netdev_priv(dev);
+	return (struct lowpan_dev_info *)lowpan_priv(dev)->priv;
 }
 
 extern struct list_head lowpan_devices;
