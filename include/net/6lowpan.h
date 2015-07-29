@@ -197,6 +197,24 @@
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
 #define LOWPAN_NHC_UDP_CS_C	0x04 /* checksum elided */
 
+enum lowpan_lltypes {
+	LOWPAN_LLTYPE_BTLE,
+	LOWPAN_LLTYPE_IEEE802154,
+};
+
+struct lowpan_priv {
+	enum lowpan_lltypes lltype;
+
+	/* must be last */
+	u8 priv[0] __aligned(sizeof(void *));
+};
+
+static inline
+struct lowpan_priv *lowpan_priv(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
 #ifdef DEBUG
 /* print data in line */
 static inline void raw_dump_inline(const char *caller, char *msg,
