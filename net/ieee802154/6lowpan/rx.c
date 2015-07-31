@@ -56,7 +56,6 @@ static int lowpan_give_skb_to_device(struct sk_buff *skb)
 	int ret;
 
 	skb->protocol = htons(ETH_P_IPV6);
-	skb->pkt_type = PACKET_HOST;
 
 	ret = netif_rx(skb);
 	/* kfree_skb handled by netif_rx, so RX_DROP on failure */
