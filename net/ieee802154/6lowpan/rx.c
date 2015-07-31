@@ -62,15 +62,13 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	struct ieee802154_hdr hdr;
 	int ret;
 
+	if (skb->pkt_type == PACKET_OTHERHOST ||
+	    wdev->type != ARPHRD_IEEE802154)
+		goto drop;
+
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
-
-	if (skb->pkt_type == PACKET_OTHERHOST)
-		goto drop_skb;
-
-	if (wdev->type != ARPHRD_IEEE802154)
-		goto drop_skb;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
