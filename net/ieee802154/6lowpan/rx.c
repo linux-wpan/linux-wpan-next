@@ -15,10 +15,8 @@
 
 #include "6lowpan_i.h"
 
-static int lowpan_give_skb_to_device(struct sk_buff *skb,
-				     struct net_device *wdev)
+static int lowpan_give_skb_to_device(struct sk_buff *skb)
 {
-	skb->dev = wdev->ieee802154_ptr->lowpan_dev;
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->pkt_type = PACKET_HOST;
 
@@ -73,11 +71,13 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
 
+	skb->dev = wdev->ieee802154_ptr->lowpan_dev;
+
 	/* check that it's our buffer */
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(skb, 1);
-		return lowpan_give_skb_to_device(skb, wdev);
+		return lowpan_give_skb_to_device(skb);
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
@@ -85,7 +85,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 			if (ret < 0)
 				goto drop_skb;
 
-			return lowpan_give_skb_to_device(skb, wdev);
+			return lowpan_give_skb_to_device(skb);
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAG1);
 			if (ret == 1) {
@@ -93,7 +93,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 				if (ret < 0)
 					goto drop_skb;
 
-				return lowpan_give_skb_to_device(skb, wdev);
+				return lowpan_give_skb_to_device(skb);
 			} else if (ret == -1) {
 				return NET_RX_DROP;
 			} else {
@@ -106,7 +106,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 				if (ret < 0)
 					goto drop_skb;
 
-				return lowpan_give_skb_to_device(skb, wdev);
+				return lowpan_give_skb_to_device(skb);
 			} else if (ret == -1) {
 				return NET_RX_DROP;
 			} else {
