@@ -21,6 +21,16 @@ typedef unsigned __bitwise__ lowpan_rx_result;
 #define RX_DROP			((__force lowpan_rx_result) 2u)
 #define RX_QUEUED		((__force lowpan_rx_result) 3u)
 
+#define LOWPAN_DISPATCH_FIRST		0xc0
+#define LOWPAN_DISPATCH_FRAG_MASK	0xf8
+#define LOWPAN_DISPATCH_IPHC_MASK	0xe0
+
+#define LOWPAN_DISPATCH_NALP		0x00
+#define LOWPAN_DISPATCH_HC1		0x42
+#define LOWPAN_DISPATCH_BC0		0x50
+#define LOWPAN_DISPATCH_ESC		0x7f
+#define LOWPAN_DISPATCH_MESH		0x80
+
 static int
 lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 {
@@ -86,7 +96,7 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 
 static lowpan_rx_result lowpan_rx_h_ipv6(struct sk_buff *skb)
 {
-	if (skb->data[0] != LOWPAN_DISPATCH_IPV6)
+	if (!lowpan_is_ipv6(*skb_network_header(skb)))
 		return RX_CONTINUE;
 
 	/* Pull off the 1-byte of 6lowpan header. */
@@ -94,15 +104,25 @@ static lowpan_rx_result lowpan_rx_h_ipv6(struct sk_buff *skb)
 	return lowpan_give_skb_to_device(skb);
 }
 
+static inline bool lowpan_is_frag1(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_FRAG_MASK) == LOWPAN_DISPATCH_FRAG1;
+}
+
+static inline bool lowpan_is_fragn(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_FRAG_MASK) == LOWPAN_DISPATCH_FRAGN;
+}
+
 static lowpan_rx_result lowpan_rx_h_frag(struct sk_buff *skb)
 {
 	int ret;
 
-	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAG1 &&
-	    (skb->data[0] & 0xe0) != LOWPAN_DISPATCH_FRAGN)
+	if (!(lowpan_is_frag1(*skb_network_header(skb)) ||
+	      lowpan_is_fragn(*skb_network_header(skb))))
 		return RX_CONTINUE;
 
-	ret = lowpan_frag_rcv(skb, skb->data[0] & 0xe0);
+	ret = lowpan_frag_rcv(skb, *skb_network_header(skb) & 0xe0);
 	if (ret == 1)
 		return RX_CONTINUE;
 
@@ -115,7 +135,7 @@ static lowpan_rx_result lowpan_rx_h_iphc(struct sk_buff *skb)
 	int ret;
 	struct ieee802154_hdr hdr;
 
-	if ((skb->data[0] & 0xe0) != LOWPAN_DISPATCH_IPHC)
+	if (!lowpan_is_iphc(*skb_network_header(skb)))
 		return RX_CONTINUE;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
