@@ -94,11 +94,9 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 					goto drop_skb;
 
 				return lowpan_give_skb_to_device(skb);
-			} else if (ret == -1) {
-				return NET_RX_DROP;
-			} else {
-				return NET_RX_SUCCESS;
 			}
+
+			return NET_RX_DROP;
 		case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
 			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAGN);
 			if (ret == 1) {
@@ -107,11 +105,9 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 					goto drop_skb;
 
 				return lowpan_give_skb_to_device(skb);
-			} else if (ret == -1) {
-				return NET_RX_DROP;
-			} else {
-				return NET_RX_SUCCESS;
 			}
+
+			return NET_RX_DROP;
 		default:
 			break;
 		}
