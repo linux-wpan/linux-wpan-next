@@ -248,6 +248,15 @@ static inline bool lowpan_is_nalp(u8 dispatch)
 	return (dispatch & LOWPAN_DISPATCH_FIRST) == LOWPAN_DISPATCH_NALP;
 }
 
+static inline bool lowpan_is_reserved(u8 dispatch)
+{
+	return !(lowpan_is_nalp(dispatch) || lowpan_is_iphc(dispatch) ||
+		 lowpan_is_ipv6(dispatch) || lowpan_is_hc1(dispatch) ||
+		 lowpan_is_bc0(dispatch) || lowpan_is_mesh(dispatch) ||
+		 lowpan_is_esc(dispatch) || lowpan_is_frag1(dispatch) ||
+		 lowpan_is_fragn(dispatch));
+}
+
 /* lowpan_rx_h_check checks on generic 6LoWPAN requirements
  * in MAC and 6LoWPAN header.
  *
@@ -259,7 +268,8 @@ static bool lowpan_rx_h_check(struct sk_buff *skb)
 	if (unlikely(!skb->len))
 		return false;
 
-	if (lowpan_is_nalp(*skb_network_header(skb)))
+	if (lowpan_is_nalp(*skb_network_header(skb)) ||
+	    lowpan_is_reserved(*skb_network_header(skb)))
 		return false;
 
 	return true;
