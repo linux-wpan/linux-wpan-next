@@ -122,7 +122,8 @@ static lowpan_rx_result lowpan_rx_h_frag(struct sk_buff *skb)
 	      lowpan_is_fragn(*skb_network_header(skb))))
 		return RX_CONTINUE;
 
-	ret = lowpan_frag_rcv(skb, *skb_network_header(skb) & 0xe0);
+	ret = lowpan_frag_rcv(skb, *skb_network_header(skb) &
+			      LOWPAN_DISPATCH_FRAG_MASK);
 	if (ret == 1)
 		return RX_CONTINUE;
 
