@@ -7,6 +7,9 @@
 #include <net/inet_frag.h>
 #include <net/6lowpan.h>
 
+#define LOWPAN_DISPATCH_FRAG1		0xc0
+#define LOWPAN_DISPATCH_FRAGN		0xe0
+
 struct lowpan_create_arg {
 	u16 tag;
 	u16 d_size;

@@ -126,11 +126,19 @@
 	 (((a)[6]) == 0xFF) &&	\
 	 (((a)[7]) == 0xFF))
 
-#define LOWPAN_DISPATCH_IPV6	0x41 /* 01000001 = 65 */
-#define LOWPAN_DISPATCH_HC1	0x42 /* 01000010 = 66 */
-#define LOWPAN_DISPATCH_IPHC	0x60 /* 011xxxxx = ... */
-#define LOWPAN_DISPATCH_FRAG1	0xc0 /* 11000xxx */
-#define LOWPAN_DISPATCH_FRAGN	0xe0 /* 11100xxx */
+#define LOWPAN_DISPATCH_IPV6		0x41 /* 01000001 = 65 */
+#define LOWPAN_DISPATCH_IPHC		0x60 /* 011xxxxx = ... */
+#define LOWPAN_DISPATCH_IPHC_MASK	0xe0
+
+static inline bool lowpan_is_ipv6(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_IPV6;
+}
+
+static inline bool lowpan_is_iphc(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_IPHC_MASK) == LOWPAN_DISPATCH_IPHC;
+}
 
 #define LOWPAN_DISPATCH_MASK	0xf8 /* 11111000 */
 
