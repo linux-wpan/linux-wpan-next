@@ -208,7 +208,24 @@ enum {
 };
 
 /* frame control handling */
-#define IEEE802154_FCTL_ACKREQ	0x0020
+#define IEEE802154_FCTL_FTYPE		0x0003
+#define IEEE802154_FTYPE_DATA		0x0001
+#define IEEE802154_FCTL_ACKREQ		0x0020
+#define IEEE802154_FCTL_INTRA_PAN	0x0040
+#define IEEE802154_FCTL_DADDR		0x0c00
+#define IEEE802154_FCTL_DADDR_NONE	0x0000
+#define IEEE802154_FCTL_SADDR		0xc000
+#define IEEE802154_FCTL_SADDR_NONE	0x0000
+
+/*
+ * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_data(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
 
 /**
  * ieee802154_is_ackreq - check if acknowledgment request bit is set
@@ -217,6 +234,35 @@ enum {
 static inline bool ieee802154_is_ackreq(__le16 fc)
 {
 	return fc & cpu_to_le16(IEEE802154_FCTL_ACKREQ);
+}
+
+/**
+ * ieee802154_is_intra_pan - check if intra pan id communication
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_intra_pan(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
+}
+
+/**
+ * ieee802154_is_daddr_none - check if daddr mode is none
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_daddr_none(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_DADDR)) ==
+		cpu_to_le16(IEEE802154_FCTL_DADDR_NONE);
+}
+
+/**
+ * ieee802154_is_saddr_none - check if saddr mode is none
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_saddr_none(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_SADDR)) ==
+		cpu_to_le16(IEEE802154_FCTL_SADDR_NONE);
 }
 
 /**
