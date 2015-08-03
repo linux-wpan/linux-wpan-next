@@ -7,6 +7,12 @@
 #include <net/inet_frag.h>
 #include <net/6lowpan.h>
 
+typedef unsigned __bitwise__ lowpan_rx_result;
+#define RX_CONTINUE		((__force lowpan_rx_result) 0u)
+#define RX_DROP_UNUSABLE	((__force lowpan_rx_result) 1u)
+#define RX_DROP			((__force lowpan_rx_result) 2u)
+#define RX_QUEUED		((__force lowpan_rx_result) 3u)
+
 #define LOWPAN_DISPATCH_FRAG1		0xc0
 #define LOWPAN_DISPATCH_FRAGN		0xe0
 
@@ -55,6 +61,7 @@ lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 
 extern struct list_head lowpan_devices;
 
+int iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr);
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);
 void lowpan_net_frag_exit(void);
 int lowpan_net_frag_init(void);

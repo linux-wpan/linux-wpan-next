@@ -15,12 +15,6 @@
 
 #include "6lowpan_i.h"
 
-typedef unsigned __bitwise__ lowpan_rx_result;
-#define RX_CONTINUE		((__force lowpan_rx_result) 0u)
-#define RX_DROP_UNUSABLE	((__force lowpan_rx_result) 1u)
-#define RX_DROP			((__force lowpan_rx_result) 2u)
-#define RX_QUEUED		((__force lowpan_rx_result) 3u)
-
 #define LOWPAN_DISPATCH_FIRST		0xc0
 #define LOWPAN_DISPATCH_FRAG_MASK	0xf8
 #define LOWPAN_DISPATCH_IPHC_MASK	0xe0
@@ -65,8 +59,7 @@ static int lowpan_give_skb_to_device(struct sk_buff *skb)
 		return RX_DROP;
 }
 
-static int
-iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
+int iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	u8 iphc0, iphc1;
 	struct ieee802154_addr_sa sa, da;

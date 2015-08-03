@@ -137,6 +137,49 @@ fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 	return container_of(q, struct lowpan_frag_queue, q);
 }
 
+static lowpan_rx_result lowpan_frag_rx_h_iphc(struct sk_buff *skb,
+					      unsigned int *len)
+{
+	struct ieee802154_hdr hdr;
+	struct sk_buff *skb_dry;
+	int ret;
+
+	if (!lowpan_is_iphc(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
+		return RX_DROP_UNUSABLE;
+
+	skb_dry = skb_copy(skb, GFP_ATOMIC);
+	if (!skb_dry)
+		return RX_DROP_UNUSABLE;
+
+	/* do a iphc_decompress dry run for getting size */
+	ret = iphc_decompress(skb_dry, &hdr);
+	if (ret < 0) {
+		kfree_skb(skb_dry);
+		return RX_DROP_UNUSABLE;
+	}
+
+	*len = skb_dry->len;
+	consume_skb(skb_dry);
+	return RX_QUEUED;
+}
+
+static lowpan_rx_result lowpan_frag_rx_h_ipv6(struct sk_buff *skb,
+					      unsigned int *len)
+{
+	if (!lowpan_is_ipv6(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	if (!skb->len)
+		return RX_DROP_UNUSABLE;
+
+	/* return size without dispatch */
+	*len = skb->len -1;
+	return RX_QUEUED;
+}
+
 static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 			     struct sk_buff *skb, const u8 frag_type)
 {
@@ -201,8 +244,32 @@ found:
 
 	fq->q.stamp = skb->tstamp;
 	if (frag_type == LOWPAN_DISPATCH_FRAG1) {
+		lowpan_rx_result res;
+		unsigned int len;
+
 		/* Calculate uncomp. 6lowpan header to estimate full size */
-		fq->q.meat += lowpan_uncompress_size(skb, NULL);
+#define CALL_RXH(rxh)				\
+		do {				\
+			res = rxh(skb, &len);	\
+			if (res != RX_CONTINUE)	\
+				goto rxh_next;	\
+		} while (0)
+
+		CALL_RXH(lowpan_frag_rx_h_iphc);
+		CALL_RXH(lowpan_frag_rx_h_ipv6);
+
+#undef CALL_RXH
+rxh_next:
+		switch (res) {
+		case RX_CONTINUE:
+			WARN_ONCE(1, "unkonwn dispatch while reassembly.\n");
+		case RX_DROP_UNUSABLE:
+			goto err;
+		default:
+			/* do nothing */
+			break;
+		}
+		fq->q.meat += len;
 		fq->q.flags |= INET_FRAG_FIRST_IN;
 	} else {
 		fq->q.meat += skb->len;
