@@ -35,6 +35,9 @@ struct ieee802154_llsec_device;
 struct ieee802154_llsec_table;
 struct ieee802154_llsec_key_id;
 struct ieee802154_llsec_key;
+struct ieee802154_node_info;
+struct ieee802154_addr;
+struct ieee802154_addr_neigh;
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 struct cfg802154_ops {
@@ -119,6 +122,9 @@ struct cfg802154_ops {
 			      struct wpan_dev *wpan_dev,
 			      __le64 extended_addr,
 			      const struct ieee802154_llsec_device_key *key);
+	int	(*dump_node)(struct wpan_phy *phy, struct net_device *dev,
+			     int idx, struct ieee802154_addr_neigh *naddr,
+			     struct ieee802154_node_info *ninfo);
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
@@ -217,6 +223,9 @@ struct wpan_phy {
 	u16 lifs_period;
 	u16 sifs_period;
 
+	/* maximum receiver sensitivity in mbm */
+	s32 max_sensitivity;
+
 	struct device dev;
 
 	/* the network namespace this phy lives in currently */
@@ -242,6 +251,12 @@ struct ieee802154_addr {
 		__le16 short_addr;
 		__le64 extended_addr;
 	};
+};
+
+struct ieee802154_addr_neigh {
+	__le16 pan_id;
+	__le16 short_addr;
+	__le64 extended_addr;
 };
 
 struct ieee802154_llsec_key_id {
@@ -370,6 +385,23 @@ struct wpan_dev {
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+
+struct ieee802154_node_info {
+	__le64 extended_addr;
+	__le16 short_addr;
+	__le16 pan_id;
+	int generation;
+
+	bool receive_info;
+	u8 lqi;
+	s32 ed;
+
+	struct {
+		u64 success;
+		u64 no_ack;
+		u64 csma_failure;
+	} tx_stats;
+};
 
 static inline int
 wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,

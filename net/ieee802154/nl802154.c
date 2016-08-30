@@ -698,6 +698,34 @@ static inline u64 wpan_dev_id(struct wpan_dev *wpan_dev)
 #include <net/ieee802154_netdev.h>
 
 static int
+nl802154_send_dev_addr(struct sk_buff *msg,
+		       const struct ieee802154_addr *addr)
+{
+	if (nla_put_le16(msg, NL802154_DEV_ADDR_ATTR_PAN_ID, addr->pan_id) ||
+	    nla_put_u32(msg,  NL802154_DEV_ADDR_ATTR_MODE, addr->mode))
+		return -ENOBUFS;
+
+	switch (addr->mode) {
+	case NL802154_DEV_ADDR_SHORT:
+		if (nla_put_le16(msg, NL802154_DEV_ADDR_ATTR_SHORT,
+				 addr->short_addr))
+			return -ENOBUFS;
+		break;
+	case NL802154_DEV_ADDR_EXTENDED:
+		if (nla_put_le64(msg, NL802154_DEV_ADDR_ATTR_EXTENDED,
+				 addr->extended_addr,
+				 NL802154_DEV_ADDR_ATTR_PAD))
+			return -ENOBUFS;
+		break;
+	default:
+		/* userspace should handle unknown */
+		break;
+	}
+
+	return 0;
+}
+
+static int
 ieee802154_llsec_send_key_id(struct sk_buff *msg,
 			     const struct ieee802154_llsec_key_id *desc)
 {
@@ -712,28 +740,8 @@ ieee802154_llsec_send_key_id(struct sk_buff *msg,
 		if (!nl_dev_addr)
 			return -ENOBUFS;
 
-		if (nla_put_le16(msg, NL802154_DEV_ADDR_ATTR_PAN_ID,
-				 desc->device_addr.pan_id) ||
-		    nla_put_u32(msg,  NL802154_DEV_ADDR_ATTR_MODE,
-				desc->device_addr.mode))
+		if (nl802154_send_dev_addr(msg, &desc->device_addr))
 			return -ENOBUFS;
-
-		switch (desc->device_addr.mode) {
-		case NL802154_DEV_ADDR_SHORT:
-			if (nla_put_le16(msg, NL802154_DEV_ADDR_ATTR_SHORT,
-					 desc->device_addr.short_addr))
-				return -ENOBUFS;
-			break;
-		case NL802154_DEV_ADDR_EXTENDED:
-			if (nla_put_le64(msg, NL802154_DEV_ADDR_ATTR_EXTENDED,
-					 desc->device_addr.extended_addr,
-					 NL802154_DEV_ADDR_ATTR_PAD))
-				return -ENOBUFS;
-			break;
-		default:
-			/* userspace should handle unknown */
-			break;
-		}
 
 		nla_nest_end(msg, nl_dev_addr);
 		break;
@@ -2137,6 +2145,105 @@ static int nl802154_del_llsec_seclevel(struct sk_buff *skb,
 
 	return rdev_del_seclevel(rdev, wpan_dev, &sl);
 }
+
+static int nl802154_send_node(struct sk_buff *msg, u32 cmd, u32 portid,
+			      u32 seq, int flags,
+			      struct cfg802154_registered_device *rdev,
+			      struct net_device *dev,
+			      const struct ieee802154_addr_neigh *naddr,
+			      struct ieee802154_node_info *ninfo)
+{
+	void *hdr;
+	struct nlattr *ninfoattr, *nl_dev_addr;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr)
+		return -1;
+
+	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex) ||
+	    nla_put_le64(msg, NL802154_ATTR_EXTENDED_ADDR,
+			 ninfo->extended_addr, NL802154_ATTR_PAD) ||
+	    nla_put_u32(msg, NL802154_ATTR_GENERATION, ninfo->generation))
+		goto nla_put_failure;
+
+	ninfoattr = nla_nest_start(msg, NL802154_ATTR_NODE_INFO);
+	if (!ninfoattr)
+		goto nla_put_failure;
+
+#if 0
+	nl_dev_addr = nla_nest_start(msg, NL802154_NODE_ATTR_DEV_ADDR);
+	if (!nl_dev_addr)
+		goto nla_put_failure;
+
+	if (nl802154_send_dev_addr(msg, addr))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, nl_dev_addr);
+#endif
+
+	if (nla_put_u8(msg, NL802154_NODE_INFO_ATTR_LQI, ninfo->lqi))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, ninfoattr);
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nl802154_dump_node(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct cfg802154_registered_device *rdev;
+	struct ieee802154_addr_neigh naddr;
+	struct ieee802154_node_info ninfo;
+	int node_idx = cb->args[2];
+	struct wpan_dev *wpan_dev;
+	int err;
+
+	err = nl802154_prepare_wpan_dev_dump(skb, cb, &rdev, &wpan_dev);
+	if (err)
+		return err;
+
+	if (!wpan_dev->netdev) {
+		err = -EINVAL;
+		goto out_err;
+	}
+
+	if (!rdev->ops->dump_node) {
+		err = -EOPNOTSUPP;
+		goto out_err;
+	}
+
+	while (1) {
+		memset(&ninfo, 0, sizeof(ninfo));
+		err = rdev_dump_node(rdev, wpan_dev->netdev, node_idx,
+				     &naddr, &ninfo);
+		if (err == -ENOENT)
+			break;
+		if (err)
+			goto out_err;
+
+		if (nl802154_send_node(skb, NL802154_CMD_NEW_NODE,
+				       NETLINK_CB(cb->skb).portid,
+				       cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				       rdev, wpan_dev->netdev, &naddr,
+				       &ninfo) < 0)
+			goto out;
+
+		node_idx++;
+	}
+
+ out:
+	cb->args[2] = node_idx;
+	err = skb->len;
+ out_err:
+	nl802154_finish_wpan_dev_dump(rdev);
+
+	return err;
+}
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
@@ -2470,6 +2577,14 @@ static const struct genl_ops nl802154_ops[] = {
 		.doit = nl802154_del_llsec_seclevel,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_GET_NODE,
+//		.doit = nl802154_get_node,
+		.dumpit = nl802154_dump_node,
+		.policy = nl802154_policy,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
 				  NL802154_FLAG_NEED_RTNL,
 	},

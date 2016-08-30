@@ -26,6 +26,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "node_info.h"
 #include "cfg.h"
 
 static void ieee802154_tasklet_handler(unsigned long data)
@@ -96,6 +97,9 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 	local->ops = ops;
 
+	if (node_info_init(local))
+		goto err_free;
+
 	INIT_LIST_HEAD(&local->interfaces);
 	mutex_init(&local->iflist_mtx);
 
@@ -120,6 +124,9 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
 
 	return &local->hw;
+ err_free:
+	wpan_phy_free(phy);
+	return NULL;
 }
 EXPORT_SYMBOL(ieee802154_alloc_hw);
 
@@ -130,6 +137,7 @@ void ieee802154_free_hw(struct ieee802154_hw *hw)
 	BUG_ON(!list_empty(&local->interfaces));
 
 	mutex_destroy(&local->iflist_mtx);
+	node_info_stop(local);
 
 	wpan_phy_free(local->phy);
 }

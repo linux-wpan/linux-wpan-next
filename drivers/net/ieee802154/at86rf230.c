@@ -113,6 +113,7 @@ struct at86rf230_local {
 	struct at86rf230_state_change tx;
 
 	struct at86rf230_trac trac;
+	u8 trac_tx_val;
 };
 
 #define AT86RF2XX_NUMREGS 0x3F
@@ -652,8 +653,21 @@ at86rf230_tx_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
+	enum ieee802154_tx_status status;
 
-	ieee802154_xmit_complete(lp->hw, lp->tx_skb, false);
+	switch (lp->trac_tx_val) {
+	case TRAC_CHANNEL_ACCESS_FAILURE:
+		status = IEEE802154_TX_CSMA_FAILURE;
+		break;
+	case TRAC_NO_ACK:
+		status = IEEE802154_TX_NO_ACK;
+		break;
+	default:
+		status = IEEE802154_TX_SUCCESS;
+		break;
+	}
+
+	ieee802154_xmit_complete(lp->hw, lp->tx_skb, false, status);
 	kfree(ctx);
 }
 
@@ -672,11 +686,11 @@ at86rf230_tx_trac_check(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
+	
+	lp->trac_tx_val = TRAC_MASK(ctx->buf[1]);
 
 	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS)) {
-		u8 trac = TRAC_MASK(ctx->buf[1]);
-
-		switch (trac) {
+		switch (lp->trac_tx_val) {
 		case TRAC_SUCCESS:
 			lp->trac.success++;
 			break;
@@ -693,7 +707,8 @@ at86rf230_tx_trac_check(void *context)
 			lp->trac.invalid++;
 			break;
 		default:
-			WARN_ONCE(1, "received tx trac status %d\n", trac);
+			WARN_ONCE(1, "received tx trac status %d\n",
+				  lp->trac_tx_val);
 			break;
 		}
 	}
@@ -706,16 +721,17 @@ at86rf230_rx_read_frame_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
+	struct ieee802154_rx_info rx_info;
 	const u8 *buf = ctx->buf;
 	struct sk_buff *skb;
-	u8 len, lqi;
+	u8 len;
 
 	len = buf[1];
 	if (!ieee802154_is_valid_psdu_len(len)) {
 		dev_vdbg(&lp->spi->dev, "corrupted frame received\n");
 		len = IEEE802154_MTU;
 	}
-	lqi = buf[2 + len];
+	rx_info.lqi = buf[2 + len];
 
 	skb = dev_alloc_skb(IEEE802154_MTU);
 	if (!skb) {
@@ -725,7 +741,7 @@ at86rf230_rx_read_frame_complete(void *context)
 	}
 
 	memcpy(skb_put(skb, len), buf + 2, len);
-	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
+	ieee802154_rx_irqsafe(lp->hw, skb, &rx_info);
 	kfree(ctx);
 }
 
@@ -990,7 +1006,12 @@ at86rf23x_set_channel(struct at86rf230_local *lp, u8 page, u8 channel)
 }
 
 #define AT86RF2XX_MAX_ED_LEVELS 0xF
-static const s32 at86rf23x_ed_levels[AT86RF2XX_MAX_ED_LEVELS + 1] = {
+static const s32 at86rf233_ed_levels[AT86RF2XX_MAX_ED_LEVELS + 1] = {
+	-9400, -9200, -9000, -8800, -8600, -8400, -8200, -8000, -7800, -7600,
+	-7400, -7200, -7000, -6800, -6600, -6400,
+};
+
+static const s32 at86rf231_ed_levels[AT86RF2XX_MAX_ED_LEVELS + 1] = {
 	-9100, -8900, -8700, -8500, -8300, -8100, -7900, -7700, -7500, -7300,
 	-7100, -6900, -6700, -6500, -6300, -6100,
 };
@@ -1343,7 +1364,7 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 	.t_sleep_to_off = 1000,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.rssi_base_val = -91,
+	.rssi_base_val = -94,
 	.set_channel = at86rf23x_set_channel,
 	.set_txpower = at86rf23x_set_txpower,
 };
@@ -1557,9 +1578,6 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	lp->hw->phy->supported.cca_opts = BIT(NL802154_CCA_OPT_ENERGY_CARRIER_AND) |
 		BIT(NL802154_CCA_OPT_ENERGY_CARRIER_OR);
 
-	lp->hw->phy->supported.cca_ed_levels = at86rf23x_ed_levels;
-	lp->hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(at86rf23x_ed_levels);
-
 	lp->hw->phy->cca.mode = NL802154_CCA_ENERGY;
 
 	switch (part) {
@@ -1575,6 +1593,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		lp->hw->phy->symbol_duration = 16;
 		lp->hw->phy->supported.tx_powers = at86rf231_powers;
 		lp->hw->phy->supported.tx_powers_size = ARRAY_SIZE(at86rf231_powers);
+		lp->hw->phy->supported.cca_ed_levels = at86rf231_ed_levels;
+		lp->hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(at86rf231_ed_levels);
 		break;
 	case 7:
 		chip = "at86rf212";
@@ -1598,6 +1618,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		lp->hw->phy->symbol_duration = 16;
 		lp->hw->phy->supported.tx_powers = at86rf233_powers;
 		lp->hw->phy->supported.tx_powers_size = ARRAY_SIZE(at86rf233_powers);
+		lp->hw->phy->supported.cca_ed_levels = at86rf233_ed_levels;
+		lp->hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(at86rf233_ed_levels);
 		break;
 	default:
 		chip = "unknown";

@@ -135,6 +135,18 @@ enum ieee802154_hw_flags {
 	IEEE802154_HW_RX_DROP_BAD_CKSUM	= BIT(7),
 };
 
+struct ieee802154_rx_info {
+	u8 lqi;
+	s32 ed;
+};
+
+enum ieee802154_tx_status {
+	/* keep as first, so success is zero */
+	IEEE802154_TX_SUCCESS,
+	IEEE802154_TX_NO_ACK,
+	IEEE802154_TX_CSMA_FAILURE,
+};
+
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
 #define IEEE802154_HW_OMIT_CKSUM	(IEEE802154_HW_TX_OMIT_CKSUM | \
 					 IEEE802154_HW_RX_OMIT_CKSUM)
@@ -468,7 +480,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw);
  * @lqi: link quality indicator
  */
 void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
-			   u8 lqi);
+			   struct ieee802154_rx_info *rx_info);
 /**
  * ieee802154_wake_queue - wake ieee802154 queue
  * @hw: pointer as obtained from ieee802154_alloc_hw().
@@ -493,6 +505,6 @@ void ieee802154_stop_queue(struct ieee802154_hw *hw);
  * @ifs_handling: indicate interframe space handling
  */
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
-			      bool ifs_handling);
+			      bool ifs_handling, enum ieee802154_tx_status);
 
 #endif /* NET_MAC802154_H */

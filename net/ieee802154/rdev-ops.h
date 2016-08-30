@@ -315,6 +315,14 @@ rdev_del_devkey(struct cfg802154_registered_device *rdev,
 	return rdev->ops->del_devkey(&rdev->wpan_phy, wpan_dev, extended_addr,
 				     devkey);
 }
+
+static inline int rdev_dump_node(struct cfg802154_registered_device *rdev,
+				 struct net_device *dev, int idx,
+				 struct ieee802154_addr_neigh *addr,
+				 struct ieee802154_node_info *ninfo)
+{
+	return rdev->ops->dump_node(&rdev->wpan_phy, dev, idx, addr, ninfo);
+}
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 #endif /* __CFG802154_RDEV_OPS */

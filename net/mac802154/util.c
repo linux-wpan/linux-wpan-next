@@ -13,6 +13,8 @@
  * Based on: net/mac80211/util.c
  */
 
+#include <net/mac802154.h>
+
 #include "ieee802154_i.h"
 #include "driver-ops.h"
 
@@ -62,7 +64,7 @@ enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 }
 
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
-			      bool ifs_handling)
+			      bool ifs_handling, enum ieee802154_tx_status status)
 {
 	if (ifs_handling) {
 		struct ieee802154_local *local = hw_to_local(hw);

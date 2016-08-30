@@ -69,6 +69,7 @@ static int fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_phy *current_phy = hw->priv, *phy;
+	struct ieee802154_rx_info rx_info;
 
 	read_lock_bh(&fakelb_ifup_phys_lock);
 	WARN_ON(current_phy->suspended);
@@ -80,13 +81,15 @@ static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		    current_phy->channel == phy->channel) {
 			struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
 
+			get_random_bytes(&rx_info, sizeof(rx_info));
+		
 			if (newskb)
-				ieee802154_rx_irqsafe(phy->hw, newskb, 0xcc);
+				ieee802154_rx_irqsafe(phy->hw, newskb, &rx_info);
 		}
 	}
 	read_unlock_bh(&fakelb_ifup_phys_lock);
 
-	ieee802154_xmit_complete(hw, skb, false);
+	ieee802154_xmit_complete(hw, skb, false, IEEE802154_TX_SUCCESS);
 	return 0;
 }
 

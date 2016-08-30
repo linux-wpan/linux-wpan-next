@@ -21,6 +21,7 @@
 
 #include <linux/mutex.h>
 #include <linux/hrtimer.h>
+#include <linux/rhashtable.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/nl802154.h>
@@ -63,6 +64,10 @@ struct ieee802154_local {
 
 	struct sk_buff *tx_skb;
 	struct work_struct tx_work;
+
+	struct list_head node_list;
+	struct rhashtable node_hash;
+	rwlock_t node_lock;
 };
 
 enum {

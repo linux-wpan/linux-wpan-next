@@ -28,6 +28,7 @@
 #include <linux/skbuff.h>
 #include <linux/ieee802154.h>
 
+#include <net/mac802154.h>
 #include <net/cfg802154.h>
 
 struct ieee802154_sechdr {
@@ -210,7 +211,7 @@ static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
  * and other stack parts.
  */
 struct ieee802154_mac_cb {
-	u8 lqi;
+	struct ieee802154_rx_info rx_info;
 	u8 type;
 	bool ackreq;
 	bool secen;
@@ -228,9 +229,15 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 
 static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 {
+	struct ieee802154_rx_info rx_info;
+
 	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
 
+	/* TODO mac_cb should removed, we should parse from skb_mac_header */
+	memcpy(&rx_info, &mac_cb(skb)->rx_info, sizeof(rx_info)); 
 	memset(skb->cb, 0, sizeof(struct ieee802154_mac_cb));
+	memcpy(&mac_cb(skb)->rx_info, &rx_info, sizeof(rx_info)); 
+
 	return mac_cb(skb);
 }
 

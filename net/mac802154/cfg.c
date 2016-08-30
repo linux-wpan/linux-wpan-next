@@ -18,6 +18,7 @@
 
 #include "ieee802154_i.h"
 #include "driver-ops.h"
+#include "node_info.h"
 #include "cfg.h"
 
 static struct net_device *
@@ -453,6 +454,33 @@ ieee802154_del_devkey(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 
 	return res;
 }
+
+static int
+ieee802154_dump_station(struct wpan_phy *wiphy, struct net_device *dev,
+			int idx, struct ieee802154_addr_neigh *naddr,
+			struct ieee802154_node_info *ninfo)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
+	struct node_info *node;
+	int ret = -ENOENT;
+
+	rcu_read_lock();
+
+	node = node_info_get_by_idx(sdata, idx);
+	if (node) {
+		ret = 0;
+		ninfo->lqi = node->rx_info.lqi;
+		ninfo->ed = node->rx_info.ed;
+		ninfo->extended_addr = node->extended_addr;
+//		ninfo->short_addr = node->short_addr;
+//		ninfo->pan_id = node->pan_id;
+	}
+
+	rcu_read_unlock();
+
+	return ret;
+}
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 
 const struct cfg802154_ops mac802154_config_ops = {
@@ -488,5 +516,6 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.del_device = ieee802154_del_device,
 	.add_devkey = ieee802154_add_devkey,
 	.del_devkey = ieee802154_del_devkey,
+	.dump_node = ieee802154_dump_station,
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };

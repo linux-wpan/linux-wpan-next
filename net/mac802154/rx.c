@@ -28,6 +28,7 @@
 #include <net/nl802154.h>
 
 #include "ieee802154_i.h"
+#include "node_info.h"
 
 static int ieee802154_deliver_skb(struct sk_buff *skb)
 {
@@ -42,6 +43,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct node_info *info;
 	__le16 span, sshort;
 	int rc;
 
@@ -49,6 +51,16 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
+
+	switch (mac_cb(skb)->source.mode) {
+	case IEEE802154_ADDR_LONG:
+		node_info_rx_insert_or_update(sdata->local,
+					      &mac_cb(skb)->source.extended_addr,
+					      &mac_cb(skb)->rx_info);
+		break;
+	default:
+		break;
+	}
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -299,11 +311,12 @@ drop:
 }
 
 void
-ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
+ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
+		      struct ieee802154_rx_info *rx_info)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 
-	mac_cb(skb)->lqi = lqi;
+	memcpy(&mac_cb(skb)->rx_info, rx_info, sizeof(*rx_info));
 	skb->pkt_type = IEEE802154_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);
 	tasklet_schedule(&local->tasklet);

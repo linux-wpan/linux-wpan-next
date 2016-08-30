@@ -227,7 +227,8 @@ static void atusb_tx_done(struct atusb *atusb, uint8_t seq)
 	dev_dbg(&usb_dev->dev, "atusb_tx_done (0x%02x/0x%02x)\n", seq, expect);
 	if (seq == expect) {
 		/* TODO check for ifs handling in firmware */
-		ieee802154_xmit_complete(atusb->hw, atusb->tx_skb, false);
+		ieee802154_xmit_complete(atusb->hw, atusb->tx_skb, false,
+					 IEEE802154_TX_SUCCESS);
 	} else {
 		/* TODO I experience this case when atusb has a tx complete
 		 * irq before probing, we should fix the firmware it's an
@@ -245,7 +246,8 @@ static void atusb_in_good(struct urb *urb)
 	struct usb_device *usb_dev = urb->dev;
 	struct sk_buff *skb = urb->context;
 	struct atusb *atusb = SKB_ATUSB(skb);
-	uint8_t len, lqi;
+	struct ieee802154_rx_info rx_info;
+	uint8_t len; 
 
 	if (!urb->actual_length) {
 		dev_dbg(&usb_dev->dev, "atusb_in: zero-sized URB ?\n");
@@ -270,11 +272,11 @@ static void atusb_in_good(struct urb *urb)
 		return;
 	}
 
-	lqi = skb->data[len + 1];
-	dev_dbg(&usb_dev->dev, "atusb_in: rx len %d lqi 0x%02x\n", len, lqi);
+	rx_info.lqi = skb->data[len + 1];
+	dev_dbg(&usb_dev->dev, "atusb_in: rx len %d lqi 0x%02x\n", len, rx_info.lqi);
 	skb_pull(skb, 1);	/* remove PHR */
 	skb_trim(skb, len);	/* get payload only */
-	ieee802154_rx_irqsafe(atusb->hw, skb, lqi);
+	ieee802154_rx_irqsafe(atusb->hw, skb, &rx_info);
 	urb->context = NULL;	/* skb is gone */
 }
 
