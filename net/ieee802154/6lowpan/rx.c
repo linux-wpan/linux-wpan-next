@@ -251,19 +251,12 @@ static inline bool lowpan_is_reserved(u8 dispatch)
 		(dispatch >= 0xe8 && dispatch <= 0xff));
 }
 
-/* lowpan_rx_h_check checks on generic 6LoWPAN requirements
- * in MAC and 6LoWPAN header.
+/* lowpan_rx_h_check checks 6LoWPAN header requirements.
  *
  * Don't manipulate the skb here, it could be shared buffer.
  */
 static inline bool lowpan_rx_h_check(struct sk_buff *skb)
 {
-	__le16 fc = ieee802154_get_fc_from_skb(skb);
-
-	/* check on ieee802154 conform 6LoWPAN header */
-	if (!ieee802154_is_data(fc))
-		return false;
-
 	/* check if we can dereference the dispatch */
 	if (unlikely(!skb->len))
 		return false;
