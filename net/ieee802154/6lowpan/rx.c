@@ -261,8 +261,7 @@ static inline bool lowpan_rx_h_check(struct sk_buff *skb)
 	__le16 fc = ieee802154_get_fc_from_skb(skb);
 
 	/* check on ieee802154 conform 6LoWPAN header */
-	if (!ieee802154_is_data(fc) ||
-	    !ieee802154_skb_is_intra_pan_addressing(fc, skb))
+	if (!ieee802154_is_data(fc))
 		return false;
 
 	/* check if we can dereference the dispatch */
