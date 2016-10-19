@@ -715,6 +715,10 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 			put_cmsg(msg, SOL_IPV6, IPV6_ORIGDSTADDR, sizeof(sin6), &sin6);
 		}
 	}
+	if (np->rxopt.bits.rxl2info) {
+		int hlim = 1337;
+		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO_L2, sizeof(hlim), &hlim);
+	}
 }
 
 void ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,

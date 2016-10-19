@@ -285,6 +285,13 @@ struct in6_flowlabel_req {
 #define IPV6_UNICAST_IF         76
 
 /*
+ * 6LoWPAN (1)
+ */
+
+#define IPV6_RECVPKTINFO_L2     80
+#define IPV6_PKTINFO_L2         81
+
+/*
  * Multicast Routing:
  * see include/uapi/linux/mroute6.h.
  *
