@@ -598,7 +598,19 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 	struct ipv6hdr hdr = {};
 	struct lowpan_iphc_ctx *ci;
 	u8 iphc0, iphc1, cid = 0;
+	unsigned char *mac_buf;
 	int err;
+
+	/* TODO skb_copy unset this one, we set it again to be sure.
+	 * Not best solution
+	 */
+	skb->mac_len = skb_network_header(skb) - skb_mac_header(skb);
+
+	mac_buf = kmalloc(skb->mac_len, GFP_ATOMIC);
+	if (!mac_buf)
+		return -ENOMEM;
+
+	memcpy(mac_buf, skb_mac_header(skb), skb->mac_len);
 
 	raw_dump_table(__func__, "raw skb data dump uncompressed",
 		       skb->data, skb->len);
@@ -718,7 +730,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 		if (err < 0)
 			return err;
 	} else {
-		err = skb_cow(skb, sizeof(hdr));
+		err = skb_cow(skb, skb->mac_len + sizeof(hdr));
 		if (unlikely(err))
 			return err;
 	}
@@ -749,6 +761,14 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 	skb_copy_to_linear_data(skb, &hdr, sizeof(hdr));
 
 	raw_dump_table(__func__, "raw header dump", (u8 *)&hdr, sizeof(hdr));
+
+	/* recover mac header */
+	skb_push(skb, skb->mac_len);
+	skb_copy_to_linear_data(skb, mac_buf, skb->mac_len);
+	skb_reset_mac_header(skb);
+	skb_pull(skb, skb->mac_len);
+
+	kfree(mac_buf);
 
 	return 0;
 }
