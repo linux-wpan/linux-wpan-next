@@ -90,12 +90,36 @@ static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 	return 0;
 }
 
+struct ieee802154_pktinfo_l2 {
+	struct ieee802154_addr src;
+	struct ieee802154_addr dst;
+	__u8 lqi;
+	/* TODO tx return values? */
+};
+
+static void lowpan_fill_pktinfo_l2(struct sk_buff *skb, struct msghdr *msg)
+{
+	if (skb_mac_header_was_set(skb) && skb->mac_len) {
+		struct ieee802154_pktinfo_l2 pktinfo;
+		struct ieee802154_hdr hdr;
+
+		if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
+			return;
+
+		memcpy(&pktinfo.src, &hdr.source, sizeof(pktinfo.src));
+		memcpy(&pktinfo.dst, &hdr.dest, sizeof(pktinfo.dst));
+		pktinfo.lqi = 0xcc;
+		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO_L2, sizeof(pktinfo), &pktinfo);
+	}
+}
+
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_open		= lowpan_open,
 	.ndo_stop		= lowpan_stop,
 	.ndo_neigh_construct    = lowpan_neigh_construct,
+	.ndo_fill_pktinfo_l2	= lowpan_fill_pktinfo_l2,
 };
 
 static void lowpan_setup(struct net_device *ldev)
