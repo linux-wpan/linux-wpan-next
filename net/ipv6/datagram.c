@@ -715,9 +715,18 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 			put_cmsg(msg, SOL_IPV6, IPV6_ORIGDSTADDR, sizeof(sin6), &sin6);
 		}
 	}
-	if (np->rxopt.bits.rxl2info) {
-		int hlim = 1337;
-		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO_L2, sizeof(hlim), &hlim);
+	if (np->rxopt.bits.rxl2info && np->rxopt.bits.rxinfo) {
+		struct net_device *dev;
+
+		if (skb->protocol == htons(ETH_P_IPV6))
+			dev = dev_get_by_index(sock_net(sk), IP6CB(skb)->iif);
+		else
+			dev = dev_get_by_index(sock_net(sk), PKTINFO_SKB_CB(skb)->ipi_ifindex);
+
+		if (dev->netdev_ops->ndo_fill_pktinfo_l2)
+			dev->netdev_ops->ndo_fill_pktinfo_l2(skb, msg);
+
+		dev_put(dev);
 	}
 }
 

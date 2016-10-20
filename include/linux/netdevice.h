@@ -1319,10 +1319,8 @@ struct net_device_ops {
 						       int needed_headroom);
 	int			(*ndo_xdp)(struct net_device *dev,
 					   struct netdev_xdp *xdp);
-#if IS_ENABLED(CONFIG_6LOWPAN)
-	int			(*ndo_fill_pktinfo_l2)(struct net_device *dev,
-						       struct sk_buff *skb);
-#endif
+	void			(*ndo_fill_pktinfo_l2)(struct sk_buff *skb,
+						       struct msghdr *msg);
 };
 
 /**
