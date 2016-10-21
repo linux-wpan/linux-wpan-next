@@ -93,8 +93,6 @@ static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 struct ieee802154_pktinfo_l2 {
 	struct ieee802154_addr src;
 	struct ieee802154_addr dst;
-	__u8 lqi;
-	/* TODO tx return values? */
 };
 
 static void lowpan_fill_pktinfo_l2(struct sk_buff *skb, struct msghdr *msg)
@@ -108,7 +106,6 @@ static void lowpan_fill_pktinfo_l2(struct sk_buff *skb, struct msghdr *msg)
 
 		memcpy(&pktinfo.src, &hdr.source, sizeof(pktinfo.src));
 		memcpy(&pktinfo.dst, &hdr.dest, sizeof(pktinfo.dst));
-		pktinfo.lqi = 0xcc;
 		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO_L2, sizeof(pktinfo), &pktinfo);
 	}
 }
