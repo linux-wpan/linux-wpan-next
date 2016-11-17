@@ -2154,7 +2154,7 @@ static int nl802154_send_node(struct sk_buff *msg, u32 cmd, u32 portid,
 			      struct ieee802154_node_info *ninfo)
 {
 	void *hdr;
-	struct nlattr *ninfoattr, *nl_dev_addr;
+	struct nlattr *ninfoattr;
 
 	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
 	if (!hdr)
@@ -2170,18 +2170,15 @@ static int nl802154_send_node(struct sk_buff *msg, u32 cmd, u32 portid,
 	if (!ninfoattr)
 		goto nla_put_failure;
 
-#if 0
-	nl_dev_addr = nla_nest_start(msg, NL802154_NODE_ATTR_DEV_ADDR);
-	if (!nl_dev_addr)
-		goto nla_put_failure;
-
-	if (nl802154_send_dev_addr(msg, addr))
-		goto nla_put_failure;
-
-	nla_nest_end(msg, nl_dev_addr);
-#endif
-
 	if (nla_put_u8(msg, NL802154_NODE_INFO_ATTR_LQI, ninfo->lqi))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL802154_NODE_INFO_ATTR_TX_SUCCESS, ninfo->tx_stats.success,
+			      NL802154_NODE_INFO_ATTR_PAD))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL802154_NODE_INFO_ATTR_TX_NO_ACK, ninfo->tx_stats.no_ack,
+			      NL802154_NODE_INFO_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, ninfoattr);

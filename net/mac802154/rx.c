@@ -43,7 +43,6 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct node_info *info;
 	__le16 span, sshort;
 	int rc;
 

@@ -17,6 +17,7 @@
 
 #include "ieee802154_i.h"
 #include "driver-ops.h"
+#include "node_info.h"
 
 /* privid for wpan_phys to determine whether they belong to us or not */
 const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
@@ -66,6 +67,23 @@ enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 			      bool ifs_handling, enum ieee802154_tx_status status)
 {
+	int hlen;
+	struct ieee802154_hdr hdr;
+
+	hlen = ieee802154_hdr_pull(skb, &hdr);
+	if (hlen > 0) {
+		struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(skb->dev);
+		switch (hdr.dest.mode) {
+		case IEEE802154_ADDR_LONG:
+			node_info_tx_insert_or_update(sdata->local,
+						      &hdr.dest.extended_addr,
+						      status);
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (ifs_handling) {
 		struct ieee802154_local *local = hw_to_local(hw);
 		u8 max_sifs_size;

@@ -461,7 +461,6 @@ ieee802154_dump_station(struct wpan_phy *wiphy, struct net_device *dev,
 			struct ieee802154_node_info *ninfo)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local = sdata->local;
 	struct node_info *node;
 	int ret = -ENOENT;
 
@@ -473,6 +472,8 @@ ieee802154_dump_station(struct wpan_phy *wiphy, struct net_device *dev,
 		ninfo->lqi = node->rx_info.lqi;
 		ninfo->ed = node->rx_info.ed;
 		ninfo->extended_addr = node->extended_addr;
+		memcpy(&ninfo->tx_stats, &node->tx_stats,
+		       sizeof(ninfo->tx_stats));
 //		ninfo->short_addr = node->short_addr;
 //		ninfo->pan_id = node->pan_id;
 	}

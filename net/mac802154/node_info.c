@@ -64,6 +64,7 @@ static struct node_info *node_info_alloc(struct ieee802154_local *local, __le64 
 
 	ninfo->extended_addr = *extended_addr;
 	ninfo->local = local;
+	rwlock_init(&ninfo->lock);
 
 	return ninfo;
 }
@@ -162,54 +163,11 @@ int node_info_insert(struct node_info *node)
  */
 void node_info_free(struct ieee802154_local *local, struct node_info *node)
 {
-#if 0
-	if (sta->rate_ctrl)
-		rate_control_free_sta(sta);
-
-	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
-
-	if (sta->sta.txq[0])
-		kfree(to_txq_info(sta->sta.txq[0]));
-	kfree(rcu_dereference_raw(sta->sta.rates));
-#ifdef CONFIG_MAC80211_MESH
-	kfree(sta->mesh);
-#endif
-	free_percpu(sta->pcpu_rx_stats);
-#endif
 	kfree(node);
 }
 
 static int node_info_insert_check(struct node_info *node)
 {
-#if 0
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-
-	/*
-	 * Can't be a WARN_ON because it can be triggered through a race:
-	 * something inserts a STA (on one CPU) without holding the RTNL
-	 * and another CPU turns off the net device.
-	 */
-	if (unlikely(!ieee80211_sdata_running(sdata)))
-		return -ENETDOWN;
-
-	if (WARN_ON(ether_addr_equal(sta->sta.addr, sdata->vif.addr) ||
-		    is_multicast_ether_addr(sta->sta.addr)))
-		return -EINVAL;
-
-	/* Strictly speaking this isn't necessary as we hold the mutex, but
-	 * the rhashtable code can't really deal with that distinction. We
-	 * do require the mutex for correctness though.
-	 */
-	rcu_read_lock();
-	lockdep_assert_held(&sdata->local->sta_mtx);
-	if (ieee80211_hw_check(&sdata->local->hw, NEEDS_UNIQUE_STA_ADDR) &&
-	    ieee80211_find_sta_by_ifaddr(&sdata->local->hw, sta->addr, NULL)) {
-		rcu_read_unlock();
-		return -ENOTUNIQ;
-	}
-	rcu_read_unlock();
-#endif
-
 	return 0;
 }
 
@@ -221,29 +179,7 @@ static int node_info_insert_check(struct node_info *node)
 static int node_info_insert_finish(struct node_info *node) __acquires(RCU)
 {
 	struct ieee802154_local *local = node->local;
-//	struct ieee802154_sub_if_data *sdata = node->sdata;
-	struct ieee802154_node_info *ninfo;
 	int err = 0;
-
-//	lockdep_assert_held(&local->node_mtx);
-
-#if 0
-	ninfo = kzalloc(sizeof(*ninfo), GFP_KERNEL);
-	if (!ninfo) {
-		err = -ENOMEM;
-		goto out_err;
-	}
-
-	/* check if STA exists already */
-	if (sta_info_get_bss(sdata, sta->sta.addr)) {
-		err = -EEXIST;
-		goto out_err;
-	}
-
-	local->num_sta++;
-	local->sta_generation++;
-	smp_mb();
-#endif
 
 	/* make the station visible */
 	err = node_info_hash_add(local, node);
@@ -252,31 +188,7 @@ static int node_info_insert_finish(struct node_info *node) __acquires(RCU)
 
 	list_add_tail_rcu(&node->list, &local->node_list);
 
-	//sinfo->generation = local->sta_generation;
-	//cfg80211_new_sta(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
-//	kfree(ninfo);
-
-	//sta_dbg(sdata, "Inserted STA %pM\n", sta->sta.addr);
-
-	/* move reference to rcu-protected */
-//	rcu_read_lock();
-//	mutex_unlock(&local->node_mtx);
-
 	return 0;
-#if 0
- out_remove:
-	sta_info_hash_del(local, sta);
-	list_del_rcu(&sta->list);
- out_drop_sta:
-	local->num_sta--;
-	synchronize_net();
-	__cleanup_single_sta(sta);
- out_err:
-	mutex_unlock(&local->node_mtx);
-	kfree(ninfo);
-	rcu_read_lock();
-	return err;
-#endif
 }
 
 int node_info_insert_rcu(struct node_info *node) __acquires(RCU)
@@ -286,11 +198,8 @@ int node_info_insert_rcu(struct node_info *node) __acquires(RCU)
 
 	might_sleep();
 
-//	mutex_lock(&local->node_mtx);
-
 	err = node_info_insert_check(node);
 	if (err) {
-//		mutex_unlock(&local->node_mtx);
 		rcu_read_lock();
 		goto out_free;
 	}
