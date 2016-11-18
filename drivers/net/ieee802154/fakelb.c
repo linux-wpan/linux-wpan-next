@@ -103,18 +103,6 @@ static int fakelb_hw_xmit_all_to_all(struct ieee802154_hw *hw, struct sk_buff *s
 	return 0;
 }
 
-static struct fakelb_edge *fakelb_hw_get_edge(struct fakelb_phy *v0, struct fakelb_phy *v1)
-{
-	struct fakelb_edge *e;
-
-	list_for_each_entry(e, &v0->edges, list) {
-		if (e->endpoint == v1)
-		       return e;	
-	}
-
-	return NULL;
-}
-
 static int fakelb_hw_xmit_whitelist(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_phy *current_phy = hw->priv, *phy;
@@ -242,15 +230,152 @@ static struct fakelb_phy *fakelb_phy_by_idx(unsigned int idx)
 	return NULL;
 }
 
+static struct fakelb_edge *fakelb_hw_get_edge(struct fakelb_phy *v0, struct fakelb_phy *v1)
+{
+	struct fakelb_edge *e;
+
+	list_for_each_entry(e, &v0->edges, list) {
+		if (e->endpoint == v1)
+		       return e;	
+	}
+
+	return NULL;
+}
+
+
+static int fakelb_edges_add(char *argv)
+{
+	struct fakelb_phy *v0, *v1;
+	struct fakelb_edge *e;
+	unsigned int v[2];
+	int n;
+
+	n = sscanf(argv, "%d %d", &v[0], &v[1]);
+	if (n != 2) {
+	       return -ENOENT;
+	}
+
+	if (v[0] == v[1])
+	       return -EINVAL;
+
+	mutex_lock(&fakelb_phys_lock);
+
+	v0 = fakelb_phy_by_idx(v[0]);
+	v1 = fakelb_phy_by_idx(v[1]);
+	if (!v0 || !v1) {
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOENT;
+	}
+
+	write_lock_bh(&v0->edges_lock);
+	e = fakelb_hw_get_edge(v0, v1);
+	if (e) {
+	       write_unlock_bh(&v0->edges_lock);
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -EEXIST;
+	}
+
+	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	if (!e) {
+	       write_unlock_bh(&v0->edges_lock);
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOMEM;
+	}
+
+	e->lqi = 0xff;
+	e->endpoint = v1;
+
+	list_add_tail(&e->list, &v0->edges);
+	
+	write_unlock_bh(&v0->edges_lock);
+	mutex_unlock(&fakelb_phys_lock);
+
+	return 0;
+}
+
+static int fakelb_edges_del(char *argv)
+{
+	struct fakelb_phy *v0, *v1;
+	struct fakelb_edge *e;
+	unsigned int v[2];
+	int n;
+
+	n = sscanf(argv, "%d %d", &v[0], &v[1]);
+	if (n != 2)
+	       return -ENOENT;
+
+	if (v[0] == v[1])
+	       return -EINVAL;
+
+	mutex_lock(&fakelb_phys_lock);
+	v0 = fakelb_phy_by_idx(v[0]);
+	v1 = fakelb_phy_by_idx(v[1]);
+	if (!v0 || !v1) {
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOENT;
+	}
+
+	write_lock_bh(&v0->edges_lock);
+	e = fakelb_hw_get_edge(v0, v1);
+	if (!e) {
+	       write_unlock_bh(&v0->edges_lock);
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOENT;
+	} else {
+		list_del(&e->list);
+	}
+	write_unlock_bh(&v0->edges_lock);
+
+	mutex_unlock(&fakelb_phys_lock);
+
+	return 0;
+}
+
+static int fakelb_edges_lqi(char *argv)
+{
+	struct fakelb_phy *v0, *v1;
+	struct fakelb_edge *e;
+	unsigned int v[2];
+	unsigned int lqi;
+	int n;
+
+	n = sscanf(argv, "%d %d %x", &v[0], &v[1], &lqi);
+	if (n != 3)
+	       return -ENOENT;
+
+	if (v[0] == v[1])
+	       return -EINVAL;
+
+	mutex_lock(&fakelb_phys_lock);
+	v0 = fakelb_phy_by_idx(v[0]);
+	v1 = fakelb_phy_by_idx(v[1]);
+	if (!v0 || !v1) {
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOENT;
+	}
+
+	write_lock_bh(&v0->edges_lock);
+	e = fakelb_hw_get_edge(v0, v1);
+	if (!e) {
+		write_unlock_bh(&v0->edges_lock);
+		mutex_unlock(&fakelb_phys_lock);
+		return -ENOENT;
+	} else {
+		e->lqi = lqi;
+	}
+	write_unlock_bh(&v0->edges_lock);
+
+	mutex_unlock(&fakelb_phys_lock);
+
+	return 0;
+}
+
 static ssize_t fakelb_edges_write(struct file *fp,
 				  const char __user *user_buf, size_t count,
 				  loff_t *ppos)
 {
-	struct fakelb_phy *v0, *v1;
-	struct fakelb_edge *e;
 	char buf[128] = {};
-	int status = count, n;
-	unsigned int v[2];
+	int status = count, err;
 
 	if (copy_from_user(&buf, user_buf, min_t(size_t, sizeof(buf) - 1,
 						 count))) {
@@ -258,36 +383,22 @@ static ssize_t fakelb_edges_write(struct file *fp,
 		goto out;
 	}
 
-	n = sscanf(buf, "%d %d", &v[0], &v[1]);
-	if (n != 2) {
+	if (!strncmp(buf, "add ", 4)) {
+		err = fakelb_edges_add(&buf[4]);
+		if (err < 0)
+			status = err;
+	} else if (!strncmp(buf, "del ", 4)) {
+		err = fakelb_edges_del(&buf[4]);
+		if (err < 0)
+			status = err;
+	} else if (!strncmp(buf, "lqi ", 4)) {
+		err = fakelb_edges_lqi(&buf[4]);
+		if (err < 0)
+			status = err;
+	} else {
 		status = -EINVAL;
 		goto out;
 	}
-
-	mutex_lock(&fakelb_phys_lock);
-	v0 = fakelb_phy_by_idx(v[0]);
-	v1 = fakelb_phy_by_idx(v[1]);
-	if (!v0 || !v1) {
-	       status = -ENOENT;
-	       mutex_unlock(&fakelb_phys_lock);
-	       goto out;
-	}
-
-	e = kmalloc(sizeof(*e), GFP_KERNEL);
-	if (!e) {
-	       status = -ENOMEM;
-	       mutex_unlock(&fakelb_phys_lock);
-	       goto out;
-	}
-
-	e->lqi = 0xff;
-	e->endpoint = v1;
-
-	write_lock_bh(&v0->edges_lock);
-	list_add_tail(&e->list, &v0->edges);
-	write_unlock_bh(&v0->edges_lock);
-
-	mutex_unlock(&fakelb_phys_lock);
 
 out:
 	return status;
