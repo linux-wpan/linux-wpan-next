@@ -24,10 +24,11 @@
 #include <linux/netdevice.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
+#include <linux/debugfs.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 
-static int numlbs = 2;
+static int numlbs = 2, whitelist;
 
 static LIST_HEAD(fakelb_phys);
 static DEFINE_MUTEX(fakelb_phys_lock);
@@ -45,6 +46,15 @@ struct fakelb_phy {
 
 	struct list_head list;
 	struct list_head list_ifup;
+	struct list_head edges;
+	rwlock_t edges_lock;
+};
+
+struct fakelb_edge {
+	struct fakelb_phy *endpoint;
+	u8 lqi;
+
+	struct list_head list;
 };
 
 static int fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
@@ -66,7 +76,7 @@ static int fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	return 0;
 }
 
-static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
+static int fakelb_hw_xmit_all_to_all(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_phy *current_phy = hw->priv, *phy;
 	struct ieee802154_rx_info rx_info;
@@ -91,6 +101,54 @@ static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	ieee802154_xmit_complete(hw, skb, false, IEEE802154_TX_SUCCESS);
 	return 0;
+}
+
+static struct fakelb_edge *fakelb_hw_get_edge(struct fakelb_phy *v0, struct fakelb_phy *v1)
+{
+	struct fakelb_edge *e;
+
+	list_for_each_entry(e, &v0->edges, list) {
+		if (e->endpoint == v1)
+		       return e;	
+	}
+
+	return NULL;
+}
+
+static int fakelb_hw_xmit_whitelist(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	struct fakelb_phy *current_phy = hw->priv, *phy;
+	struct ieee802154_rx_info rx_info;
+	struct fakelb_edge *e;
+
+	read_lock_bh(&fakelb_ifup_phys_lock);
+	read_lock_bh(&current_phy->edges_lock);
+	list_for_each_entry(e, &current_phy->edges, list) {
+		phy = e->endpoint;
+
+		if (current_phy->page == phy->page &&
+		    current_phy->channel == phy->channel) {
+			struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
+
+			rx_info.lqi = e->lqi;
+		
+			if (newskb)
+				ieee802154_rx_irqsafe(phy->hw, newskb, &rx_info);
+		}
+	}
+	read_unlock_bh(&current_phy->edges_lock);
+	read_unlock_bh(&fakelb_ifup_phys_lock);
+
+	ieee802154_xmit_complete(hw, skb, false, IEEE802154_TX_SUCCESS);
+	return 0;
+}
+
+static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	if (whitelist)
+		return fakelb_hw_xmit_whitelist(hw, skb);
+	else
+		return fakelb_hw_xmit_all_to_all(hw, skb);
 }
 
 static int fakelb_hw_start(struct ieee802154_hw *hw)
@@ -134,6 +192,137 @@ static const struct ieee802154_ops fakelb_ops = {
 /* Number of dummy devices to be set up by this module. */
 module_param(numlbs, int, 0);
 MODULE_PARM_DESC(numlbs, " number of pseudo devices");
+
+module_param(whitelist, int, 0);
+MODULE_PARM_DESC(whitelist, " bool whitelist for edges");
+
+static struct dentry *fakelb_debugfs_root;
+
+static int fakelb_stats_show(struct seq_file *file, void *offset)
+{
+	struct fakelb_phy *phy;
+	struct fakelb_edge *e;
+
+	mutex_lock(&fakelb_phys_lock);
+	list_for_each_entry(phy, &fakelb_phys, list) {
+		read_lock_bh(&phy->edges_lock);
+		list_for_each_entry(e, &phy->edges, list) {
+			seq_printf(file, "%s -> %s\n",
+				   dev_name(&phy->hw->phy->dev),
+				   dev_name(&e->endpoint->hw->phy->dev));
+
+		}
+		read_unlock_bh(&phy->edges_lock);
+	}
+	mutex_unlock(&fakelb_phys_lock);
+
+	return 0;
+}
+
+static int fakelb_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fakelb_stats_show, inode->i_private);
+}
+
+static struct fakelb_phy *fakelb_phy_by_idx(unsigned int idx)
+{
+	struct fakelb_phy *phy;
+	char buf[128] = {};
+	int n;
+
+	n = sprintf(buf, "phy%u", idx);
+	if (n < 0)
+		return NULL;
+
+	list_for_each_entry(phy, &fakelb_phys, list) {
+		if (!strncmp(buf, dev_name(&phy->hw->phy->dev), sizeof(buf)))
+			return phy;
+	}
+
+	return NULL;
+}
+
+static ssize_t fakelb_edges_write(struct file *fp,
+				  const char __user *user_buf, size_t count,
+				  loff_t *ppos)
+{
+	struct fakelb_phy *v0, *v1;
+	struct fakelb_edge *e;
+	char buf[128] = {};
+	int status = count, n;
+	unsigned int v[2];
+
+	if (copy_from_user(&buf, user_buf, min_t(size_t, sizeof(buf) - 1,
+						 count))) {
+		status = -EFAULT;
+		goto out;
+	}
+
+	n = sscanf(buf, "%d %d", &v[0], &v[1]);
+	if (n != 2) {
+		status = -EINVAL;
+		goto out;
+	}
+
+	mutex_lock(&fakelb_phys_lock);
+	v0 = fakelb_phy_by_idx(v[0]);
+	v1 = fakelb_phy_by_idx(v[1]);
+	if (!v0 || !v1) {
+	       status = -ENOENT;
+	       mutex_unlock(&fakelb_phys_lock);
+	       goto out;
+	}
+
+	e = kmalloc(sizeof(*e), GFP_KERNEL);
+	if (!e) {
+	       status = -ENOMEM;
+	       mutex_unlock(&fakelb_phys_lock);
+	       goto out;
+	}
+
+	e->lqi = 0xff;
+	e->endpoint = v1;
+
+	write_lock_bh(&v0->edges_lock);
+	list_add_tail(&e->list, &v0->edges);
+	write_unlock_bh(&v0->edges_lock);
+
+	mutex_unlock(&fakelb_phys_lock);
+
+out:
+	return status;
+}
+
+static const struct file_operations fakelb_edges_fops = {
+	.open		= fakelb_stats_open,
+	.read		= seq_read,
+	.write		= fakelb_edges_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int fakelb_debugfs_init(void)
+{
+	char debugfs_dir_name[DNAME_INLINE_LEN + 1] = "fakelb";
+	struct dentry *stats;
+
+	fakelb_debugfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
+	if (!fakelb_debugfs_root)
+		return -ENOMEM;
+
+	stats = debugfs_create_file("edges", S_IWUGO,
+				    fakelb_debugfs_root, NULL,
+				    &fakelb_edges_fops);
+	if (!stats)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void fakelb_debugfs_remove(void)
+{
+	debugfs_remove_recursive(fakelb_debugfs_root);
+}
 
 static int fakelb_add_one(struct device *dev)
 {
@@ -186,6 +375,8 @@ static int fakelb_add_one(struct device *dev)
 
 	hw->flags = IEEE802154_HW_PROMISCUOUS;
 	hw->parent = dev;
+	INIT_LIST_HEAD(&phy->edges);
+	rwlock_init(&phy->edges_lock);
 
 	err = ieee802154_register_hw(hw);
 	if (err)
@@ -222,7 +413,8 @@ static int fakelb_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "added ieee802154 hardware\n");
-	return 0;
+
+	return fakelb_debugfs_init();
 
 err_slave:
 	mutex_lock(&fakelb_phys_lock);
@@ -240,6 +432,9 @@ static int fakelb_remove(struct platform_device *pdev)
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
 	mutex_unlock(&fakelb_phys_lock);
+
+	fakelb_debugfs_remove();
+
 	return 0;
 }
 
