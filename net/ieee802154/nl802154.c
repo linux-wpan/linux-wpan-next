@@ -781,6 +781,9 @@ static int nl802154_get_llsec_params(struct sk_buff *msg,
 	struct ieee802154_llsec_params params;
 	int ret;
 
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+		return 0;
+
 	ret = rdev_get_llsec_params(rdev, wpan_dev, &params);
 	if (ret < 0)
 		return ret;

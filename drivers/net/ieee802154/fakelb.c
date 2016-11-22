@@ -48,6 +48,7 @@ struct fakelb_phy {
 	struct list_head list_ifup;
 	struct list_head edges;
 	rwlock_t edges_lock;
+	bool ignore;
 };
 
 struct fakelb_edge {
@@ -193,16 +194,24 @@ static int fakelb_stats_show(struct seq_file *file, void *offset)
 
 	mutex_lock(&fakelb_phys_lock);
 	list_for_each_entry(phy, &fakelb_phys, list) {
+		if (phy->ignore)
+			continue;
+
 		read_lock_bh(&phy->edges_lock);
 		list_for_each_entry(e, &phy->edges, list) {
-			seq_printf(file, "%s -> %s\n",
+			if (e->endpoint->ignore)
+				continue;
+
+			seq_printf(file, "\t%s -> %s[label=\"%d\"];\n",
 				   dev_name(&phy->hw->phy->dev),
-				   dev_name(&e->endpoint->hw->phy->dev));
+				   dev_name(&e->endpoint->hw->phy->dev),
+				   e->lqi);
 
 		}
 		read_unlock_bh(&phy->edges_lock);
 	}
 	mutex_unlock(&fakelb_phys_lock);
+	seq_printf(file, "}\n");
 
 	return 0;
 }
@@ -370,6 +379,30 @@ static int fakelb_edges_lqi(char *argv)
 	return 0;
 }
 
+static int fakelb_edges_ignore(char *argv)
+{
+	struct fakelb_phy *v;
+	unsigned int num;
+	int n;
+
+	n = sscanf(argv, "%d", &num);
+	if (n != 1)
+	       return -ENOENT;
+
+	mutex_lock(&fakelb_phys_lock);
+	v = fakelb_phy_by_idx(num);
+	if (!v) {
+	       mutex_unlock(&fakelb_phys_lock);
+	       return -ENOENT;
+	}
+
+	v->ignore = true;
+
+	mutex_unlock(&fakelb_phys_lock);
+
+	return 0;
+}
+
 static ssize_t fakelb_edges_write(struct file *fp,
 				  const char __user *user_buf, size_t count,
 				  loff_t *ppos)
@@ -389,6 +422,10 @@ static ssize_t fakelb_edges_write(struct file *fp,
 			status = err;
 	} else if (!strncmp(buf, "del ", 4)) {
 		err = fakelb_edges_del(&buf[4]);
+		if (err < 0)
+			status = err;
+	} else if (!strncmp(buf, "ign ", 4)) {
+		err = fakelb_edges_ignore(&buf[4]);
 		if (err < 0)
 			status = err;
 	} else if (!strncmp(buf, "lqi ", 4)) {
