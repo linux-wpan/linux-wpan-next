@@ -236,6 +236,13 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 
 	memcpy(&info, lowpan_skb_priv(skb), sizeof(info));
 
+	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP &&
+	    ntohs(udp_hdr(skb)->source) == 19788 &&
+	    ntohs(udp_hdr(skb)->dest) == 19788) {
+		cb->secen = false;
+		cb->secen_override = true;
+	}
+
 	*dgram_size = skb->len;
 	lowpan_header_compress(skb, ldev, &info.daddr, &info.saddr);
 	/* dgram_offset = (saved bytes after compression) + lowpan header len */

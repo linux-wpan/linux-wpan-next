@@ -104,7 +104,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	 */
 	rc = mac802154_llsec_decrypt(&sdata->sec, skb);
 	if (rc) {
-		pr_debug("decryption failed: %i\n", rc);
+		pr_info("decryption failed: %i\n", rc);
 		goto fail;
 	}
 
