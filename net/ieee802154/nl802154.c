@@ -1534,6 +1534,9 @@ nl802154_dump_llsec_key(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err)
 		return err;
 
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+		return 0;
+
 	if (!wpan_dev->netdev) {
 		err = -EINVAL;
 		goto out_err;
@@ -1703,6 +1706,9 @@ nl802154_dump_llsec_dev(struct sk_buff *skb, struct netlink_callback *cb)
 	err = nl802154_prepare_wpan_dev_dump(skb, cb, &rdev, &wpan_dev);
 	if (err)
 		return err;
+
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+		return 0;
 
 	if (!wpan_dev->netdev) {
 		err = -EINVAL;
@@ -1876,6 +1882,9 @@ nl802154_dump_llsec_devkey(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err)
 		return err;
 
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+		return 0;
+
 	if (!wpan_dev->netdev) {
 		err = -EINVAL;
 		goto out_err;
@@ -2040,6 +2049,9 @@ nl802154_dump_llsec_seclevel(struct sk_buff *skb, struct netlink_callback *cb)
 	err = nl802154_prepare_wpan_dev_dump(skb, cb, &rdev, &wpan_dev);
 	if (err)
 		return err;
+
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+		return 0;
 
 	if (!wpan_dev->netdev) {
 		err = -EINVAL;
