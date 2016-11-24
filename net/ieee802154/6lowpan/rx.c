@@ -8,6 +8,8 @@
  * GNU General Public License for more details.
  */
 
+#include <uapi/linux/udp.h>
+#include <uapi/linux/ipv6.h>
 #include <linux/if_arp.h>
 
 #include <net/6lowpan.h>
@@ -91,11 +93,26 @@ static lowpan_rx_result lowpan_rx_h_frag(struct sk_buff *skb)
 int lowpan_iphc_decompress(struct sk_buff *skb)
 {
 	struct ieee802154_hdr hdr;
+	int ret;
 
-	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
+	if (ieee802154_hdr_peek(skb, &hdr) < 0)
 		return -EINVAL;
 
-	return lowpan_header_decompress(skb, skb->dev, &hdr.dest, &hdr.source);
+	ret = lowpan_header_decompress(skb, skb->dev, &hdr.dest, &hdr.source);
+	if (ret < 0)
+		return ret;
+
+	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP &&
+	    ntohs(udp_hdr(skb)->source) == 19788 &&
+	    ntohs(udp_hdr(skb)->dest) == 19788 &&
+	    !hdr.fc.security_enabled) {
+		return 0;
+	} else {
+		if (!hdr.fc.security_enabled)
+			return -1;
+	}
+
+	return 0;
 }
 
 static lowpan_rx_result lowpan_rx_h_iphc(struct sk_buff *skb)
