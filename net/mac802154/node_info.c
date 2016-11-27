@@ -71,7 +71,7 @@ static struct node_info *node_info_alloc(struct ieee802154_local *local, __le64 
 
 static void node_info_rx_update(struct node_info *ninfo, struct ieee802154_rx_info *rx_info)
 {
-	memcpy(&ninfo->rx_info, rx_info, sizeof(rx_info));
+	memcpy(&ninfo->rx_info, rx_info, sizeof(*rx_info));
 }
 
 int node_info_rx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,
@@ -96,11 +96,13 @@ int node_info_rx_insert_or_update(struct ieee802154_local *local, __le64 *extend
 	return 0;
 }
 
-static void node_info_tx_update(struct node_info *ninfo, enum ieee802154_tx_status status)
+static void node_info_tx_update(struct node_info *ninfo, enum ieee802154_tx_status status,
+				bool was_ack_request)
 {
 	switch (status) {
 	case IEEE802154_TX_SUCCESS:
-		ninfo->tx_stats.success++;
+		if (was_ack_request)
+			ninfo->tx_stats.success++;
 		break;
 	case IEEE802154_TX_NO_ACK:
 		ninfo->tx_stats.no_ack++;
@@ -112,7 +114,7 @@ static void node_info_tx_update(struct node_info *ninfo, enum ieee802154_tx_stat
 }
 
 int node_info_tx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,
-				  enum ieee802154_tx_status status)
+				  enum ieee802154_tx_status status, bool was_ack_request)
 {
 	struct node_info *ninfo;
 
@@ -122,11 +124,11 @@ int node_info_tx_insert_or_update(struct ieee802154_local *local, __le64 *extend
 		if (IS_ERR(ninfo))
 			return PTR_ERR(ninfo);
 
-		node_info_tx_update(ninfo, status);
+		node_info_tx_update(ninfo, status, was_ack_request);
 		node_info_insert(ninfo);
 	} else {
 		write_lock_bh(&ninfo->lock);
-		node_info_tx_update(ninfo, status);
+		node_info_tx_update(ninfo, status, was_ack_request);
 		write_unlock_bh(&ninfo->lock);
 	}
 

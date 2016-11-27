@@ -959,6 +959,7 @@ llsec_update_devkey_info(struct mac802154_llsec_device *dev,
 	if ((!devkey && frame_counter < dev->dev.frame_counter) ||
 	    (devkey && frame_counter < devkey->devkey.frame_counter)) {
 		spin_unlock_bh(&dev->lock);
+		pr_info("frame_counter mismatch\n");
 		return -EINVAL;
 	}
 
@@ -1007,11 +1008,13 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	dev = llsec_lookup_dev(sec, &hdr.source);
 	if (!dev) {
+		pr_info("lookup_dev");
 		err = -EINVAL;
 		goto fail_dev;
 	}
 
 	if (llsec_lookup_seclevel(sec, hdr.fc.type, 0, &seclevel) < 0) {
+		pr_info("seclevel");
 		err = -EINVAL;
 		goto fail_dev;
 	}

@@ -73,11 +73,12 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 	hlen = ieee802154_hdr_pull(skb, &hdr);
 	if (hlen > 0) {
 		struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(skb->dev);
+		/* TODO check on ack_request */
 		switch (hdr.dest.mode) {
 		case IEEE802154_ADDR_LONG:
 			node_info_tx_insert_or_update(sdata->local,
 						      &hdr.dest.extended_addr,
-						      status);
+						      status, hdr.fc.ack_request);
 			break;
 		default:
 			break;
