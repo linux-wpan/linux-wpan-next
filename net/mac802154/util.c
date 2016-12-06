@@ -80,6 +80,10 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 						      &hdr.dest.extended_addr,
 						      status, hdr.fc.ack_request);
 			break;
+		case IEEE802154_ADDR_SHORT:
+			if (hdr.dest.short_addr == cpu_to_le16(0xffff)) {
+				node_info_tx_broadcast(sdata->local, status);
+			}
 		default:
 			break;
 		}

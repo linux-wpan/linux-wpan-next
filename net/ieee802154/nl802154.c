@@ -2196,10 +2196,6 @@ static int nl802154_send_node(struct sk_buff *msg, u32 cmd, u32 portid,
 			      NL802154_NODE_INFO_ATTR_PAD))
 		goto nla_put_failure;
 
-	if (nla_put_u64_64bit(msg, NL802154_NODE_INFO_ATTR_TX_NO_ACK, ninfo->tx_stats.no_ack,
-			      NL802154_NODE_INFO_ATTR_PAD))
-		goto nla_put_failure;
-
 	if (nla_put_u64_64bit(msg, NL802154_NODE_INFO_ATTR_LQI_SUM, ninfo->lqi_sum,
 			      NL802154_NODE_INFO_ATTR_PAD))
 		goto nla_put_failure;

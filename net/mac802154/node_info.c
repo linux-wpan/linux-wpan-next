@@ -104,8 +104,9 @@ static void node_info_tx_update(struct node_info *ninfo, enum ieee802154_tx_stat
 {
 	switch (status) {
 	case IEEE802154_TX_SUCCESS:
-		if (was_ack_request)
-			ninfo->tx_stats.success++;
+		/* TODO */
+		//if (was_ack_request)
+		ninfo->tx_stats.success++;
 		break;
 	case IEEE802154_TX_NO_ACK:
 		ninfo->tx_stats.no_ack++;
@@ -114,6 +115,28 @@ static void node_info_tx_update(struct node_info *ninfo, enum ieee802154_tx_stat
 		ninfo->tx_stats.csma_failure++;
 		break;
 	}
+}
+
+int node_info_tx_broadcast(struct ieee802154_local *local, enum ieee802154_tx_status status)
+{
+	struct node_info *ninfo;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ninfo, &local->node_list, list) {
+		ninfo->tx_stats.success++;
+		switch (status) {
+		case IEEE802154_TX_SUCCESS:
+			ninfo->tx_stats.success++;
+			break;
+		case IEEE802154_TX_NO_ACK:
+			break;
+		case IEEE802154_TX_CSMA_FAILURE:
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return 0;
 }
 
 int node_info_tx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,

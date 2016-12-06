@@ -33,6 +33,7 @@ struct node_info *node_info_hash_lookup(struct ieee802154_local *local, __le64 *
 u32 node_info_hash(const void *key, u32 length, u32 seed);
 int node_info_insert(struct node_info *node);
 
+int node_info_tx_broadcast(struct ieee802154_local *local, enum ieee802154_tx_status status);
 int node_info_tx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,
 				  enum ieee802154_tx_status status, bool was_ack_request);
 int node_info_rx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,
