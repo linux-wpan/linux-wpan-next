@@ -72,6 +72,9 @@ static struct node_info *node_info_alloc(struct ieee802154_local *local, __le64 
 static void node_info_rx_update(struct node_info *ninfo, struct ieee802154_rx_info *rx_info)
 {
 	memcpy(&ninfo->rx_info, rx_info, sizeof(*rx_info));
+	/* TODO check overflow */
+	ninfo->lqi_sum += rx_info->lqi;
+	ninfo->received++;
 }
 
 int node_info_rx_insert_or_update(struct ieee802154_local *local, __le64 *extended_addr,

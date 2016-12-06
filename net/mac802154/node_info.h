@@ -15,8 +15,9 @@ struct node_info {
 
 	struct list_head list;
 
-	bool received;
 	struct ieee802154_rx_info rx_info;
+	u64 lqi_sum;
+	u64 received;
 	struct {
 		u64 success;
 		u64 no_ack;

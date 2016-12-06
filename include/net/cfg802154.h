@@ -392,9 +392,11 @@ struct ieee802154_node_info {
 	__le16 pan_id;
 	int generation;
 
-	bool receive_info;
 	u8 lqi;
 	s32 ed;
+
+	u64 lqi_sum;
+	u64 received;
 
 	struct {
 		u64 success;

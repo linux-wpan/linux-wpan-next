@@ -469,11 +469,16 @@ ieee802154_dump_station(struct wpan_phy *wiphy, struct net_device *dev,
 	node = node_info_get_by_idx(sdata, idx);
 	if (node) {
 		ret = 0;
+		read_lock_bh(&node->lock);
 		ninfo->lqi = node->rx_info.lqi;
+		ninfo->ed = node->rx_info.ed;
+		ninfo->lqi_sum = node->lqi_sum;
+		ninfo->received = node->received;
 		ninfo->ed = node->rx_info.ed;
 		ninfo->extended_addr = node->extended_addr;
 		memcpy(&ninfo->tx_stats, &node->tx_stats,
 		       sizeof(ninfo->tx_stats));
+		read_unlock_bh(&node->lock);
 //		ninfo->short_addr = node->short_addr;
 //		ninfo->pan_id = node->pan_id;
 	}
